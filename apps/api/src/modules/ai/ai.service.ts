@@ -1,0 +1,267 @@
+import { Injectable, Logger } from '@nestjs/common'
+import Anthropic from '@anthropic-ai/sdk'
+import { PrismaService } from '../../prisma/prisma.service'
+import type { TenantConfig, DashboardSummary } from '@opsc/types'
+import type { AIModule, DocumentType } from '@opsc/database'
+
+@Injectable()
+export class AiService {
+  private readonly logger = new Logger(AiService.name)
+  private readonly anthropic = new Anthropic({
+    apiKey: process.env['ANTHROPIC_API_KEY'],
+  })
+  private readonly model = process.env['ANTHROPIC_MODEL'] ?? 'claude-sonnet-4-6'
+
+  constructor(private readonly prisma: PrismaService) {}
+
+  async listInsights(companyId: string, module?: string) {
+    return this.prisma.aIInsight.findMany({
+      where: {
+        companyId,
+        ...(module ? { module: module as AIModule } : {}),
+      },
+      orderBy: [{ severity: 'desc' }, { createdAt: 'desc' }],
+      take: 50,
+    })
+  }
+
+  async generateInsights(companyId: string, module: AIModule) {
+    const company = await this.prisma.company.findUniqueOrThrow({
+      where: { id: companyId },
+    })
+
+    const tenantConfig = company.tenantConfig as unknown as TenantConfig
+    const persona = tenantConfig.aiPersona ?? 'collections-focused'
+
+    const dataSnapshot = await this.buildDataSnapshot(companyId, module)
+    const systemPrompt = this.buildSystemPrompt(persona, company.industry)
+
+    const response = await this.anthropic.messages.create({
+      model: this.model,
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: [
+        {
+          role: 'user',
+          content: `Generate 3 actionable business insights for the ${module} module based on this data:\n\n${JSON.stringify(dataSnapshot, null, 2)}`,
+        },
+      ],
+    })
+
+    const text = response.content[0]?.type === 'text' ? response.content[0].text : ''
+
+    const insight = await this.prisma.aIInsight.create({
+      data: {
+        companyId,
+        module,
+        category: module.toLowerCase(),
+        severity: 'INFO',
+        summary: text,
+        dataSnapshot: JSON.parse(JSON.stringify(dataSnapshot)),
+      },
+    })
+
+    return insight
+  }
+
+  async chat(
+    companyId: string,
+    message: string,
+    history: Array<{ role: 'user' | 'assistant'; content: string }> = [],
+  ) {
+    const company = await this.prisma.company.findUniqueOrThrow({
+      where: { id: companyId },
+    })
+
+    const tenantConfig = company.tenantConfig as unknown as TenantConfig
+    const systemPrompt = this.buildSystemPrompt(
+      tenantConfig.aiPersona ?? 'collections-focused',
+      company.industry,
+    )
+
+    const messages: Anthropic.MessageParam[] = [
+      ...history.map((h) => ({ role: h.role, content: h.content })),
+      { role: 'user', content: message },
+    ]
+
+    const response = await this.anthropic.messages.create({
+      model: this.model,
+      max_tokens: 2048,
+      system: systemPrompt,
+      messages,
+    })
+
+    const reply = response.content[0]?.type === 'text' ? response.content[0].text : ''
+    return { reply }
+  }
+
+  private buildSystemPrompt(
+    persona: TenantConfig['aiPersona'],
+    industry: string,
+  ): string {
+    const focus: Record<TenantConfig['aiPersona'], string> = {
+      'collections-focused':
+        'You are an expert collections advisor for Indian SMEs. Focus on receivables, payment recovery, and cash flow.',
+      'inventory-focused':
+        'You are an expert supply chain advisor for Indian manufacturers. Focus on stock levels, reorder planning, and cost optimization.',
+      'compliance-focused':
+        'You are an expert CA and compliance advisor for Indian businesses. Focus on GST, TDS, and statutory obligations.',
+    }
+
+    return `${focus[persona]} You are serving a ${industry.replace('_', ' ').toLowerCase()} business. Provide concise, actionable advice in English. Always quantify recommendations where possible.`
+  }
+
+  private async buildDataSnapshot(companyId: string, module: AIModule): Promise<object> {
+    if (module === 'COLLECTIONS') {
+      const [total, overdue, pending] = await Promise.all([
+        this.prisma.invoice.count({ where: { companyId } }),
+        this.prisma.invoice.count({ where: { companyId, status: 'OVERDUE' } }),
+        this.prisma.invoice.aggregate({
+          where: { companyId, status: { in: ['PENDING', 'OVERDUE'] } },
+          _sum: { amount: true },
+        }),
+      ])
+      return { totalInvoices: total, overdueCount: overdue, pendingAmount: pending._sum.amount }
+    }
+
+    if (module === 'INVENTORY') {
+      const lowStock = await this.prisma.inventoryItem.count({
+        where: {
+          companyId,
+          quantity: { lte: 0 },
+        },
+      })
+      const total = await this.prisma.inventoryItem.count({ where: { companyId } })
+      return { totalItems: total, outOfStock: lowStock }
+    }
+
+    return {}
+  }
+
+  async extractDocumentData(
+    base64Content: string,
+    mimeType: string,
+    documentType: DocumentType,
+  ): Promise<Record<string, unknown>> {
+    const systemPrompt = `You are a document data extraction specialist for Indian CA firms.
+Extract structured data from the provided document.
+Return ONLY a valid JSON object. No markdown, no explanation.
+
+For INVOICE extract: { "documentType": "INVOICE", "invoiceNumber": string|null, "invoiceDate": "YYYY-MM-DD"|null, "clientName": string|null, "vendorName": string|null, "amount": number|null, "gstAmount": number|null, "totalAmount": number|null, "gstNumber": string|null, "panNumber": string|null, "confidence": number }
+For GST_RETURN extract: { "documentType": "GST_RETURN", "gstNumber": string|null, "filingPeriod": string|null, "totalTaxableValue": number|null, "totalIGST": number|null, "totalCGST": number|null, "totalSGST": number|null, "filingDate": "YYYY-MM-DD"|null, "confidence": number }
+For TDS_CERTIFICATE extract: { "documentType": "TDS_CERTIFICATE", "deductorName": string|null, "deducteeName": string|null, "panOfDeductee": string|null, "assessmentYear": string|null, "totalAmountPaid": number|null, "totalTaxDeducted": number|null, "confidence": number }
+For OTHER documents extract whatever structured fields you can identify.
+Always include a confidence score (0-1). Return null for fields you cannot determine.`
+
+    const isImage = mimeType.startsWith('image/')
+
+    const contentBlocks: Anthropic.MessageParam['content'] = isImage
+      ? [
+          {
+            type: 'image' as const,
+            source: {
+              type: 'base64' as const,
+              media_type: mimeType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
+              data: base64Content,
+            },
+          } satisfies Anthropic.ImageBlockParam,
+          {
+            type: 'text' as const,
+            text: `Extract data from this ${documentType} document.`,
+          } satisfies Anthropic.TextBlockParam,
+        ]
+      : [
+          {
+            type: 'text' as const,
+            text: `Extract data from this ${documentType} document. The document is provided as base64-encoded PDF content:\n\nBase64 content (first 100 chars for reference): ${base64Content.slice(0, 100)}...\n\nPlease extract whatever structured data you can infer from a ${documentType} document type and return the JSON.`,
+          } satisfies Anthropic.TextBlockParam,
+        ]
+
+    const response = await this.anthropic.messages.create({
+      model: this.model,
+      max_tokens: 2000,
+      system: systemPrompt,
+      messages: [
+        {
+          role: 'user',
+          content: contentBlocks,
+        },
+      ],
+    })
+
+    const raw = response.content[0]?.type === 'text' ? response.content[0].text : '{}'
+    const cleaned = raw.replace(/```(?:json)?\n?/g, '').replace(/```\n?/g, '').trim()
+
+    try {
+      return JSON.parse(cleaned) as Record<string, unknown>
+    } catch {
+      this.logger.warn('Failed to parse OCR JSON', cleaned.slice(0, 200))
+      return { confidence: 0, error: 'Parse failed', raw: cleaned.slice(0, 500) }
+    }
+  }
+
+  async generateReportSummary(
+    reportType: string,
+    dataSnapshot: Record<string, unknown>,
+    tenantConfig: TenantConfig,
+  ): Promise<string> {
+    const systemPrompt = `You are a senior CA writing an executive summary for a CA firm principal.
+Write a clear, professional 3-5 sentence summary of the report data.
+Rules: Reference specific numbers in Indian format (₹1,23,456). Highlight the most important insight first. End with one actionable recommendation.
+Tone: professional, direct, no fluff.`
+
+    const response = await this.anthropic.messages.create({
+      model: this.model,
+      max_tokens: 512,
+      system: systemPrompt,
+      messages: [
+        {
+          role: 'user',
+          content: `Report type: ${reportType}\nBusiness context: ${tenantConfig.industryType} company.\n\nData:\n${JSON.stringify(dataSnapshot, null, 2)}`,
+        },
+      ],
+    })
+
+    return response.content[0]?.type === 'text' ? response.content[0].text : ''
+  }
+
+  async generateDashboardInsights(
+    summary: DashboardSummary,
+    config: TenantConfig,
+  ): Promise<Array<{ category: string; severity: string; summary: string }>> {
+    const systemPrompt = `You are an operational analyst for an Indian SME. Analyze the provided business data and return ONLY a JSON array of insights. Each insight must:
+
+* Reference specific numbers from the data
+* Explain operational significance
+* Be under 25 words
+* Be actionable, not generic
+Return format: [{ "category": string, "severity": "INFO"|"WARNING"|"CRITICAL", "summary": string }]
+BAD: "Your collections seem to be declining." GOOD: "Overdue receivables up ₹1.2L this week — 3 customers account for 78% of the risk."
+Never return motivational statements. Never hallucinate numbers not in the data.`
+
+    const response = await this.anthropic.messages.create({
+      model: this.model,
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: [
+        {
+          role: 'user',
+          content: `Business context: ${config.industryType} company, persona: ${config.aiPersona}.\n\nCurrent data:\n${JSON.stringify(summary, null, 2)}`,
+        },
+      ],
+    })
+
+    const raw = response.content[0]?.type === 'text' ? response.content[0].text : '[]'
+    // Strip markdown code fences if present
+    const cleaned = raw.replace(/```(?:json)?\n?/g, '').replace(/```\n?/g, '').trim()
+
+    try {
+      const parsed = JSON.parse(cleaned) as unknown
+      if (!Array.isArray(parsed)) return []
+      return parsed as Array<{ category: string; severity: string; summary: string }>
+    } catch {
+      this.logger.warn('Failed to parse AI insight JSON', cleaned.slice(0, 200))
+      return []
+    }
+  }
+}

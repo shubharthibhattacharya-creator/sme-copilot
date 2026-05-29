@@ -1,0 +1,745 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum FilerType {
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+}
+
+enum FilingCategory {
+  REGULAR
+  COMPOSITION
+  EXEMPT
+}
+
+enum ConfigDataType {
+  NUMBER
+  BOOLEAN
+  STRING
+  JSON
+}
+
+enum ConfigCategory {
+  COLLECTIONS
+  AI_INSIGHTS
+  GST_COMPLIANCE
+  DOCUMENTS
+  REPORTS
+  WHATSAPP
+}
+
+enum Industry {
+  CA_FIRM
+  DISTRIBUTOR
+  MANUFACTURER
+}
+
+enum SubscriptionPlan {
+  STARTER
+  GROWTH
+  ENTERPRISE
+}
+
+enum UserRole {
+  ADMIN
+  OPERATIONS_MANAGER
+  STAFF
+}
+
+enum InvoiceStatus {
+  PENDING
+  OVERDUE
+  PAID
+  PARTIAL
+}
+
+enum AIModule {
+  DASHBOARD
+  COLLECTIONS
+  INVENTORY
+  WHATSAPP
+  REPORTING
+}
+
+enum InsightSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum DocumentType {
+  INVOICE
+  PURCHASE_ORDER
+  DELIVERY_NOTE
+  GST_RETURN
+  TDS_CERTIFICATE
+  BANK_STATEMENT
+  FORM_16
+  OTHER
+}
+
+enum DocumentStatus {
+  UPLOADED
+  PROCESSING
+  PROCESSED
+  FAILED
+  NEEDS_REVIEW
+}
+
+enum RequestStatus {
+  PENDING
+  FULFILLED
+  CANCELLED
+}
+
+enum ReportType {
+  COLLECTIONS_AGING
+  RECEIVABLES_SUMMARY
+  INVENTORY_STATUS
+  CASH_FLOW
+  AI_INSIGHTS_DIGEST
+}
+
+enum ReportStatus {
+  PENDING
+  GENERATING
+  COMPLETED
+  FAILED
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model Company {
+  id               String           @id @default(cuid())
+  name             String
+  industry         Industry
+  subscriptionPlan SubscriptionPlan @default(STARTER)
+  /// Stores TenantConfig JSON — enabled modules, AI persona, feature flags
+  tenantConfig     Json             @default("{}")
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  isActive     Boolean          @default(true)
+  logoUrl      String?
+  gstNumber    String?
+  panNumber    String?
+  address      String?
+  website      String?
+  phone        String?
+
+  // Relations
+  users                  User[]
+  invoices               Invoice[]
+  inventory              InventoryItem[]
+  aiInsights             AIInsight[]
+  auditLogs              AuditLog[]
+  businessConfig         BusinessConfig?
+  documents              Document[]
+  documentRequests       DocumentRequest[]
+  reports                Report[]
+  whatsappMessages       WhatsAppMessage[]
+  whatsappTemplates      WhatsAppTemplate[]
+  knowledgeDocuments     KnowledgeDocument[]
+  assistantConversations AssistantConversation[]
+  clients                Client[]
+  clientConfigs          ClientConfig[]
+  uploadTokens           UploadToken[]
+  taxIntegration         TaxIntegration?
+  taxSyncLogs            TaxSyncLog[]
+
+  @@map("companies")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  companyId String
+  role      UserRole @default(STAFF)
+  name      String
+  email     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  company                Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  auditLogs              AuditLog[]
+  uploadedDocuments      Document[]            @relation("UploadedDocuments")
+  requestedByMe          DocumentRequest[]     @relation("RequestedByUser")
+  requestedFromMe        DocumentRequest[]     @relation("RequestedFromUser")
+  generatedReports       Report[]              @relation("GeneratedReports")
+  assistantConversations AssistantConversation[]
+  clientConfigs          ClientConfig[]
+
+  @@index([companyId])
+  @@index([clerkId])
+  @@map("users")
+}
+
+model Invoice {
+  id             String        @id @default(cuid())
+  companyId      String
+  customerName   String
+  customerPhone  String?
+  clientId       String?
+  amount         Decimal       @db.Decimal(14, 2)
+  currency       String        @default("INR")
+  dueDate        DateTime
+  paidAt         DateTime?
+  status         InvoiceStatus @default(PENDING)
+  /// Computed: days since dueDate when status is OVERDUE
+  agingDays      Int           @default(0)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Relations
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  collectionRisk CollectionRisk?
+  client         Client?         @relation(fields: [clientId], references: [id])
+
+  @@index([companyId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("invoices")
+}
+
+model CollectionRisk {
+  id                 String   @id @default(cuid())
+  invoiceId          String   @unique
+  riskScore          Float    /// 0.0 (low) – 1.0 (high)
+  predictedDelayDays Int
+  /// Structured JSON: { factors: string[], weights: number[] }
+  riskFactors        Json
+  calculatedAt       DateTime @default(now())
+
+  // Relations
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("collection_risks")
+}
+
+model InventoryItem {
+  id               String    @id @default(cuid())
+  companyId        String
+  sku              String
+  name             String
+  category         String
+  quantity         Int       @default(0)
+  reorderLevel     Int       @default(0)
+  unitCost         Decimal   @db.Decimal(14, 2)
+  /// Units sold/consumed per day (rolling average)
+  movementVelocity Float     @default(0)
+  lastMovementAt   DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, sku])
+  @@index([companyId])
+  @@index([category])
+  @@map("inventory_items")
+}
+
+model AIInsight {
+  id           String          @id @default(cuid())
+  companyId    String
+  module       AIModule
+  category     String
+  severity     InsightSeverity @default(INFO)
+  /// The AI-generated insight text shown to the user
+  summary      String
+  /// The data snapshot that was sent to the AI to generate this insight
+  dataSnapshot Json
+  createdAt    DateTime        @default(now())
+
+  // Relations
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([module])
+  @@index([severity])
+  @@map("ai_insights")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  companyId String
+  userId    String
+  action    String
+  entity    String
+  entityId  String
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  // Relations
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([userId])
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}
+
+/// Per-company configurable thresholds for risk scoring, severity floors,
+/// and aging buckets. All numeric formulas in services read from this table.
+model BusinessConfig {
+  id        String  @id @default(cuid())
+  companyId String  @unique
+
+  // ── Risk score weights (must sum to 1.0) ─────────────────────────────────
+  /// Weight of invoice aging in the risk formula. Default: 0.5
+  riskWeightAging   Float @default(0.5)
+  /// Weight of invoice amount (vs company avg) in the risk formula. Default: 0.3
+  riskWeightAmount  Float @default(0.3)
+  /// Weight of customer historical late-payment rate. Default: 0.2
+  riskWeightHistory Float @default(0.2)
+
+  // ── Risk level thresholds ─────────────────────────────────────────────────
+  /// riskScore < this = LOW. Default: 0.3
+  riskLowThreshold    Float @default(0.3)
+  /// riskScore < this = MEDIUM (else HIGH). Default: 0.6
+  riskMediumThreshold Float @default(0.6)
+
+  // ── Aging bucket boundaries (days overdue) ────────────────────────────────
+  /// End of bucket 1 (0–N days). Default: 30
+  agingBucket1Days Int @default(30)
+  /// End of bucket 2 (N+1 – M days). Default: 60
+  agingBucket2Days Int @default(60)
+  /// End of bucket 3 (M+1 – P days). Default: 90
+  agingBucket3Days Int @default(90)
+  /// agingDays capped at this for scoring (to keep score in 0–1). Default: 90
+  maxAgingDaysForScore Int @default(90)
+
+  // ── Dashboard severity floors ─────────────────────────────────────────────
+  /// Total overdue amount above this triggers CRITICAL severity floor. Default: 100000 (₹1L)
+  criticalOverdueAmount       Float @default(100000)
+  /// Overdue invoice count above this triggers WARNING severity floor. Default: 5
+  warningOverdueCount         Int   @default(5)
+  /// WoW collections trend below this % triggers WARNING severity floor. Default: -10
+  warningCollectionsTrendFloor Float @default(-10)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("business_configs")
+}
+
+model Client {
+  id             String         @id @default(cuid())
+  companyId      String
+  name           String
+  gstin          String?
+  pan            String?
+  contactPerson  String?
+  phone          String?
+  email          String?
+  address        String?
+  filerType      FilerType      @default(MONTHLY)
+  filingCategory FilingCategory @default(REGULAR)
+  serviceScope   String[]
+  gstDeadlineDay Int?
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoices         Invoice[]
+  documents        Document[]
+  documentRequests DocumentRequest[]
+  whatsappMessages WhatsAppMessage[]
+  uploadTokens     UploadToken[]
+
+  @@unique([companyId, gstin])
+  @@index([companyId])
+  @@map("clients")
+}
+
+model SystemConfig {
+  id          String         @id @default(cuid())
+  key         String         @unique
+  value       String
+  dataType    ConfigDataType
+  category    ConfigCategory
+  label       String
+  description String?
+  unit        String?
+  minValue    String?
+  maxValue    String?
+  updatedAt   DateTime       @updatedAt
+
+  @@map("system_configs")
+}
+
+model ClientConfig {
+  id        String   @id @default(cuid())
+  companyId String
+  key       String
+  value     String
+  updatedBy String
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [updatedBy], references: [id])
+
+  @@unique([companyId, key])
+  @@index([companyId])
+  @@map("client_configs")
+}
+
+model Document {
+  id            String         @id @default(cuid())
+  companyId     String
+  uploadedById  String
+  clientId      String?
+  documentType  DocumentType
+  status        DocumentStatus @default(UPLOADED)
+  /// Original filename from the upload
+  originalName  String
+  /// Storage key: {companyId}/{year}/{month}/{uuid}.{ext}
+  storageKey    String
+  fileSizeBytes Int
+  mimeType      String
+  /// Structured data extracted by Claude OCR. Null until PROCESSED.
+  extractedData Json?
+  notes         String?
+  /// Filing period this document belongs to, e.g. "Nov 2024"
+  filingPeriod  String?
+  /// Tax integration sync state
+  syncStatus    SyncStatus  @default(PENDING)
+  syncedAt      DateTime?
+  syncProvider  TaxProvider?
+  /// ID assigned by ClearTax/Zoho/Tally after a successful push
+  externalId    String?
+  syncError     String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  // Relations
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  uploadedBy       User              @relation("UploadedDocuments", fields: [uploadedById], references: [id])
+  documentRequests DocumentRequest[]
+  client           Client?           @relation(fields: [clientId], references: [id])
+  taxSyncLogs      TaxSyncLog[]
+
+  @@index([companyId])
+  @@index([companyId, documentType])
+  @@index([companyId, status])
+  @@index([companyId, createdAt])
+  @@map("documents")
+}
+
+model DocumentRequest {
+  id                  String        @id @default(cuid())
+  companyId           String
+  clientId            String?
+  requestedById       String
+  requestedFromUserId String
+  documentType        DocumentType
+  status              RequestStatus @default(PENDING)
+  dueDate             DateTime?
+  notes               String?
+  /// Set when status becomes FULFILLED
+  fulfilledDocumentId String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  // Relations
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  requestedBy       User      @relation("RequestedByUser", fields: [requestedById], references: [id])
+  requestedFromUser User      @relation("RequestedFromUser", fields: [requestedFromUserId], references: [id])
+  fulfilledDocument Document? @relation(fields: [fulfilledDocumentId], references: [id])
+  client            Client?   @relation(fields: [clientId], references: [id])
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@map("document_requests")
+}
+
+model Report {
+  id            String       @id @default(cuid())
+  companyId     String
+  generatedById String
+  reportType    ReportType
+  status        ReportStatus @default(PENDING)
+  format        String       @default("JSON")
+  /// Storage key for generated file. Null until COMPLETED.
+  fileKey       String?
+  /// AI-generated executive narrative. Null until COMPLETED.
+  aiSummary     String?
+  /// The data snapshot used to generate this report
+  dataSnapshot  Json?
+  /// Date range start for this report
+  periodStart   DateTime?
+  /// Date range end for this report
+  periodEnd     DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  // Relations
+  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  generatedBy User    @relation("GeneratedReports", fields: [generatedById], references: [id])
+
+  @@index([companyId])
+  @@index([companyId, reportType])
+  @@index([companyId, status])
+  @@map("reports")
+}
+
+// ─── Phase 4A: WhatsApp ───────────────────────────────────────────────────────
+
+enum MessageDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum MessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+  READ
+}
+
+model WhatsAppMessage {
+  id           String           @id @default(cuid())
+  companyId    String
+  clientId     String?
+  direction    MessageDirection @default(OUTBOUND)
+  toPhone      String?
+  fromPhone    String?
+  templateKey  String
+  body         String
+  status       MessageStatus    @default(QUEUED)
+  twilioSid    String?
+  metadata     Json?
+  sentAt       DateTime?
+  deliveredAt  DateTime?
+  failedAt     DateTime?
+  errorMessage String?
+  createdAt    DateTime         @default(now())
+
+  company Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client  Client?  @relation(fields: [clientId], references: [id])
+
+  @@index([companyId, status])
+  @@index([companyId, createdAt])
+  @@map("whatsapp_messages")
+}
+
+model WhatsAppTemplate {
+  id        String   @id @default(cuid())
+  companyId String
+  key       String
+  name      String
+  body      String
+  variables Json
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, key])
+  @@map("whatsapp_templates")
+}
+
+// ─── Phase 4B: AI Assistant (RAG) ────────────────────────────────────────────
+
+enum KnowledgeCategory {
+  GST_WORKFLOW
+  TDS_WORKFLOW
+  CLIENT_ONBOARDING
+  FILING_CHECKLIST
+  COMPANY_POLICY
+  GENERAL
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+}
+
+model KnowledgeDocument {
+  id        String            @id @default(cuid())
+  companyId String
+  title     String
+  category  KnowledgeCategory
+  content   String
+  fileKey   String?
+  isActive  Boolean           @default(true)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  company Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  chunks  KnowledgeChunk[]
+
+  @@index([companyId, category])
+  @@map("knowledge_documents")
+}
+
+model KnowledgeChunk {
+  id         String   @id @default(cuid())
+  documentId String
+  companyId  String
+  chunkIndex Int
+  content    String
+  /// pgvector embedding (1536 dims, text-embedding-3-small)
+  embedding  Unsupported("vector(1536)")?
+  createdAt  DateTime @default(now())
+
+  document KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("knowledge_chunks")
+}
+
+model AssistantConversation {
+  id        String   @id @default(cuid())
+  companyId String
+  userId    String
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company  Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages AssistantMessage[]
+
+  @@index([companyId, userId])
+  @@map("assistant_conversations")
+}
+
+model AssistantMessage {
+  id             String      @id @default(cuid())
+  conversationId String
+  role           MessageRole
+  content        String
+  citations      Json?
+  createdAt      DateTime    @default(now())
+
+  conversation AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map("assistant_messages")
+}
+
+// ─── Upload Tokens (client-facing magic-link uploads) ─────────────────────────
+
+model UploadToken {
+  id        String    @id @default(cuid())
+  token     String    @unique @default(cuid())
+  companyId String
+  clientId  String?
+  /// Friendly label shown on the upload page, e.g. "November 2024 GST documents"
+  label     String?
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client  Client? @relation(fields: [clientId], references: [id])
+
+  @@index([token])
+  @@index([companyId])
+  @@map("upload_tokens")
+}
+
+// ─── Phase 6: Tax Filing Software Integration ────────────────────────────────
+
+enum TaxProvider {
+  NONE
+  CLEARTAX
+  ZOHO_BOOKS
+  TALLY
+}
+
+enum SyncStatus {
+  PENDING
+  SYNCING
+  SYNCED
+  FAILED
+  NOT_APPLICABLE
+}
+
+model TaxIntegration {
+  id               String      @id @default(cuid())
+  companyId        String      @unique
+  provider         TaxProvider @default(NONE)
+  isActive         Boolean     @default(false)
+
+  // ClearTax
+  clearTaxApiKey     String?   // encrypted
+  clearTaxClientSecret String? // encrypted
+  clearTaxOrgId      String?
+
+  // Zoho Books
+  zohoClientId       String?
+  zohoClientSecret   String?   // encrypted
+  zohoRefreshToken   String?   // encrypted
+  zohoOrgId          String?
+
+  // Tally Bridge
+  tallyBridgeUrl     String?
+  tallyCompanyName   String?
+
+  lastSyncAt         DateTime?
+  lastSyncStatus     SyncStatus @default(PENDING)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  company   Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("tax_integrations")
+}
+
+model TaxSyncLog {
+  id           String      @id @default(cuid())
+  companyId    String
+  documentId   String?
+  provider     TaxProvider
+  direction    String      // PUSH | PULL
+  status       SyncStatus
+  payload      Json?
+  response     Json?
+  errorMessage String?
+  createdAt    DateTime    @default(now())
+
+  company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  document       Document?      @relation(fields: [documentId], references: [id])
+
+  @@index([companyId, createdAt])
+  @@index([documentId])
+  @@map("tax_sync_logs")
+}
+
+// ─── Admin impersonation tokens ───────────────────────────────────────────────
+
+model ImpersonationToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  companyId String
+  createdBy String    @default("admin_panel")
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([token])
+  @@map("impersonation_tokens")
+}

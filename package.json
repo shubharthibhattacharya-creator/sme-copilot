@@ -1,0 +1,27 @@
+{
+  "name": "opsc-copilot",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "type-check": "turbo type-check",
+    "db:generate": "pnpm --filter @opsc/database db:generate",
+    "db:migrate": "pnpm --filter @opsc/database db:migrate",
+    "db:migrate:deploy": "pnpm --filter @opsc/database db:migrate:deploy",
+    "db:studio": "pnpm --filter @opsc/database db:studio",
+    "db:seed": "pnpm --filter @opsc/database db:seed"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0",
+    "typescript": "^5.4.5",
+    "@types/node": "^20.14.0",
+    "prettier": "^3.3.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.4.0"
+}

@@ -1,0 +1,29 @@
+# Dependencies (re-installed in Docker)
+**/node_modules
+**/.pnpm-store
+
+# Build outputs (rebuilt in Docker)
+**/dist
+**/.next
+**/.turbo
+
+# Dev files
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Logs
+**/*.log
+**/npm-debug.log*
+
+# OS
+.DS_Store
+**/Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Prisma migrations (none yet — using db push)
+# packages/database/prisma/migrations

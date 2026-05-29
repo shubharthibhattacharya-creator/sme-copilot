@@ -1,0 +1,4 @@
+name,gstin,pan,contactPerson,phone,email,filerType,serviceScope
+Sharma Textiles Pvt Ltd,29AABCS1429B1Z4,AABCS1429B,Rajesh Sharma,+919876543210,rajesh@sharmatextiles.com,MONTHLY,"GST_FILING,TDS"
+Kapoor Exports,27AADCK2879B1Z7,AADCK2879B,Priya Kapoor,+919876543211,priya@kapoorexports.com,MONTHLY,GST_FILING
+Gupta Brothers Trading,07AABCG3819B1Z3,AABCG3819B,Amit Gupta,+919876543212,amit@guptabrothers.com,QUARTERLY,"GST_FILING,BOOKKEEPING"
