@@ -47,17 +47,34 @@ export class AuthService {
     const existing = await this.prisma.user.findUnique({ where: { clerkId: clerkUserId } })
     if (existing) return { ok: true }
 
+    // Webhook may not have fired yet — resolve placeholder by email match
+    const clerk = createClerkClient({ secretKey: process.env['CLERK_SECRET_KEY']! })
+    const clerkUser = await clerk.users.getUser(clerkUserId)
+    const emailAddr = clerkUser.emailAddresses[0]?.emailAddress ?? ''
+    const fullName = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || emailAddr
+
+    if (emailAddr) {
+      const placeholder = await this.prisma.user.findFirst({
+        where: { email: emailAddr, clerkId: { startsWith: 'pending_' } },
+      })
+      if (placeholder) {
+        await this.prisma.user.update({
+          where: { id: placeholder.id },
+          data: { clerkId: clerkUserId, name: fullName, isActive: true },
+        })
+        this.logger.log(`Resolved placeholder via registerFromToken for ${emailAddr}`)
+        return { ok: true }
+      }
+    }
+
     // Production: do not auto-provision — all users must come through invite flow
     if (process.env['NODE_ENV'] === 'production') {
       throw new UnauthorizedException('Account not provisioned. Contact your OpsCopilot administrator.')
     }
 
     // Development: auto-provision for convenience
-    const clerk = createClerkClient({ secretKey: process.env['CLERK_SECRET_KEY']! })
-    const clerkUser = await clerk.users.getUser(clerkUserId)
-
-    const email = clerkUser.emailAddresses[0]?.emailAddress ?? ''
-    const name = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || email
+    const email = emailAddr
+    const name = fullName
     const industry: IndustryType = (clerkUser.publicMetadata?.['industry'] as IndustryType | undefined) ?? 'CA_FIRM'
     const companyName = (clerkUser.publicMetadata?.['companyName'] as string | undefined) ?? `${name}'s Firm`
 
