@@ -1,7 +1,8 @@
-import { Controller, Get, Patch, Delete, Body, Param, HttpCode, HttpStatus } from '@nestjs/common'
+import { Controller, Get, Post, Patch, Delete, Body, Param, HttpCode, HttpStatus } from '@nestjs/common'
 import { SettingsService } from './settings.service'
 import { UpdateFirmProfileDto } from './dto/update-firm-profile.dto'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
+import { Roles } from '../../common/decorators/roles.decorator'
 import type { AuthenticatedUser } from '@opsc/types'
 
 @Controller('settings')
@@ -50,5 +51,15 @@ export class SettingsController {
     @Body('role') role: 'ADMIN' | 'OPERATIONS_MANAGER' | 'STAFF',
   ) {
     return this.settings.changeUserRole(user.companyId, userId, role)
+  }
+
+  @Post('team/invite')
+  @Roles('ADMIN')
+  @HttpCode(HttpStatus.OK)
+  inviteTeamMember(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: { email: string; role: 'ADMIN' | 'OPERATIONS_MANAGER' | 'STAFF' },
+  ) {
+    return this.settings.inviteTeamMember(user.companyId, dto)
   }
 }

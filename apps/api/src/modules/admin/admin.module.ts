@@ -9,5 +9,6 @@ import { OpscConfigModule } from '../config/config.module'
   imports: [AiAssistantModule, OpscConfigModule],
   controllers: [AdminController],
   providers: [AdminService, AdminGuard],
+  exports: [AdminService],
 })
 export class AdminModule {}

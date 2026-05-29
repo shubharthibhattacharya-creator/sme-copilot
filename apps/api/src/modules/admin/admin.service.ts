@@ -209,7 +209,7 @@ export class AdminService {
     // Send Clerk invite
     let clerkInviteSent = false
     try {
-      await this.sendClerkInvite(dto.adminEmail, dto.adminName, company.id)
+      await this.sendClerkInvite(dto.adminEmail, company.id, 'ADMIN')
       clerkInviteSent = true
     } catch (err) {
       this.logger.warn(`Clerk invite failed for ${dto.adminEmail}: ${String(err)}`)
@@ -218,7 +218,11 @@ export class AdminService {
     return { ...company, clerkInviteSent }
   }
 
-  private async sendClerkInvite(email: string, _name: string, companyId: string) {
+  async sendClerkInvite(
+    email: string,
+    companyId: string,
+    role: string = 'ADMIN',
+  ) {
     const secretKey = process.env['CLERK_SECRET_KEY']
     if (!secretKey) {
       this.logger.warn('CLERK_SECRET_KEY not set — skipping invite')
@@ -232,14 +236,20 @@ export class AdminService {
       },
       body: JSON.stringify({
         email_address: email,
-        public_metadata: { companyId },
-        redirect_url: process.env['NEXT_PUBLIC_APP_URL'] ?? 'http://localhost:3000',
+        public_metadata: {
+          companyId,
+          role,
+          invitedBy: 'opscopilot-admin',
+        },
+        redirect_url: `${process.env['NEXT_PUBLIC_APP_URL'] ?? 'http://localhost:3000'}/onboarding`,
+        notify: true,
       }),
     })
     if (!res.ok) {
       const err = await res.json() as { errors?: Array<{ message: string }> }
       throw new Error(err.errors?.[0]?.message ?? `Clerk API error ${res.status}`)
     }
+    this.logger.log(`Clerk invite sent to ${email} for company ${companyId} (role: ${role})`)
   }
 
   private async seedWhatsAppTemplates(companyId: string) {

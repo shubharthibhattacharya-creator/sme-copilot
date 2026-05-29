@@ -1,15 +1,19 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable, NotFoundException, ConflictException, Logger } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
 import type { UpdateFirmProfileDto } from './dto/update-firm-profile.dto'
 import { ConfigService, ConfigSnapshot } from '../config/config.service'
 import { ConfigKey } from '../config/config-key.enum'
 import { INDUSTRY_DEFAULTS, type IndustryType } from '@opsc/types'
+import { AdminService } from '../admin/admin.service'
 
 @Injectable()
 export class SettingsService {
+  private readonly logger = new Logger(SettingsService.name)
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly adminService: AdminService,
   ) {}
 
   async getFirmProfile(companyId: string) {
@@ -70,5 +74,20 @@ export class SettingsService {
     const user = await this.prisma.user.findFirst({ where: { id: userId, companyId } })
     if (!user) throw new NotFoundException('User not found')
     return this.prisma.user.update({ where: { id: userId }, data: { role } })
+  }
+
+  async inviteTeamMember(
+    companyId: string,
+    dto: { email: string; role: 'ADMIN' | 'OPERATIONS_MANAGER' | 'STAFF' },
+  ) {
+    // Check for existing active user with same email in this company
+    const existing = await this.prisma.user.findFirst({
+      where: { companyId, email: dto.email, isActive: true },
+    })
+    if (existing) throw new ConflictException('A user with this email already exists in your firm')
+
+    await this.adminService.sendClerkInvite(dto.email, companyId, dto.role)
+    this.logger.log(`Team invite sent to ${dto.email} (${dto.role}) for company ${companyId}`)
+    return { ok: true }
   }
 }

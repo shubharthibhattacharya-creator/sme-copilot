@@ -1,9 +1,7 @@
-import { SignUp } from '@clerk/nextjs'
+// Self-service signup is disabled.
+// All accounts are provisioned via the OpsCopilot admin panel.
+import { redirect } from 'next/navigation'
 
 export default function SignUpPage() {
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50">
-      <SignUp />
-    </main>
-  )
+  redirect('/sign-in')
 }

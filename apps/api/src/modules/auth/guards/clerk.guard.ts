@@ -90,11 +90,16 @@ export class ClerkAuthGuard implements CanActivate {
         role: true,
         email: true,
         name: true,
+        isActive: true,
       },
     })
 
     if (!user) {
       throw new UnauthorizedException('User not found — complete onboarding first')
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException('Account suspended. Contact your administrator.')
     }
 
     const authenticatedUser: AuthenticatedUser = {

@@ -5,69 +5,42 @@ import { useAuth } from '@clerk/nextjs'
 import { useApiClient } from '@/lib/client-api'
 
 const TOTAL_STEPS = 5
-const STORAGE_KEY = 'opsc_onboarding'
 
-interface OnboardingState {
-  step: number
-  industry: 'CA_FIRM' | 'DISTRIBUTOR' | 'MANUFACTURER'
-  firmName: string
-  gstNumber: string
-  panNumber: string
-  address: string
-  phone: string
-  modulesEnabled: string[]
-  clientsAdded: number
-  whatsappPhone: string
-  whatsappSkipped: boolean
+interface FirmProfile {
+  name: string
+  gstNumber?: string | null
+  panNumber?: string | null
+  address?: string | null
+  phone?: string | null
+  industry?: string | null
 }
 
-const DEFAULT_STATE: OnboardingState = {
-  step: 1,
-  industry: 'CA_FIRM',
-  firmName: '',
-  gstNumber: '',
-  panNumber: '',
-  address: '',
-  phone: '',
-  modulesEnabled: ['dashboard', 'collections', 'reporting', 'documents', 'assistant', 'whatsapp'],
-  clientsAdded: 0,
-  whatsappPhone: '',
-  whatsappSkipped: false,
+interface Client {
+  id: string
+  name: string
+  gstin?: string | null
+  filerType: string
 }
-
-const INDUSTRIES = [
-  { value: 'CA_FIRM',      label: 'CA / Tax Firm',  desc: 'GST filings, compliance, client document management' },
-  { value: 'DISTRIBUTOR',  label: 'Distributor',    desc: 'Collections, inventory, WhatsApp reminders' },
-  { value: 'MANUFACTURER', label: 'Manufacturer',   desc: 'Inventory tracking, production docs, reports' },
-] as const
-
-const ALL_MODULES = [
-  { key: 'dashboard', label: 'Dashboard', desc: 'AI insights + KPIs', locked: true },
-  { key: 'collections', label: 'Collections', desc: 'Receivables & risk scoring', locked: false },
-  { key: 'reporting', label: 'Reports', desc: 'Automated report generation', locked: false },
-  { key: 'documents', label: 'Documents', desc: 'OCR + document management', locked: false },
-  { key: 'assistant', label: 'AI Assistant', desc: 'RAG-powered knowledge base', locked: false },
-  { key: 'whatsapp', label: 'WhatsApp', desc: 'Automated client messaging', locked: false },
-]
 
 function ProgressBar({ step }: { step: number }) {
+  const labels = ['Firm details', 'Clients', 'WhatsApp', 'Integrations', 'Done']
   return (
-    <div className="flex items-center gap-2 mb-8">
-      {Array.from({ length: TOTAL_STEPS }, (_, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-            i + 1 < step ? 'bg-blue-600 text-white' :
-            i + 1 === step ? 'bg-blue-600 text-white ring-4 ring-blue-100' :
-            'bg-gray-200 text-gray-500'
-          }`}>
-            {i + 1 < step ? '✓' : i + 1}
+    <div className="flex items-center gap-1 mb-8 overflow-x-auto">
+      {labels.map((label, i) => (
+        <div key={i} className="flex items-center gap-1 shrink-0">
+          <div className="flex flex-col items-center gap-1">
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium ${
+              i + 1 < step ? 'bg-blue-600 text-white' :
+              i + 1 === step ? 'bg-blue-600 text-white ring-4 ring-blue-100' :
+              'bg-gray-200 text-gray-500'
+            }`}>
+              {i + 1 < step ? '✓' : i + 1}
+            </div>
+            <span className="text-xs text-gray-400 hidden sm:block">{label}</span>
           </div>
-          {i < TOTAL_STEPS - 1 && (
-            <div className={`flex-1 h-0.5 w-12 ${i + 1 < step ? 'bg-blue-600' : 'bg-gray-200'}`} />
-          )}
+          {i < TOTAL_STEPS - 1 && <div className={`h-0.5 w-8 mt-[-12px] ${i + 1 < step ? 'bg-blue-600' : 'bg-gray-200'}`} />}
         </div>
       ))}
-      <span className="ml-2 text-sm text-gray-400">{step} of {TOTAL_STEPS}</span>
     </div>
   )
 }
@@ -76,62 +49,69 @@ export function OnboardingWizard() {
   const router = useRouter()
   const { isLoaded, isSignedIn } = useAuth()
   const { request } = useApiClient()
-  const [state, setState] = useState<OnboardingState>(DEFAULT_STATE)
-  const [saving, setSaving] = useState(false)
+
+  const [step, setStep] = useState(1)
+  const [provisioned, setProvisioned] = useState(false)
   const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  // Firm profile state
+  const [firm, setFirm] = useState<FirmProfile | null>(null)
+  const [phone, setPhone] = useState('')
+  const [address, setAddress] = useState('')
+
+  // Clients state
+  const [clients, setClients] = useState<Client[]>([])
   const [newClient, setNewClient] = useState({ name: '', gstin: '', filerType: 'MONTHLY' })
   const [addingClient, setAddingClient] = useState(false)
-  const [provisioned, setProvisioned] = useState(false)
 
-  // Restore from localStorage
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      if (saved) setState(JSON.parse(saved) as OnboardingState)
-    } catch { /* ignore */ }
-  }, [])
+  // WhatsApp state
+  const [waPhone, setWaPhone] = useState('')
+  const [waSkipped, setWaSkipped] = useState(false)
 
-  // Provision DB user (idempotent) before any API calls — wait for Clerk to load
+  // Confirm user is provisioned and load firm profile
   useEffect(() => {
     if (!isLoaded) return
     if (!isSignedIn) { router.replace('/sign-in'); return }
+
     request<{ ok: boolean }>('/auth/register', { method: 'POST' })
-      .then(() => setProvisioned(true))
+      .then(() => {
+        setProvisioned(true)
+        return request<FirmProfile>('/settings/profile')
+      })
+      .then((profile) => {
+        setFirm(profile)
+        setPhone(profile.phone ?? '')
+        setAddress(profile.address ?? '')
+      })
       .catch((err) => setError(err instanceof Error ? err.message : 'Account setup failed'))
   }, [isLoaded, isSignedIn, request, router])
 
-  function persist(patch: Partial<OnboardingState>) {
-    const next = { ...state, ...patch }
-    setState(next)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+  // Load existing clients for step 2
+  useEffect(() => {
+    if (step !== 2) return
+    request<{ data: Client[] }>('/clients')
+      .then((res) => setClients(res.data ?? []))
+      .catch(() => { /* non-fatal */ })
+  }, [step, request])
+
+  if (!provisioned && !error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+        <div className="text-sm text-gray-400">Setting up your account…</div>
+      </div>
+    )
   }
 
-  function next() {
-    setError('')
-    persist({ step: state.step + 1 })
-  }
-
-  function back() {
-    setError('')
-    persist({ step: state.step - 1 })
-  }
-
-  async function saveFirmProfile() {
-    if (!state.firmName.trim()) { setError('Firm name is required'); return }
+  async function saveFirmDetails() {
     setSaving(true)
+    setError('')
     try {
       await request('/settings/profile', {
         method: 'PATCH',
-        body: JSON.stringify({
-          industry: state.industry,
-          name: state.firmName,
-          gstNumber: state.gstNumber || undefined,
-          panNumber: state.panNumber || undefined,
-          address: state.address || undefined,
-          phone: state.phone || undefined,
-        }),
+        body: JSON.stringify({ phone: phone || undefined, address: address || undefined }),
       })
-      next()
+      setStep(2)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed')
     } finally {
@@ -143,30 +123,17 @@ export function OnboardingWizard() {
     if (!newClient.name.trim()) return
     setAddingClient(true)
     try {
-      await request('/clients', {
+      const created = await request<Client>('/clients', {
         method: 'POST',
         body: JSON.stringify(newClient),
       })
-      persist({ clientsAdded: state.clientsAdded + 1 })
+      setClients((prev) => [...prev, created])
       setNewClient({ name: '', gstin: '', filerType: 'MONTHLY' })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add client')
     } finally {
       setAddingClient(false)
     }
-  }
-
-  function finish() {
-    localStorage.removeItem(STORAGE_KEY)
-    router.push('/dashboard')
-  }
-
-  if (!provisioned && !error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
-        <div className="text-sm text-gray-400">Setting up your account…</div>
-      </div>
-    )
   }
 
   return (
@@ -178,210 +145,167 @@ export function OnboardingWizard() {
           <span className="text-sm text-gray-500">Setup wizard</span>
         </div>
 
-        <ProgressBar step={state.step} />
+        <ProgressBar step={step} />
 
-        {/* Step 1 — Firm details */}
-        {state.step === 1 && (
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
+        )}
+
+        {/* Step 1 — Confirm firm details */}
+        {step === 1 && (
           <div className="space-y-5">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Tell us about your firm</h2>
-              <p className="text-sm text-gray-500 mt-1">This information will appear on communications and reports.</p>
+              <h2 className="text-lg font-semibold text-gray-900">Welcome to OpsCopilot</h2>
+              <p className="text-sm text-gray-500 mt-1">Your account was set up by the OpsCopilot team. Please confirm your firm details.</p>
             </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700 block mb-2">Industry *</label>
-              <div className="space-y-2">
-                {INDUSTRIES.map((ind) => (
-                  <div key={ind.value}
-                    onClick={() => setState((s) => ({ ...s, industry: ind.value }))}
-                    className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer ${state.industry === ind.value ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-blue-200'}`}>
-                    <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${state.industry === ind.value ? 'border-blue-600 bg-blue-600' : 'border-gray-300'}`}>
-                      {state.industry === ind.value && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{ind.label}</div>
-                      <div className="text-xs text-gray-500">{ind.desc}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1">Firm name *</label>
-              <input type="text" value={state.firmName}
-                onChange={(e) => setState((s) => ({ ...s, firmName: e.target.value }))}
-                placeholder="Mehta & Associates CA"
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">GSTIN</label>
-                <input type="text" value={state.gstNumber}
-                  onChange={(e) => setState((s) => ({ ...s, gstNumber: e.target.value.toUpperCase() }))}
-                  placeholder="29AABCS1429B1Z4" maxLength={15}
-                  className="w-full text-sm font-mono border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">PAN</label>
-                <input type="text" value={state.panNumber}
-                  onChange={(e) => setState((s) => ({ ...s, panNumber: e.target.value.toUpperCase() }))}
-                  placeholder="AABCS1429B" maxLength={10}
-                  className="w-full text-sm font-mono border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+              <p className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">Firm name</p>
+              <p className="text-base font-semibold text-gray-900">{firm?.name ?? '—'}</p>
+              {firm?.gstNumber && <p className="text-xs text-gray-500 mt-1">GSTIN: {firm.gstNumber}</p>}
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700 block mb-1">Phone</label>
-              <input type="text" value={state.phone}
-                onChange={(e) => setState((s) => ({ ...s, phone: e.target.value }))}
+              <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)}
                 placeholder="+91 98765 43210"
                 className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1">Address</label>
-              <textarea value={state.address} rows={2}
-                onChange={(e) => setState((s) => ({ ...s, address: e.target.value }))}
+              <label className="text-sm font-medium text-gray-700 block mb-1">Office address</label>
+              <textarea value={address} rows={2} onChange={(e) => setAddress(e.target.value)}
                 placeholder="Office address..."
                 className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <button onClick={saveFirmProfile} disabled={saving}
+            <button onClick={saveFirmDetails} disabled={saving}
               className="w-full py-2.5 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-60">
-              {saving ? 'Saving…' : 'Continue →'}
+              {saving ? 'Saving…' : 'Confirm & Continue →'}
             </button>
           </div>
         )}
 
-        {/* Step 2 — Modules */}
-        {state.step === 2 && (
+        {/* Step 2 — Review clients */}
+        {step === 2 && (
           <div className="space-y-5">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Choose your modules</h2>
-              <p className="text-sm text-gray-500 mt-1">Enable the features your firm needs. You can change this later in Settings.</p>
+              <h2 className="text-lg font-semibold text-gray-900">Your clients</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                {clients.length > 0
+                  ? `${clients.length} client${clients.length !== 1 ? 's' : ''} loaded. Add any missing ones.`
+                  : 'No clients imported yet. Add your first client below.'}
+              </p>
             </div>
-            <div className="space-y-2">
-              {ALL_MODULES.map((m) => (
-                <div key={m.key}
-                  onClick={() => {
-                    if (m.locked) return
-                    const enabled = state.modulesEnabled.includes(m.key)
-                    persist({ modulesEnabled: enabled ? state.modulesEnabled.filter((k) => k !== m.key) : [...state.modulesEnabled, m.key] })
-                  }}
-                  className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer ${state.modulesEnabled.includes(m.key) ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-white'} ${m.locked ? 'opacity-70 cursor-not-allowed' : 'hover:border-blue-300'}`}>
-                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${state.modulesEnabled.includes(m.key) ? 'bg-blue-600 border-blue-600' : 'border-gray-300'}`}>
-                    {state.modulesEnabled.includes(m.key) && <span className="text-white text-xs">✓</span>}
+            {clients.length > 0 && (
+              <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-xl divide-y divide-gray-100">
+                {clients.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between px-3 py-2 text-sm">
+                    <span className="font-medium text-gray-900">{c.name}</span>
+                    <span className="text-xs text-gray-400">{c.gstin ?? c.filerType}</span>
                   </div>
-                  <div>
-                    <div className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
-                      {m.label}
-                      {m.locked && <span className="text-xs text-gray-400">(always on)</span>}
-                    </div>
-                    <div className="text-xs text-gray-500">{m.desc}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <button onClick={back} className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200">← Back</button>
-              <button onClick={next} className="flex-1 py-2 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700">Continue →</button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3 — Clients */}
-        {state.step === 3 && (
-          <div className="space-y-5">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Add your clients</h2>
-              <p className="text-sm text-gray-500 mt-1">Add clients now or skip — you can always add them from Settings → Clients.</p>
-            </div>
-            {state.clientsAdded > 0 && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
-                {state.clientsAdded} client{state.clientsAdded > 1 ? 's' : ''} added so far.
+                ))}
               </div>
             )}
-            <div className="space-y-3 bg-gray-50 rounded-xl p-4">
-              <p className="text-xs font-medium text-gray-600">Add a client manually</p>
-              <input type="text" value={newClient.name}
-                onChange={(e) => setNewClient((c) => ({ ...c, name: e.target.value }))}
+            <div className="space-y-2 bg-gray-50 rounded-xl p-4">
+              <p className="text-xs font-medium text-gray-600">Add a client</p>
+              <input type="text" value={newClient.name} onChange={(e) => setNewClient((c) => ({ ...c, name: e.target.value }))}
                 placeholder="Client name *"
                 className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
               <div className="grid grid-cols-2 gap-2">
-                <input type="text" value={newClient.gstin}
-                  onChange={(e) => setNewClient((c) => ({ ...c, gstin: e.target.value.toUpperCase() }))}
+                <input type="text" value={newClient.gstin} onChange={(e) => setNewClient((c) => ({ ...c, gstin: e.target.value.toUpperCase() }))}
                   placeholder="GSTIN (optional)" maxLength={15}
                   className="text-sm font-mono border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                <select value={newClient.filerType}
-                  onChange={(e) => setNewClient((c) => ({ ...c, filerType: e.target.value }))}
+                <select value={newClient.filerType} onChange={(e) => setNewClient((c) => ({ ...c, filerType: e.target.value }))}
                   className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="MONTHLY">Monthly filer</option>
-                  <option value="QUARTERLY">Quarterly filer</option>
-                  <option value="ANNUAL">Annual filer</option>
+                  <option value="MONTHLY">Monthly</option>
+                  <option value="QUARTERLY">Quarterly</option>
+                  <option value="ANNUAL">Annual</option>
                 </select>
               </div>
-              {error && <p className="text-xs text-red-600">{error}</p>}
               <button onClick={addClient} disabled={addingClient || !newClient.name.trim()}
                 className="w-full py-2 text-sm font-medium text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 disabled:opacity-60">
-                {addingClient ? 'Adding…' : '+ Add this client'}
+                {addingClient ? 'Adding…' : '+ Add client'}
               </button>
             </div>
             <div className="flex gap-2">
-              <button onClick={back} className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200">← Back</button>
-              <button onClick={next} className="flex-1 py-2 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700">
-                {state.clientsAdded > 0 ? 'Continue →' : 'Skip for now →'}
+              <button onClick={() => setStep(1)} className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200">← Back</button>
+              <button onClick={() => setStep(3)} className="flex-1 py-2 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700">
+                {clients.length > 0 ? 'Looks good →' : 'Skip for now →'}
               </button>
             </div>
           </div>
         )}
 
-        {/* Step 4 — WhatsApp */}
-        {state.step === 4 && (
+        {/* Step 3 — WhatsApp (skippable) */}
+        {step === 3 && (
           <div className="space-y-5">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">WhatsApp setup</h2>
               <p className="text-sm text-gray-500 mt-1">Connect Twilio to send automated payment reminders and filing nudges.</p>
             </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-2 text-sm text-blue-800">
-              <p className="font-medium">Twilio Sandbox setup:</p>
-              <ol className="list-decimal list-inside space-y-1 text-xs text-blue-700">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-700 space-y-1">
+              <p className="font-medium text-sm">Twilio Sandbox</p>
+              <ol className="list-decimal list-inside space-y-1">
                 <li>Create a free Twilio account at twilio.com</li>
                 <li>Go to Messaging → Try it out → Send a WhatsApp message</li>
-                <li>Note your sandbox number: <span className="font-mono">+1 415 523 8886</span></li>
-                <li>From your phone, send <span className="font-mono">join [your-sandbox-word]</span> to that number</li>
-                <li>Add your Twilio credentials to the <span className="font-mono">.env</span> file</li>
+                <li>From your phone, send the sandbox join code to <span className="font-mono">+1 415 523 8886</span></li>
               </ol>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700 block mb-1">Your WhatsApp number (for test)</label>
-              <input type="text" value={state.whatsappPhone}
-                onChange={(e) => setState((s) => ({ ...s, whatsappPhone: e.target.value }))}
+              <input type="text" value={waPhone} onChange={(e) => setWaPhone(e.target.value)}
                 placeholder="+91 98765 43210"
                 className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <p className="text-xs text-gray-400 mt-1">We'll send a test message when you first send a reminder.</p>
             </div>
             <div className="flex gap-2">
-              <button onClick={back} className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200">← Back</button>
-              <button onClick={() => { persist({ whatsappSkipped: true }); next() }}
-                className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-50">
+              <button onClick={() => setStep(2)} className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200">← Back</button>
+              <button onClick={() => { setWaSkipped(true); setStep(4) }}
+                className="px-4 py-2 text-sm text-gray-500 border border-gray-300 rounded-xl hover:bg-gray-50">
                 Skip
               </button>
-              <button onClick={next} className="flex-1 py-2 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700">Continue →</button>
+              <button onClick={() => setStep(4)} className="flex-1 py-2 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700">Continue →</button>
             </div>
           </div>
         )}
 
-        {/* Step 5 — Review */}
-        {state.step === 5 && (
+        {/* Step 4 — Tax integrations (skippable) */}
+        {step === 4 && (
           <div className="space-y-5">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">You're all set!</h2>
-              <p className="text-sm text-gray-500 mt-1">Here's a summary of your setup.</p>
+              <h2 className="text-lg font-semibold text-gray-900">Tax filing software</h2>
+              <p className="text-sm text-gray-500 mt-1">Connect your tax filing tool to sync documents automatically. You can do this later from Settings → Integrations.</p>
+            </div>
+            {[
+              { key: 'CLEARTAX', label: 'ClearTax', desc: 'India\'s most popular GST filing platform' },
+              { key: 'ZOHO_BOOKS', label: 'Zoho Books', desc: 'Accounting + GST returns in one place' },
+              { key: 'TALLY', label: 'Tally', desc: 'On-premise Tally bridge integration' },
+            ].map((p) => (
+              <div key={p.key} className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 opacity-60 cursor-not-allowed">
+                <div className="w-4 h-4 rounded border border-gray-300" />
+                <div>
+                  <div className="text-sm font-medium text-gray-900">{p.label}</div>
+                  <div className="text-xs text-gray-500">{p.desc}</div>
+                </div>
+              </div>
+            ))}
+            <p className="text-xs text-gray-400 text-center">Configure integrations from Settings → Integrations after setup.</p>
+            <div className="flex gap-2">
+              <button onClick={() => setStep(3)} className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200">← Back</button>
+              <button onClick={() => setStep(5)} className="flex-1 py-2 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700">Continue →</button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 5 — Done */}
+        {step === 5 && (
+          <div className="space-y-5">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">You&apos;re all set!</h2>
+              <p className="text-sm text-gray-500 mt-1">Your workspace is ready. Here&apos;s a summary.</p>
             </div>
             <div className="space-y-3">
               {[
-                { label: 'Firm name', value: state.firmName || '(not set)' },
-                { label: 'GSTIN', value: state.gstNumber || '—' },
-                { label: 'Modules enabled', value: state.modulesEnabled.length.toString() },
-                { label: 'Clients added', value: state.clientsAdded > 0 ? state.clientsAdded.toString() : 'None (add from Settings)' },
-                { label: 'WhatsApp', value: state.whatsappSkipped ? 'Skipped — configure later' : (state.whatsappPhone || 'Not configured') },
+                { label: 'Firm', value: firm?.name ?? '—' },
+                { label: 'Clients', value: clients.length > 0 ? `${clients.length} loaded` : 'None — add from Settings' },
+                { label: 'WhatsApp', value: waSkipped || !waPhone ? 'Configure from Settings' : waPhone },
+                { label: 'Tax integration', value: 'Configure from Settings' },
               ].map(({ label, value }) => (
                 <div key={label} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                   <span className="text-sm text-gray-500">{label}</span>
@@ -389,12 +313,10 @@ export function OnboardingWizard() {
                 </div>
               ))}
             </div>
-            <div className="flex gap-2">
-              <button onClick={back} className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200">← Back</button>
-              <button onClick={finish} className="flex-1 py-3 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700">
-                Go to Dashboard →
-              </button>
-            </div>
+            <button onClick={() => router.push('/dashboard')}
+              className="w-full py-3 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700">
+              Go to Dashboard →
+            </button>
           </div>
         )}
       </div>
