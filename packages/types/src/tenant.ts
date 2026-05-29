@@ -27,7 +27,7 @@ export interface TenantConfig {
 export const INDUSTRY_DEFAULTS: Record<IndustryType, TenantConfig> = {
   CA_FIRM: {
     industryType: 'CA_FIRM',
-    modulesEnabled: ['dashboard', 'collections', 'filings', 'reporting', 'documents', 'assistant'],
+    modulesEnabled: ['dashboard', 'collections', 'filings', 'reporting', 'documents', 'whatsapp', 'assistant'],
     aiPersona: 'compliance-focused',
     whatsappEnabled: true,
     documentTypes: ['invoice', 'gst_return', 'tds_certificate', 'statement'],
@@ -35,7 +35,7 @@ export const INDUSTRY_DEFAULTS: Record<IndustryType, TenantConfig> = {
   },
   DISTRIBUTOR: {
     industryType: 'DISTRIBUTOR',
-    modulesEnabled: ['dashboard', 'collections', 'inventory', 'whatsapp', 'reporting'],
+    modulesEnabled: ['dashboard', 'collections', 'inventory', 'whatsapp', 'reporting', 'documents'],
     aiPersona: 'collections-focused',
     whatsappEnabled: true,
     documentTypes: ['invoice', 'purchase_order', 'delivery_note'],
@@ -43,9 +43,9 @@ export const INDUSTRY_DEFAULTS: Record<IndustryType, TenantConfig> = {
   },
   MANUFACTURER: {
     industryType: 'MANUFACTURER',
-    modulesEnabled: ['dashboard', 'inventory', 'reporting', 'documents', 'assistant'],
+    modulesEnabled: ['dashboard', 'inventory', 'reporting', 'documents', 'whatsapp', 'assistant'],
     aiPersona: 'inventory-focused',
-    whatsappEnabled: false,
+    whatsappEnabled: true,
     documentTypes: ['invoice', 'purchase_order', 'delivery_note', 'quality_report'],
     defaultCurrency: 'INR',
   },
