@@ -31,6 +31,7 @@ RUN pnpm --filter @opsc/api build
 # ── Stage 2: Run ──────────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 
+RUN apk add --no-cache openssl
 RUN corepack enable && corepack prepare pnpm@9.4.0 --activate
 
 WORKDIR /app
@@ -60,4 +61,4 @@ COPY --from=builder /app/apps/api/node_modules     ./apps/api/node_modules
 # Run DB migration then start server
 # prisma db push is used (no migration files in repo yet)
 # Switch to `migrate deploy` once migration files are committed
-CMD ["sh", "-c", "echo \"=== ENV CHECK: DATABASE_URL is ${DATABASE_URL:+SET (length ${#DATABASE_URL})} ${DATABASE_URL:-NOT SET} ===\"; packages/database/node_modules/.bin/prisma db push --schema=packages/database/prisma/schema.prisma --accept-data-loss && node apps/api/dist/main.js"]
+CMD ["sh", "-c", "packages/database/node_modules/.bin/prisma db push --schema=packages/database/prisma/schema.prisma --accept-data-loss && node apps/api/dist/main.js"]
