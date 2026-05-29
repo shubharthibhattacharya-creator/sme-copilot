@@ -66,7 +66,7 @@ function ProgressBar({ step }: { step: number }) {
 
 export function OnboardingWizard() {
   const router = useRouter()
-  const { isLoaded } = useAuth()
+  const { isLoaded, isSignedIn } = useAuth()
   const { request } = useApiClient()
   const [state, setState] = useState<OnboardingState>(DEFAULT_STATE)
   const [saving, setSaving] = useState(false)
@@ -86,10 +86,11 @@ export function OnboardingWizard() {
   // Provision DB user (idempotent) before any API calls — wait for Clerk to load
   useEffect(() => {
     if (!isLoaded) return
+    if (!isSignedIn) { router.replace('/sign-in'); return }
     request<{ ok: boolean }>('/auth/register', { method: 'POST' })
       .then(() => setProvisioned(true))
       .catch((err) => setError(err instanceof Error ? err.message : 'Account setup failed'))
-  }, [isLoaded, request])
+  }, [isLoaded, isSignedIn, request, router])
 
   function persist(patch: Partial<OnboardingState>) {
     const next = { ...state, ...patch }
