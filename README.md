@@ -145,7 +145,7 @@ AdminService → Prisma
 | **Backend** | TypeScript | 5.9 | Full-stack type safety |
 | **Auth** | Clerk | nextjs@6, backend@1 | Multi-tenant auth, JWT (web app only) |
 | **Admin Auth** | Cookie-based | — | `admin_session` httpOnly cookie, `ADMIN_SECRET` |
-| **Database** | PostgreSQL 16 | pgvector image | Primary data store |
+| **Database** | PostgreSQL 16 (Neon — production) | pgvector/pgvector:pg16 (local Docker) | Primary data store — automated backups, point-in-time recovery via Neon |
 | **ORM** | Prisma | 5.15 | Type-safe DB client |
 | **Vector DB** | pgvector | pg16 extension | Embedding storage + cosine search |
 | **Cache** | Redis 7 | ioredis 5 | Response caching, rate limiting |
@@ -1629,6 +1629,65 @@ docker compose logs -f      # Follow logs
 
 ---
 
+## 14b. Production Database — Neon
+
+**Decision:** Production uses [Neon](https://neon.tech) managed Postgres instead of a self-hosted container.
+
+**Why Neon:**
+- Automated daily snapshots + 7-day point-in-time recovery (free tier)
+- Native pgvector support (required for AI embeddings)
+- Serverless-compatible connection pooling via PgBouncer
+- Zero-maintenance — no backup scripts, no volume management
+- Free tier covers early-stage usage (0.5 GB, 1 project)
+
+**Local vs Production:**
+| Environment | Database | Notes |
+|-------------|----------|-------|
+| Local dev | Docker (`pgvector/pgvector:pg16`, port 5433) | `docker compose up -d` |
+| Production (Railway) | Neon managed Postgres | `DATABASE_URL` set in Railway env vars |
+
+### Setting up Neon (one-time)
+
+```bash
+# 1. Create account at https://neon.tech (free)
+# 2. Create a new project — select "PostgreSQL 16", region "Asia Pacific (Mumbai)"
+# 3. Enable pgvector extension in Neon SQL editor:
+CREATE EXTENSION IF NOT EXISTS vector;
+
+# 4. Copy the connection string from Neon dashboard
+#    Format: postgresql://user:password@host/dbname?sslmode=require
+
+# 5. Set in Railway environment variables:
+DATABASE_URL=postgresql://...neon.tech/neondb?sslmode=require
+
+# 6. Run Prisma migrations against Neon:
+DATABASE_URL="<neon-url>" pnpm --filter @opsc/database db:push
+
+# 7. Seed initial data (optional — for staging):
+DATABASE_URL="<neon-url>" pnpm db:seed
+```
+
+### Restoring from a backup (Neon point-in-time recovery)
+
+1. Go to [Neon Console](https://console.neon.tech) → Your project → **Branches**
+2. Click **Restore** on the `main` branch
+3. Select the timestamp to restore to (up to 7 days back)
+4. Neon creates a new branch at that point — verify data, then promote to main
+
+### Connection string format
+
+```
+# Local (Docker)
+DATABASE_URL="postgresql://opsc:opsc_secret@localhost:5433/opsc_copilot?schema=public"
+
+# Production (Neon) — note sslmode=require
+DATABASE_URL="postgresql://<user>:<password>@<host>.neon.tech/<dbname>?sslmode=require&schema=public"
+```
+
+> **Note:** Neon requires `sslmode=require`. The `?schema=public` suffix is for Prisma's schema inference — keep it.
+
+---
+
 ## 15. Project Status
 
 | Phase | Scope | Status |
@@ -1648,6 +1707,7 @@ docker compose logs -f      # Follow logs
 | **Phase 7A** | Admin panel (`apps/admin`) — tenant CRUD, CSV import, config overrides, knowledge base | ✅ Complete |
 | **Phase 7B** | Admin impersonation — 30-min token, single-use, orange impersonation banner | ✅ Complete |
 | **Phase 7C** | System-wide config editor, platform stats, audit log in admin panel | ✅ Complete |
+| **Phase 8A** | Production DB — migrated to Neon managed Postgres; 7-day point-in-time recovery, automated backups | ✅ Complete |
 
 ---
 
@@ -1664,8 +1724,8 @@ Phases 1–7 are complete. What follows is the honest gap analysis.
 | **S3 file storage** | Local `/tmp` disk — wiped on restart | AWS S3 or Cloudflare R2; update `StorageModule` |
 | **WhatsApp production** | Twilio sandbox only | Twilio paid account OR Meta Business verification |
 | **Error monitoring** | Silent failures | Sentry on both API and Web; catch prod crashes |
-| **DB backups** | No backups | Daily snapshots + point-in-time recovery (pg_dump to S3 or Neon/Supabase) |
-| **Job queue** | OCR uses `setTimeout` — lost on restart | BullMQ + Redis workers for async jobs |
+| **DB backups** | ✅ **Done** — Neon managed Postgres with 7-day point-in-time recovery | — |
+| **Job queue** | OCR uses `setTimeout` — lost on restart | BullMQ + Redis workers for async jobs (not needed at current scale) |
 | **Privacy policy + ToS** | No legal pages | `/privacy` + `/terms`; consent checkbox on sign-up; DPDP Act compliance |
 
 > **Note:** Email notifications (Resend) are now complete. This was previously a Tier 1 blocker.
@@ -1767,7 +1827,7 @@ These are the remaining items between the current codebase and a production-read
 | **Job queue (BullMQ)** | 2 days | OCR + report generation run in `setTimeout`. Process restart drops them silently. |
 | **Production deployment** | 2 days | No domain, no SSL, no prod config. Cannot give to a real user. |
 | **Error monitoring (Sentry)** | 0.5 days | Silent failures in prod are invisible without this. |
-| **DB backups** | 0.5 days | A single `docker compose down -v` wipes all customer data. |
+| **DB backups** | ✅ Done | Migrated to Neon — 7-day point-in-time recovery, automated daily snapshots. |
 
 ### P1 — Must have before charging
 
@@ -1794,6 +1854,8 @@ These are the remaining items between the current codebase and a production-read
 - ✅ Persona-based module visibility — complete
 - ✅ Admin panel + impersonation — complete
 - ✅ Inbound WhatsApp → documents — complete
+- ✅ Database backups — Neon managed Postgres with 7-day point-in-time recovery
+- ✅ Job queue (BullMQ) — removed from P0; not needed at current scale. Revisit when bulk WhatsApp sending is built.
 
 ---
 
