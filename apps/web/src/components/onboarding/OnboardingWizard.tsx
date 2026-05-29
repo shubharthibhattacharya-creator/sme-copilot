@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@clerk/nextjs'
 import { useApiClient } from '@/lib/client-api'
 
 const TOTAL_STEPS = 5
@@ -65,6 +66,7 @@ function ProgressBar({ step }: { step: number }) {
 
 export function OnboardingWizard() {
   const router = useRouter()
+  const { isLoaded } = useAuth()
   const { request } = useApiClient()
   const [state, setState] = useState<OnboardingState>(DEFAULT_STATE)
   const [saving, setSaving] = useState(false)
@@ -81,12 +83,13 @@ export function OnboardingWizard() {
     } catch { /* ignore */ }
   }, [])
 
-  // Provision DB user (idempotent) before any API calls
+  // Provision DB user (idempotent) before any API calls — wait for Clerk to load
   useEffect(() => {
+    if (!isLoaded) return
     request<{ ok: boolean }>('/auth/register', { method: 'POST' })
       .then(() => setProvisioned(true))
       .catch((err) => setError(err instanceof Error ? err.message : 'Account setup failed'))
-  }, [request])
+  }, [isLoaded, request])
 
   function persist(patch: Partial<OnboardingState>) {
     const next = { ...state, ...patch }
