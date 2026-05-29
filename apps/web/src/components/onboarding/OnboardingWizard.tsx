@@ -9,6 +9,7 @@ const STORAGE_KEY = 'opsc_onboarding'
 
 interface OnboardingState {
   step: number
+  industry: 'CA_FIRM' | 'DISTRIBUTOR' | 'MANUFACTURER'
   firmName: string
   gstNumber: string
   panNumber: string
@@ -22,6 +23,7 @@ interface OnboardingState {
 
 const DEFAULT_STATE: OnboardingState = {
   step: 1,
+  industry: 'CA_FIRM',
   firmName: '',
   gstNumber: '',
   panNumber: '',
@@ -32,6 +34,12 @@ const DEFAULT_STATE: OnboardingState = {
   whatsappPhone: '',
   whatsappSkipped: false,
 }
+
+const INDUSTRIES = [
+  { value: 'CA_FIRM',      label: 'CA / Tax Firm',  desc: 'GST filings, compliance, client document management' },
+  { value: 'DISTRIBUTOR',  label: 'Distributor',    desc: 'Collections, inventory, WhatsApp reminders' },
+  { value: 'MANUFACTURER', label: 'Manufacturer',   desc: 'Inventory tracking, production docs, reports' },
+] as const
 
 const ALL_MODULES = [
   { key: 'dashboard', label: 'Dashboard', desc: 'AI insights + KPIs', locked: true },
@@ -115,6 +123,7 @@ export function OnboardingWizard() {
       await request('/settings/profile', {
         method: 'PATCH',
         body: JSON.stringify({
+          industry: state.industry,
           name: state.firmName,
           gstNumber: state.gstNumber || undefined,
           panNumber: state.panNumber || undefined,
@@ -177,6 +186,24 @@ export function OnboardingWizard() {
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Tell us about your firm</h2>
               <p className="text-sm text-gray-500 mt-1">This information will appear on communications and reports.</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-2">Industry *</label>
+              <div className="space-y-2">
+                {INDUSTRIES.map((ind) => (
+                  <div key={ind.value}
+                    onClick={() => setState((s) => ({ ...s, industry: ind.value }))}
+                    className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer ${state.industry === ind.value ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-blue-200'}`}>
+                    <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${state.industry === ind.value ? 'border-blue-600 bg-blue-600' : 'border-gray-300'}`}>
+                      {state.industry === ind.value && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{ind.label}</div>
+                      <div className="text-xs text-gray-500">{ind.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700 block mb-1">Firm name *</label>

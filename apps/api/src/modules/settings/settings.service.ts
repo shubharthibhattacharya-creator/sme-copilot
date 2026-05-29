@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service'
 import type { UpdateFirmProfileDto } from './dto/update-firm-profile.dto'
 import { ConfigService, ConfigSnapshot } from '../config/config.service'
 import { ConfigKey } from '../config/config-key.enum'
+import { INDUSTRY_DEFAULTS, type IndustryType } from '@opsc/types'
 
 @Injectable()
 export class SettingsService {
@@ -32,10 +33,15 @@ export class SettingsService {
   }
 
   async updateFirmProfile(companyId: string, dto: UpdateFirmProfileDto) {
-    return this.prisma.company.update({
-      where: { id: companyId },
-      data: dto,
-    })
+    const { industry, ...rest } = dto
+    const data: Record<string, unknown> = { ...rest }
+
+    if (industry && industry in INDUSTRY_DEFAULTS) {
+      data['industry'] = industry
+      data['tenantConfig'] = JSON.parse(JSON.stringify(INDUSTRY_DEFAULTS[industry as IndustryType]))
+    }
+
+    return this.prisma.company.update({ where: { id: companyId }, data })
   }
 
   async getConfig(companyId: string): Promise<ConfigSnapshot> {

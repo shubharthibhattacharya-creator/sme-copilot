@@ -1,4 +1,4 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator'
+import { IsOptional, IsString, IsIn, MaxLength } from 'class-validator'
 
 export class UpdateFirmProfileDto {
   @IsOptional() @IsString() @MaxLength(200) name?: string
@@ -8,4 +8,5 @@ export class UpdateFirmProfileDto {
   @IsOptional() @IsString() address?: string
   @IsOptional() @IsString() phone?: string
   @IsOptional() @IsString() website?: string
+  @IsOptional() @IsIn(['CA_FIRM', 'DISTRIBUTOR', 'MANUFACTURER']) industry?: string
 }
