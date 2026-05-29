@@ -37,29 +37,10 @@ RUN corepack enable && corepack prepare pnpm@9.4.0 --activate
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Railway Runtime V2 does not inject service variables at container runtime.
-# Workaround: declare ARGs so Railway passes them during build, then promote
-# to ENV so they are baked into the image and available at startup.
-ARG DATABASE_URL
-ARG CLERK_SECRET_KEY
-ARG CLERK_WEBHOOK_SECRET
-ARG ANTHROPIC_API_KEY
-ARG ANTHROPIC_MODEL=claude-sonnet-4-6
-ARG ENCRYPTION_KEY
-ARG API_PORT=3001
-ARG API_URL
-ARG ADMIN_SECRET
-ARG NEXT_PUBLIC_APP_URL
-ENV DATABASE_URL=$DATABASE_URL
-ENV CLERK_SECRET_KEY=$CLERK_SECRET_KEY
-ENV CLERK_WEBHOOK_SECRET=$CLERK_WEBHOOK_SECRET
-ENV ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
-ENV ANTHROPIC_MODEL=$ANTHROPIC_MODEL
-ENV ENCRYPTION_KEY=$ENCRYPTION_KEY
-ENV API_PORT=$API_PORT
-ENV API_URL=$API_URL
-ENV ADMIN_SECRET=$ADMIN_SECRET
-ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+# Railway injects service variables as env vars at container runtime.
+# Only set non-secret defaults here; all secrets come from Railway service variables.
+ENV ANTHROPIC_MODEL=claude-sonnet-4-6
+ENV API_PORT=3001
 
 # Copy the full workspace (pnpm symlinks require the virtual store)
 COPY --from=builder /app/node_modules              ./node_modules
