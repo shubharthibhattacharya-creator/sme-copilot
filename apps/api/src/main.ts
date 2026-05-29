@@ -6,6 +6,9 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter'
 import { validateEnv } from '@opsc/config'
 
 async function bootstrap() {
+  // Diagnostic: log which env var keys Railway injects (no values, just keys)
+  console.log('[DIAG] process.env keys:', Object.keys(process.env).sort().join(', '))
+
   const env = validateEnv()
 
   const app = await NestFactory.create(AppModule, {
