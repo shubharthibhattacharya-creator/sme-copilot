@@ -23,6 +23,14 @@ COPY apps/web/  apps/web/
 RUN pnpm --filter @opsc/config build
 RUN pnpm --filter @opsc/types build
 
+# NEXT_PUBLIC_* vars must be present at build time (baked into the JS bundle)
+ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+
 # Build Next.js (outputs to apps/web/.next/standalone)
 RUN pnpm --filter @opsc/web build
 
