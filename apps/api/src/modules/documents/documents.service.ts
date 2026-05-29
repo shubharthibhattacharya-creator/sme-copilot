@@ -229,7 +229,7 @@ export class DocumentsService {
     if (!doc || doc.companyId !== companyId) {
       throw new NotFoundException('Document not found')
     }
-    return { ...doc, fileUrl: this.storage.getUrl(doc.storageKey) }
+    return { ...doc, fileUrl: await this.storage.getUrl(doc.storageKey) }
   }
 
   async delete(id: string, companyId: string): Promise<void> {

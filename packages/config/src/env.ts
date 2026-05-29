@@ -14,6 +14,11 @@ export interface AppEnv {
   TWILIO_ACCOUNT_SID?: string
   TWILIO_AUTH_TOKEN?: string
   TWILIO_WHATSAPP_FROM?: string
+  S3_BUCKET?: string
+  S3_REGION?: string
+  S3_ACCESS_KEY_ID?: string
+  S3_SECRET_ACCESS_KEY?: string
+  S3_ENDPOINT?: string
 }
 
 const required: Array<keyof AppEnv> = [
@@ -42,5 +47,10 @@ export function validateEnv(): AppEnv {
     ...(process.env['TWILIO_ACCOUNT_SID'] !== undefined ? { TWILIO_ACCOUNT_SID: process.env['TWILIO_ACCOUNT_SID'] } : {}),
     ...(process.env['TWILIO_AUTH_TOKEN'] !== undefined ? { TWILIO_AUTH_TOKEN: process.env['TWILIO_AUTH_TOKEN'] } : {}),
     ...(process.env['TWILIO_WHATSAPP_FROM'] !== undefined ? { TWILIO_WHATSAPP_FROM: process.env['TWILIO_WHATSAPP_FROM'] } : {}),
+    ...(process.env['S3_BUCKET'] !== undefined ? { S3_BUCKET: process.env['S3_BUCKET'] } : {}),
+    ...(process.env['S3_REGION'] !== undefined ? { S3_REGION: process.env['S3_REGION'] } : {}),
+    ...(process.env['S3_ACCESS_KEY_ID'] !== undefined ? { S3_ACCESS_KEY_ID: process.env['S3_ACCESS_KEY_ID'] } : {}),
+    ...(process.env['S3_SECRET_ACCESS_KEY'] !== undefined ? { S3_SECRET_ACCESS_KEY: process.env['S3_SECRET_ACCESS_KEY'] } : {}),
+    ...(process.env['S3_ENDPOINT'] !== undefined ? { S3_ENDPOINT: process.env['S3_ENDPOINT'] } : {}),
   }
 }

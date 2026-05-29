@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
+    "@aws-sdk/client-s3": "^3.1057.0",
+    "@aws-sdk/s3-request-presigner": "^3.1057.0",
     "@clerk/backend": "^1.0.0",
     "@nestjs/cache-manager": "^2.2.0",
     "@nestjs/common": "^10.3.0",
