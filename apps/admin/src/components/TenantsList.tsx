@@ -33,11 +33,7 @@ export function TenantsList({ initialTenants }: Props) {
 
   async function handleImpersonate(id: string, name: string) {
     try {
-      const secret = process.env.NEXT_PUBLIC_ADMIN_SECRET ?? ''
-      const res = await fetch(`${process.env.NEXT_PUBLIC_ADMIN_API_URL ?? 'http://localhost:3001'}/api/v1/admin/tenants/${id}/impersonate`, {
-        method: 'POST',
-        headers: { 'x-admin-secret': secret, 'Content-Type': 'application/json' },
-      })
+      const res = await fetch(`/api/admin/tenants/${id}/impersonate`, { method: 'POST' })
       const data = await res.json() as { url?: string }
       if (data.url) window.open(data.url, '_blank')
     } catch { alert('Impersonation failed') }
@@ -45,11 +41,7 @@ export function TenantsList({ initialTenants }: Props) {
 
   async function handleDeactivate(id: string) {
     try {
-      const secret = process.env.NEXT_PUBLIC_ADMIN_SECRET ?? ''
-      await fetch(`${process.env.NEXT_PUBLIC_ADMIN_API_URL ?? 'http://localhost:3001'}/api/v1/admin/tenants/${id}/deactivate`, {
-        method: 'DELETE',
-        headers: { 'x-admin-secret': secret },
-      })
+      await fetch(`/api/admin/tenants/${id}/deactivate`, { method: 'DELETE' })
       setTenants((prev) => prev.map((t) => t.id === id ? { ...t, isActive: false } : t))
       setConfirming(null)
     } catch { alert('Deactivation failed') }

@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_ADMIN_API_URL ?? process.env.ADMIN_API_URL ?? 'http://localhost:3001'
+const API_URL = process.env.ADMIN_API_URL ?? 'http://localhost:3001'
 
 export function getAdminSecret(): string {
   return process.env.ADMIN_SECRET ?? ''

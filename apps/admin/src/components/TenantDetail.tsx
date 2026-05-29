@@ -4,13 +4,12 @@ import type { TenantDetail as TenantDetailType, ConfigRow, KnowledgeDoc, AuditEn
 
 type Tab = 'overview' | 'clients' | 'config' | 'knowledge' | 'activity'
 
-const API = process.env.NEXT_PUBLIC_ADMIN_API_URL ?? 'http://localhost:3001'
-const SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET ?? ''
-
 function apiFetch(path: string, init: RequestInit = {}) {
-  return fetch(`${API}/api/v1${path}`, {
+  // /api/v1/admin/... → strip /api/v1/admin prefix for the local proxy
+  const proxyPath = path.replace(/^\/admin\//, '/api/admin/')
+  return fetch(proxyPath, {
     ...init,
-    headers: { 'Content-Type': 'application/json', 'x-admin-secret': SECRET, ...init.headers },
+    headers: { 'Content-Type': 'application/json', ...init.headers },
   })
 }
 
@@ -39,9 +38,8 @@ export function TenantDetail({ tenant: initial, config: initialConfig, knowledge
     setImportResult(null)
     const fd = new FormData()
     fd.append('file', file)
-    const res = await fetch(`${API}/api/v1/admin/tenants/${tenant.id}/clients/import`, {
+    const res = await fetch(`/api/admin/tenants/${tenant.id}/clients/import`, {
       method: 'POST',
-      headers: { 'x-admin-secret': SECRET },
       body: fd,
     })
     const data = await res.json() as typeof importResult

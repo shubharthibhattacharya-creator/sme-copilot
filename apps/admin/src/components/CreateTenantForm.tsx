@@ -37,10 +37,9 @@ export function CreateTenantForm() {
     setError('')
     setLoading(true)
     try {
-      const secret = process.env.NEXT_PUBLIC_ADMIN_SECRET ?? ''
-      const res = await fetch(`${process.env.NEXT_PUBLIC_ADMIN_API_URL ?? 'http://localhost:3001'}/api/v1/admin/tenants`, {
+      const res = await fetch('/api/admin/tenants', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-admin-secret': secret },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, modulesEnabled: modules }),
       })
       if (!res.ok) {

@@ -2,18 +2,15 @@
 import { useState } from 'react'
 import type { ConfigRow } from '@/lib/admin-api'
 
-const API = process.env.NEXT_PUBLIC_ADMIN_API_URL ?? 'http://localhost:3001'
-const SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET ?? ''
-
 const CATEGORY_ORDER = ['COLLECTIONS','AI_INSIGHTS','GST_COMPLIANCE','DOCUMENTS','REPORTS','WHATSAPP']
 
 export function SystemConfigTable({ initialConfig }: { initialConfig: ConfigRow[] }) {
   const [config, setConfig] = useState(initialConfig)
 
   async function handleUpdate(key: string, value: unknown) {
-    await fetch(`${API}/api/v1/admin/system-config/${key}`, {
+    await fetch(`/api/admin/system-config/${key}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'x-admin-secret': SECRET },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ value }),
     })
     setConfig((prev) => prev.map((r) => r.key === key ? { ...r, value } : r))
