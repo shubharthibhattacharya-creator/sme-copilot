@@ -4,7 +4,7 @@
 export interface AppEnv {
   NODE_ENV: 'development' | 'test' | 'production'
   DATABASE_URL: string
-  REDIS_URL: string
+  REDIS_URL?: string
   CLERK_SECRET_KEY: string
   CLERK_WEBHOOK_SECRET: string
   ANTHROPIC_API_KEY: string
@@ -18,7 +18,6 @@ export interface AppEnv {
 
 const required: Array<keyof AppEnv> = [
   'DATABASE_URL',
-  'REDIS_URL',
   'CLERK_SECRET_KEY',
   'CLERK_WEBHOOK_SECRET',
   'ANTHROPIC_API_KEY',
@@ -33,7 +32,7 @@ export function validateEnv(): AppEnv {
   return {
     NODE_ENV: (process.env['NODE_ENV'] as AppEnv['NODE_ENV']) ?? 'development',
     DATABASE_URL: process.env['DATABASE_URL']!,
-    REDIS_URL: process.env['REDIS_URL']!,
+    ...(process.env['REDIS_URL'] !== undefined ? { REDIS_URL: process.env['REDIS_URL'] } : {}),
     CLERK_SECRET_KEY: process.env['CLERK_SECRET_KEY']!,
     CLERK_WEBHOOK_SECRET: process.env['CLERK_WEBHOOK_SECRET']!,
     ANTHROPIC_API_KEY: process.env['ANTHROPIC_API_KEY']!,
