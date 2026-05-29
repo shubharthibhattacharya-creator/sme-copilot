@@ -9,13 +9,17 @@ export class AdminGuard implements CanActivate, OnModuleInit {
   onModuleInit() {
     const s = process.env['ADMIN_SECRET']
     if (!s || s.length < 32) {
-      throw new Error('ADMIN_SECRET must be set and at least 32 characters long')
+      this.logger.warn('ADMIN_SECRET is not set or is too short — admin endpoints will be unavailable')
+    } else {
+      this.secret = s
+      this.logger.log('AdminGuard initialised')
     }
-    this.secret = s
-    this.logger.log('AdminGuard initialised')
   }
 
   canActivate(context: ExecutionContext): boolean {
+    if (!this.secret) {
+      throw new UnauthorizedException('Admin endpoints are disabled: ADMIN_SECRET not configured')
+    }
     const req = context.switchToHttp().getRequest<Request>()
     const header = req.headers['x-admin-secret']
     if (!header || header !== this.secret) {
