@@ -61,4 +61,4 @@ COPY --from=builder /app/apps/api/node_modules     ./apps/api/node_modules
 # Run DB migration then start server
 # prisma db push is used (no migration files in repo yet)
 # Switch to `migrate deploy` once migration files are committed
-CMD ["sh", "-c", "packages/database/node_modules/.bin/prisma db push --schema=packages/database/prisma/schema.prisma --accept-data-loss && node apps/api/dist/main.js"]
+CMD ["node", "apps/api/dist/main.js"]
