@@ -30,11 +30,20 @@ async function proxyRequest(request: NextRequest, params: { path: string[] }) {
     forwardHeaders['Content-Type'] = 'application/json'
   }
 
-  const res = await fetch(url, {
-    method: request.method,
-    headers: forwardHeaders,
-    body: body ?? undefined,
-  })
+  let res: Response
+  try {
+    res = await fetch(url, {
+      method: request.method,
+      headers: forwardHeaders,
+      body: body ?? undefined,
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to reach API'
+    return NextResponse.json(
+      { message: `Proxy error: ${message} (ADMIN_API_URL=${API_URL})` },
+      { status: 502 },
+    )
+  }
 
   const responseContentType = res.headers.get('content-type') ?? ''
   if (responseContentType.includes('application/json')) {
@@ -43,6 +52,10 @@ async function proxyRequest(request: NextRequest, params: { path: string[] }) {
   }
 
   const text = await res.text()
+  // If the API returned a non-JSON body for a non-ok response, wrap it
+  if (!res.ok) {
+    return NextResponse.json({ message: text || `HTTP ${res.status}` }, { status: res.status })
+  }
   return new NextResponse(text, {
     status: res.status,
     headers: { 'Content-Type': responseContentType },
