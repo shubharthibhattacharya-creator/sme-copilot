@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import Anthropic from '@anthropic-ai/sdk'
+import type { DocumentBlockParam } from '@anthropic-ai/sdk/resources/messages/messages'
 import { AppException, AiServiceUnavailableException } from '../../common/exceptions'
 import { PrismaService } from '../../prisma/prisma.service'
 import type { TenantConfig, DashboardSummary } from '@opsc/types'
@@ -169,6 +170,7 @@ For OTHER documents extract whatever structured fields you can identify.
 Always include a confidence score (0-1). Return null for fields you cannot determine.`
 
     const isImage = mimeType.startsWith('image/')
+    const isPdf = mimeType === 'application/pdf'
 
     const contentBlocks: Anthropic.MessageParam['content'] = isImage
       ? [
@@ -185,12 +187,27 @@ Always include a confidence score (0-1). Return null for fields you cannot deter
             text: `Extract data from this ${documentType} document.`,
           } satisfies Anthropic.TextBlockParam,
         ]
-      : [
-          {
-            type: 'text' as const,
-            text: `Extract data from this ${documentType} document. The document is provided as base64-encoded PDF content:\n\nBase64 content (first 100 chars for reference): ${base64Content.slice(0, 100)}...\n\nPlease extract whatever structured data you can infer from a ${documentType} document type and return the JSON.`,
-          } satisfies Anthropic.TextBlockParam,
-        ]
+      : isPdf
+        ? [
+            {
+              type: 'document' as const,
+              source: {
+                type: 'base64' as const,
+                media_type: 'application/pdf' as const,
+                data: base64Content,
+              },
+            } satisfies DocumentBlockParam,
+            {
+              type: 'text' as const,
+              text: `Extract data from this ${documentType} document.`,
+            } satisfies Anthropic.TextBlockParam,
+          ]
+        : [
+            {
+              type: 'text' as const,
+              text: `Extract data from this ${documentType} document. Return the JSON with all fields set to null and confidence: 0 as the file format is not supported.`,
+            } satisfies Anthropic.TextBlockParam,
+          ]
 
     let response: Awaited<ReturnType<typeof this.anthropic.messages.create>>
     try {
