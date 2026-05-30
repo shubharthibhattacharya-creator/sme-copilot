@@ -60,6 +60,8 @@ export function OnboardingWizard() {
   const [firm, setFirm] = useState<FirmProfile | null>(null)
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
+  const [gstNumber, setGstNumber] = useState('')
+  const [panNumber, setPanNumber] = useState('')
 
   // Clients state
   const [clients, setClients] = useState<Client[]>([])
@@ -84,6 +86,8 @@ export function OnboardingWizard() {
         setFirm(profile)
         setPhone(profile.phone ?? '')
         setAddress(profile.address ?? '')
+        setGstNumber(profile.gstNumber ?? '')
+        setPanNumber(profile.panNumber ?? '')
       })
       .catch((err) => setError(err instanceof ApiError ? err.userMessage : err instanceof Error ? err.message : 'Account setup failed'))
   }, [isLoaded, isSignedIn, request, router])
@@ -110,7 +114,12 @@ export function OnboardingWizard() {
     try {
       await request('/settings/profile', {
         method: 'PATCH',
-        body: JSON.stringify({ phone: phone || undefined, address: address || undefined }),
+        body: JSON.stringify({
+          phone: phone || undefined,
+          address: address || undefined,
+          gstNumber: gstNumber || undefined,
+          panNumber: panNumber || undefined,
+        }),
       })
       setStep(2)
     } catch (err) {
@@ -163,6 +172,20 @@ export function OnboardingWizard() {
               <p className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">Firm name</p>
               <p className="text-base font-semibold text-gray-900">{firm?.name ?? '—'}</p>
               {firm?.gstNumber && <p className="text-xs text-gray-500 mt-1">GSTIN: {firm.gstNumber}</p>}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">GSTIN</label>
+                <input type="text" value={gstNumber} onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
+                  placeholder="22AAAAA0000A1Z5" maxLength={15}
+                  className="w-full text-sm font-mono border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">PAN</label>
+                <input type="text" value={panNumber} onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
+                  placeholder="AAAAA0000A" maxLength={10}
+                  className="w-full text-sm font-mono border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700 block mb-1">Phone</label>
@@ -255,13 +278,31 @@ export function OnboardingWizard() {
                 placeholder="+91 98765 43210"
                 className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
+            <p className="text-xs text-gray-400">
+              You can configure full Twilio credentials (Account SID, Auth Token, number) from
+              Settings → Integrations after setup.
+            </p>
             <div className="flex gap-2">
               <button onClick={() => setStep(2)} className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200">← Back</button>
-              <button onClick={() => { setWaSkipped(true); setStep(4) }}
+              <button
+                onClick={() => { setWaSkipped(true); setStep(4) }}
                 className="px-4 py-2 text-sm text-gray-500 border border-gray-300 rounded-xl hover:bg-gray-50">
                 Skip
               </button>
-              <button onClick={() => setStep(4)} className="flex-1 py-2 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700">Continue →</button>
+              <button
+                onClick={async () => {
+                  if (waPhone.trim()) {
+                    await request('/settings/profile', {
+                      method: 'PATCH',
+                      body: JSON.stringify({ phone: waPhone.trim() }),
+                    }).catch(() => undefined)
+                  }
+                  setStep(4)
+                }}
+                className="flex-1 py-2 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700"
+              >
+                Continue →
+              </button>
             </div>
           </div>
         )}
@@ -304,6 +345,7 @@ export function OnboardingWizard() {
             <div className="space-y-3">
               {[
                 { label: 'Firm', value: firm?.name ?? '—' },
+                { label: 'GSTIN', value: gstNumber || '—' },
                 { label: 'Clients', value: clients.length > 0 ? `${clients.length} loaded` : 'None — add from Settings' },
                 { label: 'WhatsApp', value: waSkipped || !waPhone ? 'Configure from Settings' : waPhone },
                 { label: 'Tax integration', value: 'Configure from Settings' },

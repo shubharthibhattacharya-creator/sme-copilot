@@ -91,6 +91,16 @@ export class DocumentsController {
     return this.documentsService.resolveClassification(id, user.companyId, documentOwner)
   }
 
+  @Patch(':id/extracted-data')
+  @Roles('ADMIN', 'OPERATIONS_MANAGER')
+  updateExtractedData(
+    @Param('id') id: string,
+    @Body() body: Record<string, unknown>,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.documentsService.updateExtractedData(id, user.companyId, body)
+  }
+
   @Patch(':id/filing-period')
   @Roles('ADMIN', 'OPERATIONS_MANAGER')
   updateFilingPeriod(

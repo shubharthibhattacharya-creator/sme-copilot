@@ -24,6 +24,7 @@ import { EmailModule } from './modules/email/email.module'
 import { AdminModule } from './modules/admin/admin.module'
 import { IntegrationsModule } from './modules/integrations/integrations.module'
 import { EncryptionModule } from './common/encryption/encryption.module'
+import { SchedulerModule } from './modules/scheduler/scheduler.module'
 
 @Module({
   controllers: [HealthController],
@@ -55,6 +56,7 @@ import { EncryptionModule } from './common/encryption/encryption.module'
     UploadTokensModule,
     AdminModule,
     IntegrationsModule,
+    SchedulerModule,
   ],
 })
 export class AppModule {}

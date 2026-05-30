@@ -129,6 +129,8 @@ export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [resolving, setResolving] = useState<'FIRM' | 'CLIENT' | false>(false)
+  const [editingData, setEditingData] = useState<Record<string, string> | null>(null)
+  const [savingData, setSavingData] = useState(false)
 
   // Fetch full detail (including fileUrl) whenever the document changes
   useEffect(() => {
@@ -214,6 +216,30 @@ export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
       setPushMsg(e instanceof ApiError ? e.userMessage : (e as Error).message)
     } finally {
       setPushing(false)
+    }
+  }
+
+  async function saveExtractedData() {
+    if (!detail || !editingData) return
+    setSavingData(true)
+    try {
+      // Convert string values back to numbers where possible
+      const coerced: Record<string, unknown> = {}
+      for (const [k, v] of Object.entries(editingData)) {
+        if (v === '' || v === null) { coerced[k] = null; continue }
+        const num = Number(v)
+        coerced[k] = !isNaN(num) && v.trim() !== '' ? num : v
+      }
+      const updated = await request<DocumentItem>(`/documents/${detail.id}/extracted-data`, {
+        method: 'PATCH',
+        body: JSON.stringify(coerced),
+      })
+      setDetail(updated)
+      setEditingData(null)
+    } catch (e) {
+      handleError(e)
+    } finally {
+      setSavingData(false)
     }
   }
 
@@ -340,19 +366,67 @@ export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
           {/* Extracted data */}
           {extractedData && Object.keys(extractedData).length > 0 && (
             <div>
-              <p className="text-sm font-medium text-gray-700 mb-2">Extracted data</p>
-              <div className="space-y-1">
-                {Object.entries(extractedData)
-                  .filter(([k]) => k !== 'confidence' && k !== 'documentType' && k !== 'error' && k !== 'raw')
-                  .map(([key, value]) => (
-                    <div key={key} className="flex justify-between text-sm py-1 border-b border-gray-100">
-                      <span className="text-gray-500 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-                      <span className="font-medium text-gray-900 text-right max-w-48 truncate">
-                        {value === null ? '—' : String(value)}
-                      </span>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-gray-700">Extracted data</p>
+                {!editingData && doc.status !== 'PROCESSING' && doc.status !== 'UPLOADED' && (
+                  <button
+                    onClick={() => {
+                      const editable: Record<string, string> = {}
+                      for (const [k, v] of Object.entries(extractedData)) {
+                        if (k === 'confidence' || k === 'documentType' || k === 'error' || k === 'raw') continue
+                        editable[k] = v === null || v === undefined ? '' : String(v)
+                      }
+                      setEditingData(editable)
+                    }}
+                    className="text-xs text-blue-600 hover:underline"
+                  >
+                    Edit / correct
+                  </button>
+                )}
+              </div>
+
+              {editingData ? (
+                <div className="space-y-2">
+                  {Object.entries(editingData).map(([key, value]) => (
+                    <div key={key} className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-500 capitalize w-36 shrink-0">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                      <input
+                        value={value}
+                        onChange={(e) => setEditingData(prev => prev ? { ...prev, [key]: e.target.value } : prev)}
+                        className="flex-1 text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
                     </div>
                   ))}
-              </div>
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={saveExtractedData}
+                      disabled={savingData}
+                      className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {savingData ? 'Saving…' : 'Save corrections'}
+                    </button>
+                    <button
+                      onClick={() => setEditingData(null)}
+                      className="text-xs text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-100"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {Object.entries(extractedData)
+                    .filter(([k]) => k !== 'confidence' && k !== 'documentType' && k !== 'error' && k !== 'raw')
+                    .map(([key, value]) => (
+                      <div key={key} className="flex justify-between text-sm py-1 border-b border-gray-100">
+                        <span className="text-gray-500 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                        <span className="font-medium text-gray-900 text-right max-w-48 truncate">
+                          {value === null ? '—' : String(value)}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              )}
             </div>
           )}
 

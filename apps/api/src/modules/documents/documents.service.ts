@@ -351,6 +351,34 @@ export class DocumentsService {
     return { message: 'Classification resolved', documentId: id, documentOwner, documentPurpose: purpose }
   }
 
+  async updateExtractedData(id: string, companyId: string, corrections: Record<string, unknown>) {
+    const doc = await this.findOne(id, companyId)
+    const current = (doc.extractedData as Record<string, unknown> | null) ?? {}
+    const merged = { ...current, ...corrections }
+
+    // Re-evaluate status: if user corrected the data, set to PROCESSED unless it was FILED
+    const newStatus = doc.status === 'NEEDS_REVIEW' ? 'PROCESSED' : doc.status
+
+    const updated = await this.prisma.document.update({
+      where: { id: doc.id },
+      data: {
+        extractedData: merged as any,
+        status: newStatus as any,
+      },
+    })
+
+    // If this is a firm invoice and we just corrected data, re-run the bridge
+    if (updated.documentOwner === 'FIRM' || updated.documentPurpose === 'RECEIVABLE') {
+      try {
+        await this.bridgeService.bridge(id, companyId)
+      } catch (err) {
+        this.logger.error(`Bridge failed after extracted-data correction for ${id}`, err)
+      }
+    }
+
+    return updated
+  }
+
   async updateFilingPeriod(id: string, companyId: string, filingPeriod: string) {
     const doc = await this.findOne(id, companyId)
     return this.prisma.document.update({
