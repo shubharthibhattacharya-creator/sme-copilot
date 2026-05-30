@@ -235,12 +235,25 @@ export class AdminService {
       this.logger.warn('CLERK_SECRET_KEY not set — skipping invite')
       return
     }
+
+    const headers = { Authorization: `Bearer ${secretKey}`, 'Content-Type': 'application/json' }
+
+    // Revoke any existing pending invitations for this email
+    const listRes = await fetch(
+      `https://api.clerk.com/v1/invitations?email_address=${encodeURIComponent(email)}&status=pending`,
+      { headers },
+    )
+    if (listRes.ok) {
+      const existing = await listRes.json() as Array<{ id: string }>
+      for (const inv of existing) {
+        await fetch(`https://api.clerk.com/v1/invitations/${inv.id}/revoke`, { method: 'POST', headers })
+        this.logger.log(`Revoked existing invite ${inv.id} for ${email}`)
+      }
+    }
+
     const res = await fetch('https://api.clerk.com/v1/invitations', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${secretKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({
         email_address: email,
         public_metadata: {
@@ -253,8 +266,8 @@ export class AdminService {
       }),
     })
     if (!res.ok) {
-      const err = await res.json() as { errors?: Array<{ message: string }> }
-      throw new Error(err.errors?.[0]?.message ?? `Clerk API error ${res.status}`)
+      const err = await res.json() as { errors?: Array<{ message: string; long_message?: string }> }
+      throw new Error(err.errors?.[0]?.long_message ?? err.errors?.[0]?.message ?? `Clerk API error ${res.status}`)
     }
     this.logger.log(`Clerk invite sent to ${email} for company ${companyId} (role: ${role})`)
   }
