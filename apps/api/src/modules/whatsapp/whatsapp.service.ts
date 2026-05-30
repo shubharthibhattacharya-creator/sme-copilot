@@ -565,6 +565,12 @@ export class WhatsAppService {
             fileSizeBytes: sizeBytes,
             mimeType: contentType,
             notes: `Auto-received via WhatsApp from ${fromPhone}${messageBody ? ` — "${messageBody.slice(0, 100)}"` : ''}`,
+            sourceChannel: 'WHATSAPP_INBOUND' as any,
+            sourceModule: 'DOCUMENTS',
+            documentOwner: 'CLIENT' as any,
+            documentPurpose: 'TAX_PREPARATION' as any,
+            classificationSource: 'CHANNEL_INFERRED',
+            classificationMode: 'SMART' as any,
           },
         })
 

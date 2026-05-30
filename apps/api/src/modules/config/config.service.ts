@@ -41,6 +41,8 @@ const CONFIG_DEFAULTS: Record<string, unknown> = {
   [ConfigKey.WHATSAPP_QUIET_HOURS_START]: 22,
   [ConfigKey.WHATSAPP_QUIET_HOURS_END]: 8,
   [ConfigKey.WHATSAPP_MAX_PER_INVOICE]: 3,
+  [ConfigKey.DOCUMENT_CLASSIFICATION_MODE]: 'smart',
+  [ConfigKey.COLLECTIONS_DEFAULT_PAYMENT_TERMS_DAYS]: 30,
 }
 
 export interface ConfigEntry {

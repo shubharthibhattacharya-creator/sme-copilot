@@ -22,6 +22,13 @@ const OCR_STATUS: Record<string, { label: string; cls: string; pulse?: boolean }
   FAILED:       { label: 'Failed',     cls: 'bg-red-100 text-red-700' },
 }
 
+const PURPOSE_BADGE: Record<string, { label: string; cls: string }> = {
+  RECEIVABLE:      { label: 'Fee invoice',   cls: 'bg-teal-100 text-teal-700' },
+  TAX_PREPARATION: { label: 'Client doc',    cls: 'bg-purple-100 text-purple-700' },
+  FIRM_RECORD:     { label: 'Firm record',   cls: 'bg-blue-100 text-blue-700' },
+  UNKNOWN:         { label: 'Needs review',  cls: 'bg-amber-100 text-amber-700' },
+}
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
@@ -53,6 +60,7 @@ export function DocumentList({ documents, onSelect }: Props) {
           <tr>
             <th className="text-left px-4 py-3 font-medium text-gray-600">File</th>
             <th className="text-left px-4 py-3 font-medium text-gray-600">Type</th>
+            <th className="text-left px-4 py-3 font-medium text-gray-600">Purpose</th>
             <th className="text-left px-4 py-3 font-medium text-gray-600">Upload</th>
             <th className="text-left px-4 py-3 font-medium text-gray-600">OCR</th>
             <th className="text-left px-4 py-3 font-medium text-gray-600">Sync</th>
@@ -72,6 +80,21 @@ export function DocumentList({ documents, onSelect }: Props) {
               >
                 <td className="px-4 py-3 font-medium text-gray-900 max-w-48 truncate">{doc.originalName}</td>
                 <td className="px-4 py-3 text-gray-600">{doc.documentType.replace(/_/g, ' ')}</td>
+
+                {/* Purpose / classification badge */}
+                <td className="px-4 py-3">
+                  {doc.gstinConflict ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+                      Needs confirmation
+                    </span>
+                  ) : doc.documentPurpose ? (
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${(PURPOSE_BADGE[doc.documentPurpose] ?? PURPOSE_BADGE['UNKNOWN']!).cls}`}>
+                      {(PURPOSE_BADGE[doc.documentPurpose] ?? PURPOSE_BADGE['UNKNOWN']!).label}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-300">—</span>
+                  )}
+                </td>
 
                 {/* Upload status — always saved if record exists */}
                 <td className="px-4 py-3">

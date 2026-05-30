@@ -123,6 +123,31 @@ enum ReportStatus {
   FAILED
 }
 
+enum DocumentOwner {
+  FIRM
+  CLIENT
+}
+
+enum DocumentPurpose {
+  RECEIVABLE
+  TAX_PREPARATION
+  FIRM_RECORD
+  UNKNOWN
+}
+
+enum ClassificationMode {
+  SMART
+  EXPLICIT
+}
+
+enum SourceChannel {
+  MANUAL_UPLOAD
+  WHATSAPP_INBOUND
+  EMAIL_INBOUND
+  TALLY_SYNC
+  API_PUSH
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model Company {
@@ -138,6 +163,7 @@ model Company {
   isActive     Boolean          @default(true)
   logoUrl      String?
   gstNumber    String?
+  gstin        String?
   panNumber    String?
   address      String?
   website      String?
@@ -205,6 +231,12 @@ model Invoice {
   status         InvoiceStatus @default(PENDING)
   /// Computed: days since dueDate when status is OVERDUE
   agingDays      Int           @default(0)
+  invoiceNumber  String?
+  invoiceDate    DateTime?
+  clientName     String?
+  description    String?
+  sourceDocumentId String?
+  createdFromOcr Boolean       @default(false)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -432,6 +464,16 @@ model Document {
   /// ID assigned by ClearTax/Zoho/Tally after a successful push
   externalId    String?
   syncError     String?
+  documentOwner         DocumentOwner      @default(CLIENT)
+  documentPurpose       DocumentPurpose    @default(UNKNOWN)
+  sourceModule          String?
+  sourceChannel         SourceChannel      @default(MANUAL_UPLOAD)
+  classificationMode    ClassificationMode @default(SMART)
+  classificationSource  String?
+  linkedInvoiceId       String?
+  linkedInvoiceCreated  Boolean            @default(false)
+  gstinConflict         Boolean            @default(false)
+  gstinConflictNote     String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 

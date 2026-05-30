@@ -22,15 +22,18 @@ const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image
 
 interface Props {
   onUploaded: (doc: DocumentItem) => void
+  sourceModule?: string
+  classificationMode?: 'smart' | 'explicit'
 }
 
-export function DocumentUploadButton({ onUploaded }: Props) {
+export function DocumentUploadButton({ onUploaded, sourceModule, classificationMode = 'smart' }: Props) {
   const { getToken } = useAuth()
   const { handleError } = useApiError()
   const [uploading, setUploading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [docType, setDocType] = useState<DocumentType>('INVOICE')
   const [error, setError] = useState<string | null>(null)
+  const [documentOwner, setDocumentOwner] = useState<'FIRM' | 'CLIENT' | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   async function handleUpload() {
@@ -60,6 +63,9 @@ export function DocumentUploadButton({ onUploaded }: Props) {
       const formData = new FormData()
       formData.append('file', file)
       formData.append('documentType', docType)
+      if (sourceModule) formData.append('sourceModule', sourceModule)
+      formData.append('sourceChannel', 'MANUAL_UPLOAD')
+      if (documentOwner) formData.append('documentOwner', documentOwner)
 
       const apiUrl = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001'
       const res = await fetch(`${apiUrl}/api/v1/documents`, {
@@ -86,6 +92,7 @@ export function DocumentUploadButton({ onUploaded }: Props) {
       const doc = await res.json() as DocumentItem
       onUploaded(doc)
       setShowForm(false)
+      setDocumentOwner(null)
       if (fileRef.current) fileRef.current.value = ''
     } catch (err) {
       if (err instanceof ApiError) {
@@ -111,38 +118,61 @@ export function DocumentUploadButton({ onUploaded }: Props) {
   }
 
   return (
-    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-      <select
-        value={docType}
-        onChange={e => setDocType(e.target.value as DocumentType)}
-        className="text-sm border border-gray-300 rounded px-2 py-1.5"
-      >
-        {DOCUMENT_TYPES.map(t => (
-          <option key={t.value} value={t.value}>{t.label}</option>
-        ))}
-      </select>
-      <input
-        ref={fileRef}
-        type="file"
-        accept=".pdf,.jpg,.jpeg,.png,.webp"
-        className="text-sm text-gray-600"
-        onChange={() => setError(null)}
-      />
-      <button
-        onClick={handleUpload}
-        disabled={uploading}
-        className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50"
-      >
-        {uploading ? 'Uploading...' : 'Upload'}
-      </button>
-      <button
-        onClick={() => { setShowForm(false); setError(null) }}
-        className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900"
-      >
-        Cancel
-      </button>
-      {error && (
-        <span className="text-sm text-red-500" role="alert">{error}</span>
+    <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
+      {showForm && classificationMode === 'explicit' && !documentOwner && (
+        <div className="p-4 bg-white border border-gray-200 rounded-lg space-y-3">
+          <p className="text-sm font-medium text-gray-900">What are you uploading?</p>
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => setDocumentOwner('FIRM')}
+              className="p-3 text-left border-2 border-gray-200 rounded-lg hover:border-teal-400 transition-colors">
+              <p className="text-sm font-medium text-gray-900">Our firm&apos;s fee invoice</p>
+              <p className="text-xs text-gray-500 mt-1">Invoice we raised to a client</p>
+              <p className="text-xs text-teal-600 mt-2">→ Added to Collections as receivable</p>
+            </button>
+            <button onClick={() => setDocumentOwner('CLIENT')}
+              className="p-3 text-left border-2 border-gray-200 rounded-lg hover:border-purple-400 transition-colors">
+              <p className="text-sm font-medium text-gray-900">Client&apos;s document</p>
+              <p className="text-xs text-gray-500 mt-1">Purchase bills, GST returns, bank statements</p>
+              <p className="text-xs text-purple-600 mt-2">→ Stored in client&apos;s document vault</p>
+            </button>
+          </div>
+        </div>
+      )}
+      {(classificationMode !== 'explicit' || documentOwner) && (
+        <div className="flex items-center gap-3 flex-wrap">
+          <select
+            value={docType}
+            onChange={e => setDocType(e.target.value as DocumentType)}
+            className="text-sm border border-gray-300 rounded px-2 py-1.5"
+          >
+            {DOCUMENT_TYPES.map(t => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
+          </select>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png,.webp"
+            className="text-sm text-gray-600"
+            onChange={() => setError(null)}
+          />
+          <button
+            onClick={handleUpload}
+            disabled={uploading}
+            className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50"
+          >
+            {uploading ? 'Uploading...' : 'Upload'}
+          </button>
+          <button
+            onClick={() => { setShowForm(false); setDocumentOwner(null); setError(null) }}
+            className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900"
+          >
+            Cancel
+          </button>
+          {error && (
+            <span className="text-sm text-red-500" role="alert">{error}</span>
+          )}
+        </div>
       )}
     </div>
   )

@@ -47,4 +47,10 @@ export enum ConfigKey {
   WHATSAPP_QUIET_HOURS_START = 'whatsapp_quiet_hours_start',
   WHATSAPP_QUIET_HOURS_END = 'whatsapp_quiet_hours_end',
   WHATSAPP_MAX_PER_INVOICE = 'whatsapp_max_per_invoice',
+
+  // Documents — Classification
+  DOCUMENT_CLASSIFICATION_MODE = 'document_classification_mode',
+
+  // Collections — Invoice creation
+  COLLECTIONS_DEFAULT_PAYMENT_TERMS_DAYS = 'collections_default_payment_terms_days',
 }

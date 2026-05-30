@@ -39,6 +39,14 @@ export interface DocumentItem {
   createdAt: string
   updatedAt: string
   uploadedBy: { id: string; name: string }
+  documentOwner?: 'FIRM' | 'CLIENT'
+  documentPurpose?: 'RECEIVABLE' | 'TAX_PREPARATION' | 'FIRM_RECORD' | 'UNKNOWN'
+  classificationSource?: string | null
+  sourceChannel?: string | null
+  gstinConflict?: boolean
+  gstinConflictNote?: string | null
+  linkedInvoiceId?: string | null
+  linkedInvoiceCreated?: boolean
 }
 
 export interface DocumentRequest {

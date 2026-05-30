@@ -81,6 +81,16 @@ export class DocumentsController {
     return this.documentsService.reprocess(id, user.companyId)
   }
 
+  @Patch(':id/resolve-classification')
+  @Roles('ADMIN', 'OPERATIONS_MANAGER')
+  resolveClassification(
+    @Param('id') id: string,
+    @Body('documentOwner') documentOwner: 'FIRM' | 'CLIENT',
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.documentsService.resolveClassification(id, user.companyId, documentOwner)
+  }
+
   @Patch(':id/filing-period')
   @Roles('ADMIN', 'OPERATIONS_MANAGER')
   updateFilingPeriod(

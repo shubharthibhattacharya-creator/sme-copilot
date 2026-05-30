@@ -14,6 +14,8 @@ import { ConfigService } from '../config/config.service'
 import { ConfigKey } from '../config/config-key.enum'
 import { EmailService } from '../email/email.service'
 import { IntegrationsService } from '../integrations/integrations.service'
+import { DocumentClassificationService } from './document-classification.service'
+import { DocumentToInvoiceService } from './document-to-invoice.service'
 import type { UploadDocumentDto } from './dto/upload-document.dto'
 import type { ListDocumentsDto } from './dto/list-documents.dto'
 import type { CreateDocumentRequestDto } from './dto/create-document-request.dto'
@@ -40,6 +42,8 @@ export class DocumentsService {
     private readonly configSvc: ConfigService,
     private readonly email: EmailService,
     private readonly integrations: IntegrationsService,
+    private readonly classificationService: DocumentClassificationService,
+    private readonly bridgeService: DocumentToInvoiceService,
   ) {}
 
   async upload(
@@ -75,6 +79,12 @@ export class DocumentsService {
         mimeType: file.mimetype,
         notes: dto.notes,
         filingPeriod: dto.filingPeriod ?? undefined,
+        sourceModule: dto.sourceModule ?? 'DOCUMENTS',
+        sourceChannel: (dto.sourceChannel ?? 'MANUAL_UPLOAD') as any,
+        documentOwner: (dto.documentOwner ?? (dto.sourceModule === 'COLLECTIONS' ? 'FIRM' : 'CLIENT')) as any,
+        documentPurpose: (dto.documentOwner ? (dto.documentOwner === 'FIRM' ? 'RECEIVABLE' : 'TAX_PREPARATION') : 'UNKNOWN') as any,
+        classificationMode: (dto.documentOwner ? 'EXPLICIT' : 'SMART') as any,
+        classificationSource: dto.documentOwner ? 'USER_EXPLICIT' : null,
       },
     })
 
@@ -167,6 +177,16 @@ export class DocumentsService {
           client: { select: { name: true } },
         },
       })
+
+      // Classify and bridge to Invoice if applicable
+      try {
+        const classification = await this.classificationService.classify(documentId, companyId)
+        if (classification.documentPurpose === 'RECEIVABLE') {
+          await this.bridgeService.bridge(documentId, companyId)
+        }
+      } catch (classErr) {
+        this.logger.error(`Classification failed for ${documentId}`, classErr)
+      }
 
       // Email OCR result to uploader
       this.email.sendOcrComplete({
@@ -302,6 +322,33 @@ export class DocumentsService {
       where: { id: requestId },
       data: { status: 'FULFILLED', fulfilledDocumentId: documentId },
     })
+  }
+
+  async resolveClassification(id: string, companyId: string, documentOwner: 'FIRM' | 'CLIENT') {
+    const doc = await this.findOne(id, companyId)
+    const purpose = documentOwner === 'FIRM' ? 'RECEIVABLE' : 'TAX_PREPARATION'
+
+    await this.prisma.document.update({
+      where: { id: doc.id },
+      data: {
+        documentOwner: documentOwner as any,
+        documentPurpose: purpose as any,
+        gstinConflict: false,
+        classificationSource: 'OCR_CONFLICT_RESOLVED',
+        classificationMode: 'EXPLICIT' as any,
+      },
+    })
+
+    // If firm invoice, bridge to invoice
+    if (documentOwner === 'FIRM') {
+      try {
+        await this.bridgeService.bridge(id, companyId)
+      } catch (err) {
+        this.logger.error(`Bridge failed after manual classification for ${id}`, err)
+      }
+    }
+
+    return { message: 'Classification resolved', documentId: id, documentOwner, documentPurpose: purpose }
   }
 
   async updateFilingPeriod(id: string, companyId: string, filingPeriod: string) {

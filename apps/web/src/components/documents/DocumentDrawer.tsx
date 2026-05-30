@@ -6,6 +6,28 @@ import { ApiError } from '@/lib/api-error'
 import { useApiError } from '@/hooks/useApiError'
 import type { DocumentItem } from '@opsc/types'
 
+const PURPOSE_LABEL: Record<string, string> = {
+  RECEIVABLE:       'Fee invoice (receivable)',
+  TAX_PREPARATION:  'Client document (tax prep)',
+  FIRM_RECORD:      'Firm record',
+  UNKNOWN:          'Not yet classified',
+}
+const CLASSIFICATION_SOURCE_LABEL: Record<string, string> = {
+  USER_EXPLICIT:           'You selected this type at upload',
+  CONTEXT:                 'Determined from upload location',
+  OCR_CONFIRMED:           'Confirmed by GSTIN matching',
+  CHANNEL_INFERRED:        'Determined by delivery channel',
+  OCR_CONFLICT_DETECTED:   'Awaiting staff confirmation',
+  OCR_CONFLICT_RESOLVED:   'Manually confirmed by staff',
+}
+const SOURCE_CHANNEL_LABEL: Record<string, string> = {
+  MANUAL_UPLOAD:    'Uploaded by staff',
+  WHATSAPP_INBOUND: 'Received via WhatsApp',
+  EMAIL_INBOUND:    'Received via email',
+  TALLY_SYNC:       'Synced from Tally',
+  API_PUSH:         'Pushed via API',
+}
+
 interface Props {
   document: DocumentItem | null
   onClose: () => void
@@ -106,6 +128,7 @@ export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
   const [reprocessMsg, setReprocessMsg] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [resolving, setResolving] = useState<'FIRM' | 'CLIENT' | false>(false)
 
   // Fetch full detail (including fileUrl) whenever the document changes
   useEffect(() => {
@@ -191,6 +214,29 @@ export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
       setPushMsg(e instanceof ApiError ? e.userMessage : (e as Error).message)
     } finally {
       setPushing(false)
+    }
+  }
+
+  async function resolveClassification(owner: 'FIRM' | 'CLIENT') {
+    if (!detail) return
+    setResolving(owner)
+    try {
+      await request(`/documents/${detail.id}/resolve-classification`, {
+        method: 'PATCH',
+        body: JSON.stringify({ documentOwner: owner }),
+      })
+      setDetail(prev => prev ? {
+        ...prev,
+        documentOwner: owner,
+        documentPurpose: owner === 'FIRM' ? 'RECEIVABLE' : 'TAX_PREPARATION',
+        gstinConflict: false,
+        classificationSource: 'OCR_CONFLICT_RESOLVED',
+        linkedInvoiceCreated: owner === 'FIRM' ? true : (prev.linkedInvoiceCreated ?? false),
+      } : prev)
+    } catch (e) {
+      setPushMsg(e instanceof ApiError ? e.userMessage : (e as Error).message)
+    } finally {
+      setResolving(false)
     }
   }
 
@@ -372,6 +418,52 @@ export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
               )}
             </div>
             {pushMsg && <p className="text-xs text-gray-500 mt-2">{pushMsg}</p>}
+          </div>
+
+          {/* Classification */}
+          <div className="border-t border-gray-100 pt-4">
+            <p className="text-sm font-medium text-gray-700 mb-3">Classification</p>
+            <div className="space-y-1 text-sm">
+              <div className="flex justify-between py-1 border-b border-gray-100">
+                <span className="text-gray-500">Owner</span>
+                <span className="font-medium">{doc.documentOwner === 'FIRM' ? 'Our firm' : 'Client'}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-100">
+                <span className="text-gray-500">Purpose</span>
+                <span className="font-medium">{PURPOSE_LABEL[doc.documentPurpose ?? 'UNKNOWN'] ?? doc.documentPurpose}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-100">
+                <span className="text-gray-500">Classified by</span>
+                <span className="font-medium text-right max-w-48">{CLASSIFICATION_SOURCE_LABEL[doc.classificationSource ?? ''] ?? doc.classificationSource ?? '—'}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-100">
+                <span className="text-gray-500">Source</span>
+                <span className="font-medium">{SOURCE_CHANNEL_LABEL[doc.sourceChannel ?? ''] ?? doc.sourceChannel ?? '—'}</span>
+              </div>
+            </div>
+
+            {doc.gstinConflict && (
+              <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                <p className="text-xs font-medium text-orange-800 mb-1">Needs confirmation</p>
+                <p className="text-xs text-orange-700 mb-3">{doc.gstinConflictNote}</p>
+                <div className="flex gap-2">
+                  <button onClick={() => resolveClassification('FIRM')} disabled={!!resolving}
+                    className="text-xs bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 disabled:opacity-50">
+                    {resolving === 'FIRM' ? 'Saving…' : "Our firm's invoice"}
+                  </button>
+                  <button onClick={() => resolveClassification('CLIENT')} disabled={!!resolving}
+                    className="text-xs bg-purple-600 text-white px-3 py-1.5 rounded-lg hover:bg-purple-700 disabled:opacity-50">
+                    {resolving === 'CLIENT' ? 'Saving…' : "Client's document"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {doc.linkedInvoiceCreated && (
+              <p className="text-xs text-teal-600 mt-2">
+                Invoice created — <a href="/collections" className="underline">view in Collections ↗</a>
+              </p>
+            )}
           </div>
 
         </div>

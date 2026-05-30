@@ -16,6 +16,10 @@ export interface InvoiceWithRisk {
   riskScore: number | null
   riskLevel: RiskLevel
   predictedDelayDays: number | null
+  sourceDocumentId?: string | null
+  createdFromOcr?: boolean
+  invoiceNumber?: string | null
+  clientName?: string | null
 }
 
 export interface AgingBucket {

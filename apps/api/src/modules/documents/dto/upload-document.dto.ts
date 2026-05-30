@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional, IsString } from 'class-validator'
+import { IsEnum, IsIn, IsOptional, IsString } from 'class-validator'
 import { DocumentType } from '@opsc/database'
 
 export class UploadDocumentDto {
@@ -22,4 +22,16 @@ export class UploadDocumentDto {
   @IsOptional()
   @IsString()
   clientId?: string
+
+  @IsOptional()
+  @IsString()
+  sourceModule?: string
+
+  @IsOptional()
+  @IsString()
+  sourceChannel?: string
+
+  @IsOptional()
+  @IsIn(['FIRM', 'CLIENT'])
+  documentOwner?: 'FIRM' | 'CLIENT'
 }
