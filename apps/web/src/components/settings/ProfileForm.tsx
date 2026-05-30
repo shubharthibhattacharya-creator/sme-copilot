@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useApiClient } from '@/lib/client-api'
+import { ApiError } from '@/lib/api-error'
 
 interface FirmProfile {
   id: string
@@ -46,7 +47,7 @@ export function ProfileForm({ profile }: { profile: FirmProfile }) {
       })
       setSaved(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed')
+      setError(err instanceof ApiError ? err.userMessage : err instanceof Error ? err.message : 'Save failed')
     } finally {
       setSaving(false)
     }

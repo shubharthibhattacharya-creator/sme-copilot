@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useApiClient } from '@/lib/client-api'
 import { useAuth } from '@clerk/nextjs'
 import type { ReportItem } from '@opsc/types'
+import { ApiError } from '@/lib/api-error'
 
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001'
 const IS_DEV = process.env['NODE_ENV'] !== 'production'
@@ -258,7 +259,7 @@ export function ReportingClient({ initialReports }: Props) {
       })
       setReports(prev => [report, ...prev])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate report')
+      setError(err instanceof ApiError ? err.userMessage : err instanceof Error ? err.message : 'Failed to generate report')
     } finally {
       setGenerating(false)
     }

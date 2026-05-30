@@ -2,6 +2,8 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { useApiClient } from '@/lib/client-api'
+import { ApiError } from '@/lib/api-error'
+import { useApiError } from '@/hooks/useApiError'
 import type { DocumentItem } from '@opsc/types'
 
 interface Props {
@@ -96,6 +98,7 @@ function FileAttachment({ doc }: { doc: DocumentItem }) {
 export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
   const { getToken } = useAuth()
   const { request } = useApiClient()
+  const { handleError } = useApiError()
   const [detail, setDetail] = useState<DocumentItem | null>(document)
   const [pushing, setPushing] = useState(false)
   const [pushMsg, setPushMsg] = useState<string | null>(null)
@@ -155,7 +158,7 @@ export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
     } catch (e) {
       setConfirmDelete(false)
       setDeleting(false)
-      alert((e as Error).message)
+      handleError(e)
     }
   }
 
@@ -168,7 +171,7 @@ export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
       setDetail(prev => prev ? { ...prev, status: 'PROCESSING' } : prev)
       setReprocessMsg('Reprocessing started — status will update automatically.')
     } catch (e) {
-      setReprocessMsg((e as Error).message)
+      setReprocessMsg(e instanceof ApiError ? e.userMessage : (e as Error).message)
     } finally {
       setReprocessing(false)
     }
@@ -185,7 +188,7 @@ export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
       })
       setPushMsg('Document queued for sync.')
     } catch (e) {
-      setPushMsg((e as Error).message)
+      setPushMsg(e instanceof ApiError ? e.userMessage : (e as Error).message)
     } finally {
       setPushing(false)
     }

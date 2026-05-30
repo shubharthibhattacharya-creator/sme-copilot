@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
-import { useAuth } from '@clerk/nextjs'
+import { useApiClient } from '@/lib/client-api'
+import { ApiError } from '@/lib/api-error'
 import type { DocumentType } from '@opsc/types'
 
 const DOCUMENT_TYPES: { value: DocumentType; label: string }[] = [
@@ -18,7 +19,7 @@ interface Props {
 }
 
 export function RequestModal({ open, onClose }: Props) {
-  const { getToken } = useAuth()
+  const { request } = useApiClient()
   const [docType, setDocType] = useState<DocumentType>('GST_RETURN')
   const [userId, setUserId] = useState('')
   const [dueDate, setDueDate] = useState('')
@@ -36,20 +37,13 @@ export function RequestModal({ open, onClose }: Props) {
     setError(null)
 
     try {
-      const token = await getToken()
-      const apiUrl = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001'
-      const res = await fetch(`${apiUrl}/api/v1/documents/requests`, {
+      await request('/documents/requests', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ requestedFromUserId: userId, documentType: docType, dueDate: dueDate || undefined, notes: notes || undefined }),
       })
-      if (!res.ok) {
-        const err = await res.json() as { message?: string }
-        throw new Error(err.message ?? 'Request failed')
-      }
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Request failed')
+      setError(err instanceof ApiError ? err.userMessage : err instanceof Error ? err.message : 'Request failed')
     } finally {
       setSubmitting(false)
     }

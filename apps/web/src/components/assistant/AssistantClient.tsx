@@ -1,6 +1,8 @@
 'use client'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useApiClient } from '@/lib/client-api'
+import { ApiError } from '@/lib/api-error'
+import { useApiError } from '@/hooks/useApiError'
 
 interface Message {
   id?: string
@@ -34,6 +36,7 @@ interface Props {
 
 export function AssistantClient({ initialConversations, initialKnowledge }: Props) {
   const { request } = useApiClient()
+  const { handleError } = useApiError()
   const [tab, setTab] = useState<'chat' | 'knowledge'>('chat')
   const [conversations, setConversations] = useState(initialConversations)
   const [knowledge, setKnowledge] = useState(initialKnowledge)
@@ -90,7 +93,7 @@ export function AssistantClient({ initialConversations, initialKnowledge }: Prop
     } catch (err) {
       setMessages((prev) => [
         ...prev,
-        { role: 'ASSISTANT', content: `Error: ${err instanceof Error ? err.message : 'Failed'}` },
+        { role: 'ASSISTANT', content: `Error: ${err instanceof ApiError ? err.userMessage : err instanceof Error ? err.message : 'Failed'}` },
       ])
     } finally {
       setLoading(false)
@@ -121,7 +124,7 @@ export function AssistantClient({ initialConversations, initialKnowledge }: Prop
       setKnowledge(docs)
       setNewDoc({ title: '', category: 'GST_WORKFLOW', content: '' })
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to ingest')
+      handleError(err)
     } finally {
       setIngesting(false)
     }

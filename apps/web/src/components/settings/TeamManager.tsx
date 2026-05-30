@@ -1,6 +1,8 @@
 'use client'
 import { useState } from 'react'
 import { useApiClient } from '@/lib/client-api'
+import { ApiError } from '@/lib/api-error'
+import { useApiError } from '@/hooks/useApiError'
 
 interface TeamMember {
   id: string
@@ -19,6 +21,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 export function TeamManager({ initialTeam }: { initialTeam: TeamMember[] }) {
   const { request } = useApiClient()
+  const { handleError } = useApiError()
   const [team, setTeam] = useState(initialTeam)
   const [updatingRole, setUpdatingRole] = useState<string | null>(null)
 
@@ -38,7 +41,7 @@ export function TeamManager({ initialTeam }: { initialTeam: TeamMember[] }) {
       })
       setTeam((prev) => prev.map((u) => (u.id === userId ? { ...u, role } : u)))
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to update role')
+      handleError(err)
     } finally {
       setUpdatingRole(null)
     }
@@ -58,7 +61,7 @@ export function TeamManager({ initialTeam }: { initialTeam: TeamMember[] }) {
       setInviteEmail('')
       setInviteRole('STAFF')
     } catch (err) {
-      setInviteError(err instanceof Error ? err.message : 'Failed to send invitation')
+      setInviteError(err instanceof ApiError ? err.userMessage : err instanceof Error ? err.message : 'Failed to send invitation')
     } finally {
       setInviting(false)
     }

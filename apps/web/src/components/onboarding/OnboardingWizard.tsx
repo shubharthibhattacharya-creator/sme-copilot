@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
 import { useApiClient } from '@/lib/client-api'
+import { ApiError } from '@/lib/api-error'
 
 const TOTAL_STEPS = 5
 
@@ -84,7 +85,7 @@ export function OnboardingWizard() {
         setPhone(profile.phone ?? '')
         setAddress(profile.address ?? '')
       })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Account setup failed'))
+      .catch((err) => setError(err instanceof ApiError ? err.userMessage : err instanceof Error ? err.message : 'Account setup failed'))
   }, [isLoaded, isSignedIn, request, router])
 
   // Load existing clients for step 2
@@ -113,7 +114,7 @@ export function OnboardingWizard() {
       })
       setStep(2)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed')
+      setError(err instanceof ApiError ? err.userMessage : err instanceof Error ? err.message : 'Save failed')
     } finally {
       setSaving(false)
     }
@@ -130,7 +131,7 @@ export function OnboardingWizard() {
       setClients((prev) => [...prev, created])
       setNewClient({ name: '', gstin: '', filerType: 'MONTHLY' })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add client')
+      setError(err instanceof ApiError ? err.userMessage : err instanceof Error ? err.message : 'Failed to add client')
     } finally {
       setAddingClient(false)
     }

@@ -1,6 +1,7 @@
 'use client'
 import { useState, useCallback } from 'react'
 import { useApiClient } from '@/lib/client-api'
+import { ApiError } from '@/lib/api-error'
 
 type TaxProvider = 'NONE' | 'CLEARTAX' | 'ZOHO_BOOKS' | 'TALLY'
 
@@ -128,7 +129,7 @@ export function IntegrationsClient({ initialIntegration, initialLogs }: Props) {
       setIntegration(result)
       showMsg('Settings saved.', true)
     } catch (e) {
-      showMsg((e as Error).message, false)
+      showMsg(e instanceof ApiError ? e.userMessage : (e as Error).message, false)
     } finally {
       setSaving(false)
     }
@@ -141,7 +142,7 @@ export function IntegrationsClient({ initialIntegration, initialLogs }: Props) {
       showMsg(r.message, r.ok)
       if (r.ok) await refreshData()
     } catch (e) {
-      showMsg((e as Error).message, false)
+      showMsg(e instanceof ApiError ? e.userMessage : (e as Error).message, false)
     } finally {
       setTesting(false)
     }
@@ -160,7 +161,7 @@ export function IntegrationsClient({ initialIntegration, initialLogs }: Props) {
       showMsg(`${r.queued} document${r.queued !== 1 ? 's' : ''} queued for sync.`, true)
       setTimeout(refreshData, 5000)
     } catch (e) {
-      showMsg((e as Error).message, false)
+      showMsg(e instanceof ApiError ? e.userMessage : (e as Error).message, false)
     }
   }
 

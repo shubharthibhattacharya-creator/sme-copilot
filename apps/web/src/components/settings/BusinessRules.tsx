@@ -1,6 +1,7 @@
 'use client'
 import { useState, useCallback } from 'react'
 import { useApiClient } from '@/lib/client-api'
+import { ApiError } from '@/lib/api-error'
 
 interface ConfigEntry {
   value: unknown
@@ -105,7 +106,7 @@ function ConfigRow({
       await onSave(configKey, result.val)
       setEditing(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed')
+      setError(err instanceof ApiError ? err.userMessage : err instanceof Error ? err.message : 'Save failed')
     } finally {
       setSaving(false)
     }

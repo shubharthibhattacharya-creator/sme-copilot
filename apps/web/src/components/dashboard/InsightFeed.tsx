@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useApiClient } from '@/lib/client-api'
+import { ApiError } from '@/lib/api-error'
 
 interface Insight {
   id: string
@@ -56,7 +57,7 @@ export function InsightFeed({ insights: initial }: InsightFeedProps) {
         setLoading(false)
       }, 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Refresh failed')
+      setError(err instanceof ApiError ? err.userMessage : err instanceof Error ? err.message : 'Refresh failed')
       setLoading(false)
     }
   }

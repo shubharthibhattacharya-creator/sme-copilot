@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { cn, formatCurrency, formatDate } from '@/lib/utils'
 import { useApiClient } from '@/lib/client-api'
 import { useRouter } from 'next/navigation'
+import { useApiError } from '@/hooks/useApiError'
 import type { InvoiceWithRisk } from '@opsc/types'
 
 interface RiskFactors {
@@ -61,6 +62,7 @@ export function InvoiceDrawer({ invoice, onClose }: InvoiceDrawerProps) {
   const [calculating, setCalculating] = useState(false)
   const { request } = useApiClient()
   const router = useRouter()
+  const { handleError } = useApiError()
 
   useEffect(() => {
     if (!invoice) {
@@ -84,6 +86,8 @@ export function InvoiceDrawer({ invoice, onClose }: InvoiceDrawerProps) {
         const updated = await request<InvoiceDetail>(`/collections/${invoice.id}`)
         setDetail(updated)
       }
+    } catch (err) {
+      handleError(err)
     } finally {
       setCalculating(false)
     }

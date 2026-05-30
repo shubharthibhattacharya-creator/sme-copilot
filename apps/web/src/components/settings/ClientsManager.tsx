@@ -1,6 +1,7 @@
 'use client'
 import { useState, useCallback } from 'react'
 import { useApiClient } from '@/lib/client-api'
+import { ApiError } from '@/lib/api-error'
 
 interface Client {
   id: string
@@ -103,7 +104,7 @@ export function ClientsManager({ initialClients }: Props) {
       setShowModal(false)
       await refresh()
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Save failed')
+      setFormError(err instanceof ApiError ? err.userMessage : err instanceof Error ? err.message : 'Save failed')
     } finally {
       setSaving(false)
     }
@@ -123,7 +124,7 @@ export function ClientsManager({ initialClients }: Props) {
       setImportResult(res)
       await refresh()
     } catch (err) {
-      setImportResult({ created: 0, skipped: 0, errors: [err instanceof Error ? err.message : 'Import failed'] })
+      setImportResult({ created: 0, skipped: 0, errors: [err instanceof ApiError ? err.userMessage : err instanceof Error ? err.message : 'Import failed'] })
     }
   }
 

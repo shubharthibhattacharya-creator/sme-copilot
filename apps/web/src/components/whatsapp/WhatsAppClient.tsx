@@ -1,6 +1,7 @@
 'use client'
 import { useState, useCallback } from 'react'
 import { useApiClient } from '@/lib/client-api'
+import { useApiError } from '@/hooks/useApiError'
 
 interface WhatsAppStats {
   total: number
@@ -51,6 +52,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export function WhatsAppClient({ initialStats, initialMessages, initialTemplates }: Props) {
   const { request } = useApiClient()
+  const { handleError } = useApiError()
   const [tab, setTab] = useState<'overview' | 'messages' | 'templates'>('overview')
   const [stats, setStats] = useState(initialStats)
   const [messages, setMessages] = useState(initialMessages)
@@ -78,7 +80,7 @@ export function WhatsAppClient({ initialStats, initialMessages, initialTemplates
       setNudgeResult({ sent: result.sent, failed: result.failed })
       await refresh()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to send nudges')
+      handleError(err)
     } finally {
       setNudging(false)
     }
@@ -95,7 +97,7 @@ export function WhatsAppClient({ initialStats, initialMessages, initialTemplates
       setTemplates(updated)
       setEditingTemplate(null)
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Save failed')
+      handleError(err)
     }
   }
 
