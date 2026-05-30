@@ -32,8 +32,20 @@ export class SettingsService {
     const cfg = company.tenantConfig as Record<string, unknown> | null
     const modulesEnabled: string[] =
       Array.isArray(cfg?.['modulesEnabled']) ? (cfg!['modulesEnabled'] as string[]) : []
+    const onboardingCompleted = cfg?.['onboardingCompleted'] === true
 
-    return { ...company, modulesEnabled }
+    return { ...company, modulesEnabled, onboardingCompleted }
+  }
+
+  async completeOnboarding(companyId: string) {
+    const company = await this.prisma.company.findUnique({ where: { id: companyId }, select: { tenantConfig: true } })
+    if (!company) throw new NotFoundException('Company not found')
+    const cfg = (company.tenantConfig as Record<string, unknown> | null) ?? {}
+    await this.prisma.company.update({
+      where: { id: companyId },
+      data: { tenantConfig: { ...cfg, onboardingCompleted: true } },
+    })
+    return { ok: true }
   }
 
   async updateFirmProfile(companyId: string, dto: UpdateFirmProfileDto) {

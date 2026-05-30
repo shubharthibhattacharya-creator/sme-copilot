@@ -46,9 +46,17 @@ export default async function DashboardLayout({
   let industry: IndustryType | null = null
   let enabledModules: ModuleKey[] | null = null
   try {
-    const profile = await apiClient<{ industry?: string | null; modulesEnabled?: string[] }>('/api/v1/settings/profile', {
-      cache: 'no-store',
-    })
+    const profile = await apiClient<{
+      industry?: string | null
+      modulesEnabled?: string[]
+      onboardingCompleted?: boolean
+    }>('/api/v1/settings/profile', { cache: 'no-store' })
+
+    // Redirect to onboarding if not yet completed (skip for admin impersonation)
+    if (!isImpersonating && !profile.onboardingCompleted) {
+      redirect('/onboarding')
+    }
+
     if (profile.industry && profile.industry in INDUSTRY_DEFAULTS) {
       industry = profile.industry as IndustryType
     }
@@ -59,7 +67,8 @@ export default async function DashboardLayout({
       enabledModules = INDUSTRY_DEFAULTS[industry].modulesEnabled
     }
   } catch {
-    // API unavailable or not yet onboarded — show all nav items
+    // API unavailable or user not provisioned — redirect to onboarding
+    if (!isImpersonating) redirect('/onboarding')
   }
 
   const navItems = ALL_NAV_ITEMS.filter(({ module }) =>

@@ -14,6 +14,12 @@ export class SettingsController {
     return this.settings.getFirmProfile(user.companyId)
   }
 
+  @Post('complete-onboarding')
+  @HttpCode(HttpStatus.OK)
+  completeOnboarding(@CurrentUser() user: AuthenticatedUser) {
+    return this.settings.completeOnboarding(user.companyId)
+  }
+
   @Patch('profile')
   updateProfile(@CurrentUser() user: AuthenticatedUser, @Body() dto: UpdateFirmProfileDto) {
     return this.settings.updateFirmProfile(user.companyId, dto)

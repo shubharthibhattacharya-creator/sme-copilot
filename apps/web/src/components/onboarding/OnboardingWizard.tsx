@@ -313,7 +313,11 @@ export function OnboardingWizard() {
                 </div>
               ))}
             </div>
-            <button onClick={() => router.push('/dashboard')}
+            <button
+              onClick={async () => {
+                await request('/settings/complete-onboarding', { method: 'POST' }).catch(() => {})
+                router.push('/dashboard')
+              }}
               className="w-full py-3 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700">
               Go to Dashboard →
             </button>
