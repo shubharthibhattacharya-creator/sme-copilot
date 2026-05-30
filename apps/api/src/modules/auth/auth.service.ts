@@ -54,15 +54,22 @@ export class AuthService {
     const fullName = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || emailAddr
 
     if (emailAddr) {
-      const placeholder = await this.prisma.user.findFirst({
+      // Try 1: pending placeholder (webhook never fired)
+      let match = await this.prisma.user.findFirst({
         where: { email: emailAddr, clerkId: { startsWith: 'pending_' } },
       })
-      if (placeholder) {
+      // Try 2: previously provisioned user re-signing up (deleted + re-invited)
+      if (!match) {
+        match = await this.prisma.user.findFirst({
+          where: { email: emailAddr },
+        })
+      }
+      if (match) {
         await this.prisma.user.update({
-          where: { id: placeholder.id },
+          where: { id: match.id },
           data: { clerkId: clerkUserId, name: fullName, isActive: true },
         })
-        this.logger.log(`Resolved placeholder via registerFromToken for ${emailAddr}`)
+        this.logger.log(`Provisioned user ${emailAddr} (clerkId updated)`)
         return { ok: true }
       }
     }
