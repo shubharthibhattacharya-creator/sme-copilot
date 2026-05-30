@@ -14,12 +14,12 @@ function SyncBadge({ status }: { status?: SyncStatus }) {
   return <span className={`text-xs font-medium ${cls}`}>{label}</span>
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  UPLOADED: 'bg-blue-100 text-blue-700',
-  PROCESSING: 'bg-blue-100 text-blue-700',
-  PROCESSED: 'bg-amber-100 text-amber-700',
-  FAILED: 'bg-red-100 text-red-700',
-  NEEDS_REVIEW: 'bg-amber-100 text-amber-700',
+const OCR_STATUS: Record<string, { label: string; cls: string; pulse?: boolean }> = {
+  UPLOADED:     { label: 'Pending',    cls: 'bg-gray-100 text-gray-500' },
+  PROCESSING:   { label: 'Extracting', cls: 'bg-blue-100 text-blue-700', pulse: true },
+  PROCESSED:    { label: 'Done',       cls: 'bg-green-100 text-green-700' },
+  NEEDS_REVIEW: { label: 'Review',     cls: 'bg-amber-100 text-amber-700' },
+  FAILED:       { label: 'Failed',     cls: 'bg-red-100 text-red-700' },
 }
 
 function formatBytes(bytes: number): string {
@@ -53,41 +53,54 @@ export function DocumentList({ documents, onSelect }: Props) {
           <tr>
             <th className="text-left px-4 py-3 font-medium text-gray-600">File</th>
             <th className="text-left px-4 py-3 font-medium text-gray-600">Type</th>
-            <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+            <th className="text-left px-4 py-3 font-medium text-gray-600">Upload</th>
+            <th className="text-left px-4 py-3 font-medium text-gray-600">OCR</th>
             <th className="text-left px-4 py-3 font-medium text-gray-600">Sync</th>
             <th className="text-left px-4 py-3 font-medium text-gray-600">Size</th>
-            <th className="text-left px-4 py-3 font-medium text-gray-600">Uploaded</th>
+            <th className="text-left px-4 py-3 font-medium text-gray-600">Date</th>
             <th className="text-left px-4 py-3 font-medium text-gray-600">By</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
-          {documents.map(doc => (
-            <tr
-              key={doc.id}
-              className="hover:bg-gray-50 cursor-pointer"
-              onClick={() => onSelect(doc)}
-            >
-              <td className="px-4 py-3 font-medium text-gray-900 max-w-48 truncate">{doc.originalName}</td>
-              <td className="px-4 py-3 text-gray-600">{doc.documentType.replace(/_/g, ' ')}</td>
-              <td className="px-4 py-3">
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[doc.status] ?? 'bg-gray-100 text-gray-700'}`}>
-                  {doc.status === 'UPLOADED' || doc.status === 'PROCESSING'
-                    ? <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse mr-1.5" />
-                    : null}
-                  {doc.status}
-                </span>
-              </td>
-              <td className="px-4 py-3">
-                {doc.syncStatus
-                  ? <SyncBadge status={doc.syncStatus} />
-                  : <span className="text-xs text-gray-300">—</span>
-                }
-              </td>
-              <td className="px-4 py-3 text-gray-500">{formatBytes(doc.fileSizeBytes)}</td>
-              <td className="px-4 py-3 text-gray-500" suppressHydrationWarning>{formatDate(doc.createdAt)}</td>
-              <td className="px-4 py-3 text-gray-500">{doc.uploadedBy?.name ?? '—'}</td>
-            </tr>
-          ))}
+          {documents.map(doc => {
+            const ocr = OCR_STATUS[doc.status] ?? OCR_STATUS['FAILED']!
+            return (
+              <tr
+                key={doc.id}
+                className="hover:bg-gray-50 cursor-pointer"
+                onClick={() => onSelect(doc)}
+              >
+                <td className="px-4 py-3 font-medium text-gray-900 max-w-48 truncate">{doc.originalName}</td>
+                <td className="px-4 py-3 text-gray-600">{doc.documentType.replace(/_/g, ' ')}</td>
+
+                {/* Upload status — always saved if record exists */}
+                <td className="px-4 py-3">
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                    Saved
+                  </span>
+                </td>
+
+                {/* OCR / extraction status */}
+                <td className="px-4 py-3">
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${ocr.cls}`}>
+                    {ocr.pulse && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />}
+                    {ocr.label}
+                  </span>
+                </td>
+
+                <td className="px-4 py-3">
+                  {doc.syncStatus
+                    ? <SyncBadge status={doc.syncStatus} />
+                    : <span className="text-xs text-gray-300">—</span>
+                  }
+                </td>
+                <td className="px-4 py-3 text-gray-500">{formatBytes(doc.fileSizeBytes)}</td>
+                <td className="px-4 py-3 text-gray-500" suppressHydrationWarning>{formatDate(doc.createdAt)}</td>
+                <td className="px-4 py-3 text-gray-500">{doc.uploadedBy?.name ?? '—'}</td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>

@@ -26,12 +26,70 @@ function ConfidenceBar({ value }: { value: number }) {
   )
 }
 
+const OCR_LABEL: Record<string, { label: string; cls: string }> = {
+  UPLOADED:     { label: 'Pending',    cls: 'text-gray-500' },
+  PROCESSING:   { label: 'Extracting…', cls: 'text-blue-600' },
+  PROCESSED:    { label: 'Done',       cls: 'text-green-600' },
+  NEEDS_REVIEW: { label: 'Needs review', cls: 'text-amber-600' },
+  FAILED:       { label: 'Failed',     cls: 'text-red-600' },
+}
+
 const SYNC_STATUS_LABEL: Record<string, { label: string; cls: string }> = {
   PENDING:        { label: 'Not synced',  cls: 'text-gray-400' },
   SYNCING:        { label: 'Syncing…',    cls: 'text-blue-600 animate-pulse' },
   SYNCED:         { label: 'Synced',      cls: 'text-green-600' },
   FAILED:         { label: 'Sync failed', cls: 'text-red-500' },
   NOT_APPLICABLE: { label: 'N/A',         cls: 'text-gray-400' },
+}
+
+const PROVIDER_LABEL: Record<string, string> = {
+  CLEARTAX:   'ClearTax',
+  ZOHO_BOOKS: 'Zoho Books',
+  TALLY:      'Tally Prime',
+}
+
+function FileAttachment({ doc }: { doc: DocumentItem }) {
+  const isImage = doc.mimeType.startsWith('image/')
+  const isPdf = doc.mimeType === 'application/pdf'
+  const fileUrl = doc.fileUrl
+
+  if (!fileUrl) {
+    return (
+      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+        <span className="text-2xl">{isPdf ? '📄' : isImage ? '🖼️' : '📎'}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-900 truncate">{doc.originalName}</p>
+          <p className="text-xs text-gray-400">Loading file link…</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden">
+      {isImage && (
+        <div className="bg-gray-50 flex items-center justify-center max-h-64 overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={fileUrl} alt={doc.originalName} className="max-h-64 max-w-full object-contain" />
+        </div>
+      )}
+      <div className="flex items-center gap-3 p-3 bg-white">
+        <span className="text-xl">{isPdf ? '📄' : isImage ? '🖼️' : '📎'}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-900 truncate">{doc.originalName}</p>
+          <p className="text-xs text-gray-400">{doc.mimeType}</p>
+        </div>
+        <a
+          href={fileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 whitespace-nowrap"
+        >
+          {isPdf ? 'View PDF' : isImage ? 'Full size' : 'Download'}
+        </a>
+      </div>
+    </div>
+  )
 }
 
 export function DocumentDrawer({ document, onClose }: Props) {
@@ -43,33 +101,45 @@ export function DocumentDrawer({ document, onClose }: Props) {
   const [reprocessing, setReprocessing] = useState(false)
   const [reprocessMsg, setReprocessMsg] = useState<string | null>(null)
 
+  // Fetch full detail (including fileUrl) whenever the document changes
   useEffect(() => {
     if (!document) { setDetail(null); return }
-    setDetail(prev => prev?.id === document.id ? prev : document)
-  }, [document])
+    setDetail(document) // show immediately with list data
+    let cancelled = false
+    getToken().then(token => {
+      if (cancelled) return
+      const apiUrl = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001'
+      return fetch(`${apiUrl}/api/v1/documents/${document.id}`, {
+        headers: { Authorization: `Bearer ${token ?? ''}` },
+      })
+    }).then(res => {
+      if (!res || cancelled) return
+      return res.ok ? res.json() : null
+    }).then(data => {
+      if (data && !cancelled) setDetail(data as DocumentItem)
+    }).catch(() => undefined)
+    return () => { cancelled = true }
+  }, [document?.id, getToken])
 
+  // Poll while UPLOADED or PROCESSING
   useEffect(() => {
     if (!detail) return
-
-    // Poll until processed
-    if (detail.status === 'UPLOADED' || detail.status === 'PROCESSING') {
-      const interval = setInterval(async () => {
-        const token = await getToken()
-        const apiUrl = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001'
-        const res = await fetch(`${apiUrl}/api/v1/documents/${detail.id}`, {
-          headers: { Authorization: `Bearer ${token ?? ''}` },
-        })
-        if (res.ok) {
-          const updated = await res.json() as DocumentItem
-          setDetail(updated)
-          if (updated.status !== 'UPLOADED' && updated.status !== 'PROCESSING') {
-            clearInterval(interval)
-          }
+    if (detail.status !== 'UPLOADED' && detail.status !== 'PROCESSING') return
+    const interval = setInterval(async () => {
+      const token = await getToken()
+      const apiUrl = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001'
+      const res = await fetch(`${apiUrl}/api/v1/documents/${detail.id}`, {
+        headers: { Authorization: `Bearer ${token ?? ''}` },
+      })
+      if (res.ok) {
+        const updated = await res.json() as DocumentItem
+        setDetail(updated)
+        if (updated.status !== 'UPLOADED' && updated.status !== 'PROCESSING') {
+          clearInterval(interval)
         }
-      }, 3000)
-      return () => clearInterval(interval)
-    }
-    return undefined
+      }
+    }, 3000)
+    return () => clearInterval(interval)
   }, [detail?.id, detail?.status, getToken])
 
   const reprocess = async () => {
@@ -110,31 +180,63 @@ export function DocumentDrawer({ document, onClose }: Props) {
   const extractedData = doc.extractedData as Record<string, unknown> | null
   const confidence = extractedData?.confidence
   const syncInfo = doc.syncStatus ? SYNC_STATUS_LABEL[doc.syncStatus] : null
+  const ocrInfo = OCR_LABEL[doc.status] ?? OCR_LABEL['FAILED']!
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div className="relative w-full max-w-xl bg-white shadow-xl flex flex-col h-full overflow-y-auto">
+
+        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h2 className="font-semibold text-gray-900 truncate">{doc.originalName}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+          <h2 className="font-semibold text-gray-900 truncate pr-4">{doc.originalName}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none shrink-0">×</button>
         </div>
 
         <div className="p-4 space-y-4">
+
+          {/* File attachment */}
+          <FileAttachment doc={doc} />
+
+          {/* Metadata grid */}
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <div><span className="text-gray-500">Type</span><br /><span className="font-medium">{doc.documentType.replace(/_/g, ' ')}</span></div>
-            <div><span className="text-gray-500">Status</span><br /><span className="font-medium">{doc.status}</span></div>
-            <div><span className="text-gray-500">Uploaded by</span><br /><span className="font-medium">{doc.uploadedBy?.name ?? '—'}</span></div>
-            <div><span className="text-gray-500">Date</span><br /><span className="font-medium">{new Date(doc.createdAt).toLocaleDateString('en-IN')}</span></div>
+            <div>
+              <span className="text-gray-500 text-xs uppercase tracking-wide">Type</span>
+              <p className="font-medium mt-0.5">{doc.documentType.replace(/_/g, ' ')}</p>
+            </div>
+            <div>
+              <span className="text-gray-500 text-xs uppercase tracking-wide">Uploaded by</span>
+              <p className="font-medium mt-0.5">{doc.uploadedBy?.name ?? '—'}</p>
+            </div>
+            <div>
+              <span className="text-gray-500 text-xs uppercase tracking-wide">Upload status</span>
+              <p className="font-medium mt-0.5 flex items-center gap-1.5 text-green-700">
+                <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+                Saved to storage
+              </p>
+            </div>
+            <div>
+              <span className="text-gray-500 text-xs uppercase tracking-wide">OCR / Extraction</span>
+              <p className={`font-medium mt-0.5 flex items-center gap-1.5 ${ocrInfo.cls}`}>
+                {(doc.status === 'UPLOADED' || doc.status === 'PROCESSING') && (
+                  <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse inline-block" />
+                )}
+                {ocrInfo.label}
+              </p>
+            </div>
+            <div suppressHydrationWarning>
+              <span className="text-gray-500 text-xs uppercase tracking-wide">Date</span>
+              <p className="font-medium mt-0.5">{new Date(doc.createdAt).toLocaleDateString('en-IN')}</p>
+            </div>
+            {doc.filingPeriod && (
+              <div>
+                <span className="text-gray-500 text-xs uppercase tracking-wide">Filing period</span>
+                <p className="font-medium mt-0.5">{doc.filingPeriod}</p>
+              </div>
+            )}
           </div>
 
-          {(doc.status === 'UPLOADED' || doc.status === 'PROCESSING') && (
-            <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
-              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-              Processing document — extracting data...
-            </div>
-          )}
-
+          {/* Extraction confidence */}
           {typeof confidence === 'number' && (
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">Extraction confidence</p>
@@ -142,10 +244,11 @@ export function DocumentDrawer({ document, onClose }: Props) {
             </div>
           )}
 
+          {/* Extracted data */}
           {extractedData && Object.keys(extractedData).length > 0 && (
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">Extracted data</p>
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {Object.entries(extractedData)
                   .filter(([k]) => k !== 'confidence' && k !== 'documentType' && k !== 'error' && k !== 'raw')
                   .map(([key, value]) => (
@@ -167,7 +270,7 @@ export function DocumentDrawer({ document, onClose }: Props) {
             </div>
           )}
 
-          {/* Reprocess section — shown for FAILED or NEEDS_REVIEW */}
+          {/* Reprocess */}
           {(doc.status === 'FAILED' || doc.status === 'NEEDS_REVIEW') && (
             <div className="border-t border-gray-100 pt-4">
               <div className="flex items-center justify-between">
@@ -189,30 +292,23 @@ export function DocumentDrawer({ document, onClose }: Props) {
                   {reprocessing ? 'Starting…' : 'Reprocess'}
                 </button>
               </div>
-              {reprocessMsg && (
-                <p className="text-xs text-gray-500 mt-2">{reprocessMsg}</p>
-              )}
+              {reprocessMsg && <p className="text-xs text-gray-500 mt-2">{reprocessMsg}</p>}
             </div>
           )}
 
-          {/* Tax integration sync section */}
+          {/* Tax sync */}
           <div className="border-t border-gray-100 pt-4">
             <p className="text-sm font-medium text-gray-700 mb-3">Tax Software Sync</p>
             <div className="flex items-center justify-between">
               <div className="text-sm space-y-0.5">
-                {syncInfo ? (
-                  <span className={`font-medium ${syncInfo.cls}`}>{syncInfo.label}</span>
-                ) : (
-                  <span className="text-gray-400">—</span>
-                )}
+                {syncInfo
+                  ? <span className={`font-medium ${syncInfo.cls}`}>{syncInfo.label}</span>
+                  : <span className="text-gray-400">—</span>}
                 {doc.syncProvider && doc.syncProvider !== 'NONE' && (
                   <p className="text-xs text-gray-400">
                     via {PROVIDER_LABEL[doc.syncProvider] ?? doc.syncProvider}
                     {doc.syncedAt ? ` · ${new Date(doc.syncedAt).toLocaleDateString('en-IN')}` : ''}
                   </p>
-                )}
-                {doc.externalId && (
-                  <p className="text-xs text-gray-400 font-mono">ID: {doc.externalId}</p>
                 )}
                 {doc.syncError && (
                   <p className="text-xs text-red-400 max-w-xs truncate" title={doc.syncError}>{doc.syncError}</p>
@@ -228,18 +324,11 @@ export function DocumentDrawer({ document, onClose }: Props) {
                 </button>
               )}
             </div>
-            {pushMsg && (
-              <p className="text-xs text-gray-500 mt-2">{pushMsg}</p>
-            )}
+            {pushMsg && <p className="text-xs text-gray-500 mt-2">{pushMsg}</p>}
           </div>
+
         </div>
       </div>
     </div>
   )
-}
-
-const PROVIDER_LABEL: Record<string, string> = {
-  CLEARTAX:  'ClearTax',
-  ZOHO_BOOKS: 'Zoho Books',
-  TALLY:     'Tally Prime',
 }
