@@ -218,6 +218,13 @@ export class AdminService {
     return { ...company, clerkInviteSent }
   }
 
+  async resendInvite(tenantId: string, email: string, role = 'ADMIN') {
+    const company = await this.prisma.company.findUnique({ where: { id: tenantId } })
+    if (!company) throw new Error('Tenant not found')
+    await this.sendClerkInvite(email, tenantId, role)
+    return { ok: true, message: `Invite sent to ${email}` }
+  }
+
   async sendClerkInvite(
     email: string,
     companyId: string,

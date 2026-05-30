@@ -31,7 +31,26 @@ export function TenantDetail({ tenant: initial, config: initialConfig, knowledge
   const [addingKnowledge, setAddingKnowledge] = useState(false)
   const [indexing, setIndexing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [reinviting, setReinviting] = useState(false)
+  const [reinviteMsg, setReinviteMsg] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  async function handleReinvite() {
+    setReinviting(true)
+    setReinviteMsg('')
+    try {
+      const adminUser = tenant.users.find((u) => u.role === 'ADMIN')
+      if (!adminUser) { setReinviteMsg('No admin user found for this tenant'); return }
+      const res = await fetch(`/api/admin/tenants/${tenant.id}/invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: adminUser.email, role: 'ADMIN' }),
+      })
+      const data = await res.json() as { message?: string }
+      setReinviteMsg(res.ok ? `Invite sent to ${adminUser.email}` : (data.message ?? 'Failed'))
+    } catch { setReinviteMsg('Network error') }
+    finally { setReinviting(false) }
+  }
 
   async function handleImport(file: File) {
     setImporting(true)
@@ -96,16 +115,28 @@ export function TenantDetail({ tenant: initial, config: initialConfig, knowledge
           </div>
           <p className="text-xs text-gray-500 mt-1">Created {new Date(tenant.createdAt).toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric' })}</p>
         </div>
-        <button
-          onClick={async () => {
-            const res = await apiFetch(`/admin/tenants/${tenant.id}/impersonate`, { method: 'POST' })
-            const data = await res.json() as { url?: string }
-            if (data.url) window.open(data.url, '_blank')
-          }}
-          className="px-3 py-2 text-sm bg-amber-700 hover:bg-amber-600 text-white rounded-lg"
-        >
-          Impersonate →
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="text-right">
+            <button
+              onClick={handleReinvite}
+              disabled={reinviting}
+              className="px-3 py-2 text-sm bg-gray-700 hover:bg-gray-600 text-white rounded-lg disabled:opacity-50"
+            >
+              {reinviting ? 'Sending…' : 'Resend invite'}
+            </button>
+            {reinviteMsg && <p className="text-xs mt-1 text-gray-400">{reinviteMsg}</p>}
+          </div>
+          <button
+            onClick={async () => {
+              const res = await apiFetch(`/admin/tenants/${tenant.id}/impersonate`, { method: 'POST' })
+              const data = await res.json() as { url?: string }
+              if (data.url) window.open(data.url, '_blank')
+            }}
+            className="px-3 py-2 text-sm bg-amber-700 hover:bg-amber-600 text-white rounded-lg"
+          >
+            Impersonate →
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}

@@ -137,6 +137,17 @@ export class AdminController {
     return this.admin.deleteKnowledge(id, docId)
   }
 
+  // ── Invite ────────────────────────────────────────────────────────────────
+
+  @Post('tenants/:id/invite')
+  @HttpCode(HttpStatus.OK)
+  resendInvite(
+    @Param('id') id: string,
+    @Body() dto: { email: string; role?: string },
+  ) {
+    return this.admin.resendInvite(id, dto.email, dto.role)
+  }
+
   // ── Impersonation ──────────────────────────────────────────────────────────
 
   @Post('tenants/:id/impersonate')
