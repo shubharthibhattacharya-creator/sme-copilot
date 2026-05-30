@@ -84,8 +84,8 @@ export function DocumentList({ documents, onSelect }: Props) {
                 }
               </td>
               <td className="px-4 py-3 text-gray-500">{formatBytes(doc.fileSizeBytes)}</td>
-              <td className="px-4 py-3 text-gray-500">{formatDate(doc.createdAt)}</td>
-              <td className="px-4 py-3 text-gray-500">{doc.uploadedBy.name}</td>
+              <td className="px-4 py-3 text-gray-500" suppressHydrationWarning>{formatDate(doc.createdAt)}</td>
+              <td className="px-4 py-3 text-gray-500">{doc.uploadedBy?.name ?? '—'}</td>
             </tr>
           ))}
         </tbody>
