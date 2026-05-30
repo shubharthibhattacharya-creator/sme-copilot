@@ -40,17 +40,23 @@ export function DocumentDrawer({ document, onClose }: Props) {
   const [detail, setDetail] = useState<DocumentItem | null>(document)
   const [pushing, setPushing] = useState(false)
   const [pushMsg, setPushMsg] = useState<string | null>(null)
+  const [reprocessing, setReprocessing] = useState(false)
+  const [reprocessMsg, setReprocessMsg] = useState<string | null>(null)
 
   useEffect(() => {
-    setDetail(document)
-    if (!document) return
+    if (!document) { setDetail(null); return }
+    setDetail(prev => prev?.id === document.id ? prev : document)
+  }, [document])
+
+  useEffect(() => {
+    if (!detail) return
 
     // Poll until processed
-    if (document.status === 'UPLOADED' || document.status === 'PROCESSING') {
+    if (detail.status === 'UPLOADED' || detail.status === 'PROCESSING') {
       const interval = setInterval(async () => {
         const token = await getToken()
         const apiUrl = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001'
-        const res = await fetch(`${apiUrl}/api/v1/documents/${document.id}`, {
+        const res = await fetch(`${apiUrl}/api/v1/documents/${detail.id}`, {
           headers: { Authorization: `Bearer ${token ?? ''}` },
         })
         if (res.ok) {
@@ -64,7 +70,22 @@ export function DocumentDrawer({ document, onClose }: Props) {
       return () => clearInterval(interval)
     }
     return undefined
-  }, [document, getToken])
+  }, [detail?.id, detail?.status, getToken])
+
+  const reprocess = async () => {
+    if (!detail) return
+    setReprocessing(true)
+    setReprocessMsg(null)
+    try {
+      await request(`/documents/${detail.id}/reprocess`, { method: 'POST' })
+      setDetail(prev => prev ? { ...prev, status: 'PROCESSING' } : prev)
+      setReprocessMsg('Reprocessing started — status will update automatically.')
+    } catch (e) {
+      setReprocessMsg((e as Error).message)
+    } finally {
+      setReprocessing(false)
+    }
+  }
 
   const pushToIntegration = async () => {
     if (!detail) return
@@ -103,7 +124,7 @@ export function DocumentDrawer({ document, onClose }: Props) {
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div><span className="text-gray-500">Type</span><br /><span className="font-medium">{doc.documentType.replace(/_/g, ' ')}</span></div>
             <div><span className="text-gray-500">Status</span><br /><span className="font-medium">{doc.status}</span></div>
-            <div><span className="text-gray-500">Uploaded by</span><br /><span className="font-medium">{doc.uploadedBy.name}</span></div>
+            <div><span className="text-gray-500">Uploaded by</span><br /><span className="font-medium">{doc.uploadedBy?.name ?? '—'}</span></div>
             <div><span className="text-gray-500">Date</span><br /><span className="font-medium">{new Date(doc.createdAt).toLocaleDateString('en-IN')}</span></div>
           </div>
 
@@ -143,6 +164,34 @@ export function DocumentDrawer({ document, onClose }: Props) {
             <div>
               <p className="text-sm font-medium text-gray-700 mb-1">Notes</p>
               <p className="text-sm text-gray-600">{doc.notes}</p>
+            </div>
+          )}
+
+          {/* Reprocess section — shown for FAILED or NEEDS_REVIEW */}
+          {(doc.status === 'FAILED' || doc.status === 'NEEDS_REVIEW') && (
+            <div className="border-t border-gray-100 pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">
+                    {doc.status === 'FAILED' ? 'OCR failed' : 'Needs manual review'}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {doc.status === 'FAILED'
+                      ? 'Re-run AI extraction on this document.'
+                      : 'Low confidence — re-run to try again.'}
+                  </p>
+                </div>
+                <button
+                  onClick={reprocess}
+                  disabled={reprocessing}
+                  className="text-xs bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-700 disabled:opacity-50 whitespace-nowrap"
+                >
+                  {reprocessing ? 'Starting…' : 'Reprocess'}
+                </button>
+              </div>
+              {reprocessMsg && (
+                <p className="text-xs text-gray-500 mt-2">{reprocessMsg}</p>
+              )}
             </div>
           )}
 
