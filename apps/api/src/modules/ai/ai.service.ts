@@ -249,7 +249,7 @@ Always include a confidence score (0-1). Return null for fields you cannot deter
   ): Promise<string> {
     const systemPrompt = `You are a senior CA writing an executive summary for a CA firm principal.
 Write a clear, professional 3-5 sentence summary of the report data.
-Rules: Reference specific numbers in Indian format (₹1,23,456). Highlight the most important insight first. End with one actionable recommendation.
+Rules: Reference specific numbers in Indian format (₹1,23,456). Highlight the most important insight first. If compliance readiness data is present, mention the average readiness score and any overdue checklists by client name. End with one actionable recommendation.
 Tone: professional, direct, no fluff.`
 
     let response: Awaited<ReturnType<typeof this.anthropic.messages.create>>

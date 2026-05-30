@@ -14,6 +14,7 @@ export type DocumentStatus =
   | 'PROCESSED'
   | 'FAILED'
   | 'NEEDS_REVIEW'
+  | 'VERIFIED'
 
 export type RequestStatus = 'PENDING' | 'FULFILLED' | 'CANCELLED'
 

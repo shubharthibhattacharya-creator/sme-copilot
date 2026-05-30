@@ -1,4 +1,4 @@
-import { PrismaClient, Industry, SubscriptionPlan, UserRole, InvoiceStatus, InsightSeverity, AIModule, DocumentType, DocumentStatus, ReportType, ReportStatus, KnowledgeCategory, FilerType, FilingCategory } from '@prisma/client'
+import { PrismaClient, Industry, SubscriptionPlan, UserRole, InvoiceStatus, InsightSeverity, AIModule, DocumentType, DocumentStatus, ReportType, ReportStatus, KnowledgeCategory, FilerType, FilingCategory, FilingType } from '@prisma/client'
 import { Decimal } from '@prisma/client/runtime/library'
 
 const prisma = new PrismaClient()
@@ -267,6 +267,9 @@ async function main() {
   await prisma.collectionRisk.deleteMany()
   await prisma.inventoryItem.deleteMany()
   await prisma.invoice.deleteMany()
+  await prisma.notification.deleteMany()
+  await prisma.complianceChecklist.deleteMany()
+  await prisma.filingTypeTemplate.deleteMany()
   await prisma.businessConfig.deleteMany()
   await prisma.clientConfig.deleteMany()
   await prisma.systemConfig.deleteMany()
@@ -788,6 +791,48 @@ TDS is applicable under various sections of Income Tax Act. Key sections:
       })
     }
     console.log(`  ✓ Seeded ${CLIENT_CONFIG_OVERRIDES.length} ClientConfig overrides for Mehta & Associates`)
+
+    // Filing Type Templates for CA firm
+    const FILING_TEMPLATES: Array<{
+      filingType: FilingType
+      label: string
+      requiredDocTypes: string[]
+      minDocCounts: Record<string, number>
+    }> = [
+      {
+        filingType: FilingType.GST_MONTHLY,
+        label: 'GST Monthly Filing (GSTR-1 + GSTR-3B)',
+        requiredDocTypes: ['INVOICE', 'BANK_STATEMENT'],
+        minDocCounts: { INVOICE: 1, BANK_STATEMENT: 1 },
+      },
+      {
+        filingType: FilingType.GST_QUARTERLY,
+        label: 'GST Quarterly Filing (QRMP)',
+        requiredDocTypes: ['INVOICE', 'BANK_STATEMENT', 'GST_RETURN'],
+        minDocCounts: { INVOICE: 1, BANK_STATEMENT: 1 },
+      },
+      {
+        filingType: FilingType.TDS_QUARTERLY,
+        label: 'TDS Quarterly Return (26Q/24Q)',
+        requiredDocTypes: ['TDS_CERTIFICATE', 'BANK_STATEMENT'],
+        minDocCounts: { TDS_CERTIFICATE: 1, BANK_STATEMENT: 1 },
+      },
+      {
+        filingType: FilingType.ITR_ANNUAL,
+        label: 'Income Tax Return (Annual)',
+        requiredDocTypes: ['FORM_16', 'BANK_STATEMENT'],
+        minDocCounts: { FORM_16: 1, BANK_STATEMENT: 1 },
+      },
+    ]
+
+    for (const tmpl of FILING_TEMPLATES) {
+      await prisma.filingTypeTemplate.upsert({
+        where: { companyId_filingType: { companyId: mehtaCompany.id, filingType: tmpl.filingType } },
+        update: {},
+        create: { companyId: mehtaCompany.id, ...tmpl },
+      })
+    }
+    console.log(`  ✓ Seeded ${FILING_TEMPLATES.length} FilingTypeTemplates for Mehta & Associates`)
   }
 
   console.log('\n✅ Seed complete.')

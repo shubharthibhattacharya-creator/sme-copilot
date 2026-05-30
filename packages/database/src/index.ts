@@ -22,6 +22,9 @@ export type {
   ClientConfig,
   TaxIntegration,
   TaxSyncLog,
+  FilingTypeTemplate,
+  ComplianceChecklist,
+  Notification,
 } from '@prisma/client';
 
 // Enums must be exported as values (not `export type`) so @IsEnum() decorators work at runtime
@@ -47,4 +50,7 @@ export {
   ConfigCategory,
   TaxProvider,
   SyncStatus,
+  FilingType,
+  ChecklistStatus,
+  NotificationType,
 } from '@prisma/client';

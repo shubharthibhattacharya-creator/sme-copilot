@@ -166,7 +166,18 @@ export class ReportExportService {
     }
 
     if (type === 'AI_INSIGHTS_DIGEST') {
-      const d = data as { totalInsights: number; bySeverity: { CRITICAL: number; WARNING: number; INFO: number }; recentInsights: { module: string; category: string; severity: string; summary: string; createdAt: string }[] }
+      const d = data as {
+        totalInsights: number
+        bySeverity: { CRITICAL: number; WARNING: number; INFO: number }
+        recentInsights: { module: string; category: string; severity: string; summary: string; createdAt: string }[]
+        complianceReadiness?: {
+          totalChecklists: number
+          avgReadinessScore: number | null
+          overdueCount: number
+          readyCount: number
+          checklists: { clientName: string; label: string; dueDate: string; readinessScore: number; status: string; missingCount: number }[]
+        }
+      }
       h('Insights Summary')
       kv('Total insights', String(d.totalInsights))
       kv('Critical', String(d.bySeverity.CRITICAL))
@@ -178,6 +189,29 @@ export class ReportExportService {
         for (const ins of d.recentInsights.slice(0, 10)) {
           doc.font('Helvetica-Bold').text(`[${ins.severity}] ${ins.module}`, { continued: true })
              .font('Helvetica').text(` — ${ins.summary}`, { width: doc.page.width - 100 }).moveDown(0.3)
+        }
+      }
+      if (d.complianceReadiness && d.complianceReadiness.totalChecklists > 0) {
+        doc.moveDown(0.5)
+        h('Compliance Readiness')
+        kv('Active checklists', String(d.complianceReadiness.totalChecklists))
+        if (d.complianceReadiness.avgReadinessScore !== null) {
+          kv('Average readiness', `${d.complianceReadiness.avgReadinessScore}%`)
+        }
+        kv('Overdue', String(d.complianceReadiness.overdueCount))
+        kv('Ready to file', String(d.complianceReadiness.readyCount))
+        if (d.complianceReadiness.checklists.length > 0) {
+          doc.moveDown(0.5)
+          this.pdfTable(doc,
+            ['Client', 'Filing', 'Due Date', 'Readiness', 'Status'],
+            d.complianceReadiness.checklists.map((c) => [
+              c.clientName,
+              c.label,
+              c.dueDate,
+              `${c.readinessScore}%`,
+              c.status.replace('_', ' '),
+            ]),
+          )
         }
       }
     }
@@ -292,6 +326,75 @@ export class ReportExportService {
       ws.getColumn(3).width = 14
       ws.getColumn(4).width = 14
       ws.getColumn(5).width = 16
+    }
+
+    if (report.reportType === 'AI_INSIGHTS_DIGEST') {
+      const d = data as {
+        totalInsights: number
+        bySeverity: { CRITICAL: number; WARNING: number; INFO: number }
+        recentInsights: { module: string; severity: string; summary: string }[]
+        complianceReadiness?: {
+          totalChecklists: number
+          avgReadinessScore: number | null
+          overdueCount: number
+          readyCount: number
+          checklists: { clientName: string; label: string; dueDate: string; readinessScore: number; status: string; missingCount: number }[]
+        }
+      }
+
+      // Sheet 1 (ws): Insights summary + table
+      this.excelTable(ws, dataStartRow,
+        ['Severity', 'Count'],
+        headerStyle, altRowFill,
+        [
+          ['CRITICAL', d.bySeverity.CRITICAL],
+          ['WARNING', d.bySeverity.WARNING],
+          ['INFO', d.bySeverity.INFO],
+        ],
+      )
+      ws.getColumn(1).width = 14
+      ws.getColumn(2).width = 12
+
+      // Sheet 2: Recent Insights
+      if (d.recentInsights.length > 0) {
+        const ws2 = wb.addWorksheet('Recent Insights')
+        ws2.mergeCells('A1:C1')
+        ws2.getCell('A1').value = 'Recent Insights'
+        ws2.getCell('A1').style = titleStyle
+        ws2.getRow(1).height = 24
+        this.excelTable(ws2, 3, ['Module', 'Severity', 'Summary'], headerStyle, altRowFill,
+          d.recentInsights.slice(0, 20).map((i) => [i.module, i.severity, i.summary]),
+        )
+        ws2.getColumn(1).width = 18
+        ws2.getColumn(2).width = 12
+        ws2.getColumn(3).width = 60
+      }
+
+      // Sheet 3: Compliance Readiness
+      if (d.complianceReadiness && d.complianceReadiness.totalChecklists > 0) {
+        const ws3 = wb.addWorksheet('Compliance Readiness')
+        ws3.mergeCells('A1:F1')
+        ws3.getCell('A1').value = 'Compliance Readiness'
+        ws3.getCell('A1').style = titleStyle
+        ws3.getRow(1).height = 24
+        ws3.getCell('A2').value = `Active checklists: ${d.complianceReadiness.totalChecklists}`
+        ws3.getCell('A2').font = { italic: true, color: { argb: 'FF6B7280' } }
+        ws3.getCell('A3').value = `Avg readiness: ${d.complianceReadiness.avgReadinessScore ?? 'N/A'}%   Overdue: ${d.complianceReadiness.overdueCount}   Ready: ${d.complianceReadiness.readyCount}`
+        ws3.getCell('A3').font = { italic: true, color: { argb: 'FF6B7280' } }
+        this.excelTable(ws3, 5,
+          ['Client', 'Filing', 'Due Date', 'Readiness %', 'Status', 'Missing Docs'],
+          headerStyle, altRowFill,
+          d.complianceReadiness.checklists.map((c) => [
+            c.clientName, c.label, c.dueDate, c.readinessScore, c.status, c.missingCount,
+          ]),
+        )
+        ws3.getColumn(1).width = 22
+        ws3.getColumn(2).width = 28
+        ws3.getColumn(3).width = 14
+        ws3.getColumn(4).width = 14
+        ws3.getColumn(5).width = 14
+        ws3.getColumn(6).width = 14
+      }
     }
 
     const buf = await wb.xlsx.writeBuffer()
@@ -433,7 +536,18 @@ export class ReportExportService {
     }
 
     if (type === 'AI_INSIGHTS_DIGEST') {
-      const d = data as { totalInsights: number; bySeverity: { CRITICAL: number; WARNING: number; INFO: number }; recentInsights: { module: string; category: string; severity: string; summary: string }[] }
+      const d = data as {
+        totalInsights: number
+        bySeverity: { CRITICAL: number; WARNING: number; INFO: number }
+        recentInsights: { module: string; category: string; severity: string; summary: string }[]
+        complianceReadiness?: {
+          totalChecklists: number
+          avgReadinessScore: number | null
+          overdueCount: number
+          readyCount: number
+          checklists: { clientName: string; label: string; dueDate: string; readinessScore: number; status: string; missingCount: number }[]
+        }
+      }
       children.push(h2('Insights Summary'))
       children.push(kv('Total', String(d.totalInsights)))
       children.push(kv('Critical', String(d.bySeverity.CRITICAL)))
@@ -449,6 +563,23 @@ export class ReportExportService {
             ],
             spacing: { after: 80 },
           }))
+        }
+      }
+      if (d.complianceReadiness && d.complianceReadiness.totalChecklists > 0) {
+        const cr = d.complianceReadiness
+        children.push(h2('Compliance Readiness'))
+        children.push(kv('Active checklists', String(cr.totalChecklists)))
+        children.push(kv('Avg readiness score', cr.avgReadinessScore != null ? `${cr.avgReadinessScore}%` : 'N/A'))
+        children.push(kv('Overdue', String(cr.overdueCount)))
+        children.push(kv('Ready to file', String(cr.readyCount)))
+        if (cr.checklists.length > 0) {
+          children.push(new Paragraph({ text: '', spacing: { after: 80 } }))
+          children.push(this.wordTable(
+            ['Client', 'Filing', 'Due Date', 'Readiness', 'Status', 'Missing'],
+            cr.checklists.map((c) => [
+              c.clientName, c.label, c.dueDate, `${c.readinessScore}%`, c.status, String(c.missingCount),
+            ]),
+          ))
         }
       }
     }

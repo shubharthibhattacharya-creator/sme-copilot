@@ -4,6 +4,7 @@ import { MetricCard, MetricCardSkeleton } from '@/components/dashboard/MetricCar
 import { InsightFeed } from '@/components/dashboard/InsightFeed'
 import { CriticalCustomersTable } from '@/components/dashboard/CriticalCustomersTable'
 import { LowStockWidget } from '@/components/dashboard/LowStockWidget'
+import { ComplianceAtRiskWidget } from '@/components/dashboard/ComplianceAtRiskWidget'
 import type { DashboardSummary, ModuleKey } from '@opsc/types'
 
 interface Insight {
@@ -20,7 +21,15 @@ interface FirmProfile {
 }
 
 async function DashboardContent() {
-  const [summary, insights, profile] = await Promise.all([
+  interface ComplianceSummary {
+    atRisk: Array<{
+      id: string; label: string; dueDate: string; readinessScore: number
+      missingItems: Array<{ documentType: string; label: string; required: number; received: number }>
+      client: { id: string; name: string }
+    }>
+  }
+
+  const [summary, insights, profile, complianceSummary] = await Promise.all([
     apiClient<DashboardSummary>('/api/v1/dashboard/summary').catch(
       (): DashboardSummary => ({
         totalReceivables: 0,
@@ -38,6 +47,7 @@ async function DashboardContent() {
     ),
     apiClient<Insight[]>('/api/v1/dashboard/insights').catch((): Insight[] => []),
     apiClient<FirmProfile>('/api/v1/settings/profile').catch((): FirmProfile => ({})),
+    apiClient<ComplianceSummary>('/api/v1/compliance/dashboard-summary').catch((): ComplianceSummary => ({ atRisk: [] })),
   ])
 
   const modules = new Set<string>(profile.modulesEnabled ?? [])
@@ -123,6 +133,9 @@ async function DashboardContent() {
 
       {/* Low Stock — only if inventory module is active */}
       {inventoryEnabled && <LowStockWidget items={summary.lowStockItems} />}
+
+      {/* Compliance at risk widget */}
+      <ComplianceAtRiskWidget atRisk={complianceSummary.atRisk} />
 
       {/* Empty state if no modules produce visible widgets */}
       {metricCards.length === 0 && !hasRightPanel && !inventoryEnabled && (

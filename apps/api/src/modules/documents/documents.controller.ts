@@ -81,6 +81,12 @@ export class DocumentsController {
     return this.documentsService.reprocess(id, user.companyId)
   }
 
+  @Post(':id/verify')
+  @Roles('ADMIN', 'OPERATIONS_MANAGER')
+  verify(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.documentsService.verifyDocument(id, user.companyId)
+  }
+
   @Patch(':id/resolve-classification')
   @Roles('ADMIN', 'OPERATIONS_MANAGER')
   resolveClassification(

@@ -26,6 +26,7 @@ const NAV = [
   { href: '/settings/team', label: 'Team' },
   { href: '/settings/rules', label: 'Business Rules' },
   { href: '/settings/integrations', label: 'Integrations' },
+  { href: '/settings/filing-templates', label: 'Filing Templates' },
 ]
 
 export default async function SettingsLayout({ children }: { children: React.ReactNode }) {

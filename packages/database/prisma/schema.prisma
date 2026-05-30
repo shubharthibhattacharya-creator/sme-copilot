@@ -100,6 +100,28 @@ enum DocumentStatus {
   PROCESSED
   FAILED
   NEEDS_REVIEW
+  VERIFIED
+}
+
+enum FilingType {
+  GST_MONTHLY
+  GST_QUARTERLY
+  TDS_QUARTERLY
+  ITR_ANNUAL
+  CUSTOM
+}
+
+enum ChecklistStatus {
+  IN_PROGRESS
+  READY
+  FILED
+  OVERDUE
+}
+
+enum NotificationType {
+  CHECKLIST_READY
+  CHECKLIST_OVERDUE
+  CHECKLIST_DUE_SOON
 }
 
 enum RequestStatus {
@@ -188,6 +210,9 @@ model Company {
   uploadTokens           UploadToken[]
   taxIntegration         TaxIntegration?
   taxSyncLogs            TaxSyncLog[]
+  filingTemplates        FilingTypeTemplate[]
+  checklists             ComplianceChecklist[]
+  notifications          Notification[]
 
   @@map("companies")
 }
@@ -212,6 +237,8 @@ model User {
   generatedReports       Report[]              @relation("GeneratedReports")
   assistantConversations AssistantConversation[]
   clientConfigs          ClientConfig[]
+  assignedChecklists     ComplianceChecklist[]
+  notifications          Notification[]
 
   @@index([companyId])
   @@index([clerkId])
@@ -395,12 +422,15 @@ model Client {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
+  filingTypes      FilingType[]
+
   company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   invoices         Invoice[]
   documents        Document[]
   documentRequests DocumentRequest[]
   whatsappMessages WhatsAppMessage[]
   uploadTokens     UploadToken[]
+  checklists       ComplianceChecklist[]
 
   @@unique([companyId, gstin])
   @@index([companyId])
@@ -474,6 +504,7 @@ model Document {
   linkedInvoiceCreated  Boolean            @default(false)
   gstinConflict         Boolean            @default(false)
   gstinConflictNote     String?
+  checklistId           String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
@@ -483,6 +514,7 @@ model Document {
   documentRequests DocumentRequest[]
   client           Client?           @relation(fields: [clientId], references: [id])
   taxSyncLogs      TaxSyncLog[]
+  checklist        ComplianceChecklist? @relation(fields: [checklistId], references: [id])
 
   @@index([companyId])
   @@index([companyId, documentType])
@@ -771,6 +803,79 @@ model TaxSyncLog {
   @@index([companyId, createdAt])
   @@index([documentId])
   @@map("tax_sync_logs")
+}
+
+// ─── Compliance Readiness ─────────────────────────────────────────────────────
+
+model FilingTypeTemplate {
+  id               String     @id @default(cuid())
+  companyId        String
+  filingType       FilingType
+  label            String
+  requiredDocTypes String[]
+  minDocCounts     Json?
+  isActive         Boolean    @default(true)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, filingType])
+  @@index([companyId])
+  @@map("filing_type_templates")
+}
+
+model ComplianceChecklist {
+  id               String          @id @default(cuid())
+  companyId        String
+  clientId         String
+  filingType       FilingType
+  filingPeriod     String
+  label            String
+  dueDate          DateTime
+  requiredDocTypes String[]
+  receivedDocIds   String[]        @default([])
+  readinessScore   Int             @default(0)
+  missingItems     Json            @default("[]")
+  assignedUserId   String?
+  notes            String?
+  status           ChecklistStatus @default(IN_PROGRESS)
+  completedAt      DateTime?
+  filedBy          String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  assignedUser User?    @relation(fields: [assignedUserId], references: [id])
+  documents    Document[]
+
+  @@unique([companyId, clientId, filingType, filingPeriod])
+  @@index([companyId, dueDate])
+  @@index([companyId, readinessScore])
+  @@index([companyId, status])
+  @@index([clientId])
+  @@map("compliance_checklists")
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  companyId   String
+  userId      String?
+  type        NotificationType
+  title       String
+  body        String
+  entityId    String?
+  entityType  String?
+  isRead      Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user     User?    @relation(fields: [userId], references: [id])
+
+  @@index([companyId, isRead])
+  @@index([companyId, createdAt])
+  @@map("notifications")
 }
 
 // ─── Admin impersonation tokens ───────────────────────────────────────────────

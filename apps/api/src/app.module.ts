@@ -25,6 +25,7 @@ import { AdminModule } from './modules/admin/admin.module'
 import { IntegrationsModule } from './modules/integrations/integrations.module'
 import { EncryptionModule } from './common/encryption/encryption.module'
 import { SchedulerModule } from './modules/scheduler/scheduler.module'
+import { ComplianceModule } from './modules/compliance/compliance.module'
 
 @Module({
   controllers: [HealthController],
@@ -57,6 +58,7 @@ import { SchedulerModule } from './modules/scheduler/scheduler.module'
     AdminModule,
     IntegrationsModule,
     SchedulerModule,
+    ComplianceModule,
   ],
 })
 export class AppModule {}

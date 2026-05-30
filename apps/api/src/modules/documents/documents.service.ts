@@ -4,6 +4,7 @@ import {
   DocumentOcrFailedException,
   DocumentTooLargeException,
   DocumentTypeNotSupportedException,
+  DocumentNotReadyException,
   AiServiceUnavailableException,
   AiResponseInvalidException,
 } from '../../common/exceptions'
@@ -16,6 +17,7 @@ import { EmailService } from '../email/email.service'
 import { IntegrationsService } from '../integrations/integrations.service'
 import { DocumentClassificationService } from './document-classification.service'
 import { DocumentToInvoiceService } from './document-to-invoice.service'
+import { ReadinessService } from '../compliance/readiness.service'
 import type { UploadDocumentDto } from './dto/upload-document.dto'
 import type { ListDocumentsDto } from './dto/list-documents.dto'
 import type { CreateDocumentRequestDto } from './dto/create-document-request.dto'
@@ -44,6 +46,7 @@ export class DocumentsService {
     private readonly integrations: IntegrationsService,
     private readonly classificationService: DocumentClassificationService,
     private readonly bridgeService: DocumentToInvoiceService,
+    private readonly readinessService: ReadinessService,
   ) {}
 
   async upload(
@@ -299,6 +302,26 @@ export class DocumentsService {
       this.logger.error(`Reprocess OCR failed for ${id}`, err)
     })
     return { message: 'Reprocessing started', documentId: id }
+  }
+
+  async verifyDocument(id: string, companyId: string) {
+    const doc = await this.findOne(id, companyId)
+    if (doc.status === 'VERIFIED') return doc
+    if (doc.status === 'UPLOADED' || doc.status === 'PROCESSING') {
+      throw new DocumentNotReadyException()
+    }
+
+    const updated = await this.prisma.document.update({
+      where: { id: doc.id },
+      data: { status: 'VERIFIED' },
+    })
+
+    // Auto-link to matching checklists and recalculate readiness
+    this.readinessService.autoLinkDocument(id, companyId).catch((err: unknown) => {
+      this.logger.error(`autoLinkDocument failed for ${id}`, err)
+    })
+
+    return updated
   }
 
   async createRequest(dto: CreateDocumentRequestDto, user: AuthenticatedUser) {

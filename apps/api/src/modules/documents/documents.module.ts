@@ -5,9 +5,10 @@ import { DocumentClassificationService } from './document-classification.service
 import { DocumentToInvoiceService } from './document-to-invoice.service'
 import { AiModule } from '../ai/ai.module'
 import { IntegrationsModule } from '../integrations/integrations.module'
+import { ComplianceModule } from '../compliance/compliance.module'
 
 @Module({
-  imports: [AiModule, IntegrationsModule],
+  imports: [AiModule, IntegrationsModule, ComplianceModule],
   controllers: [DocumentsController],
   providers: [DocumentsService, DocumentClassificationService, DocumentToInvoiceService],
   exports: [DocumentsService],

@@ -57,6 +57,7 @@ const OCR_LABEL: Record<string, { label: string; cls: string }> = {
   PROCESSED:    { label: 'Done',       cls: 'text-green-600' },
   NEEDS_REVIEW: { label: 'Needs review', cls: 'text-amber-600' },
   FAILED:       { label: 'Failed',     cls: 'text-red-600' },
+  VERIFIED:     { label: 'Verified',   cls: 'text-teal-600' },
 }
 
 const SYNC_STATUS_LABEL: Record<string, { label: string; cls: string }> = {
@@ -131,6 +132,8 @@ export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
   const [resolving, setResolving] = useState<'FIRM' | 'CLIENT' | false>(false)
   const [editingData, setEditingData] = useState<Record<string, string> | null>(null)
   const [savingData, setSavingData] = useState(false)
+  const [verifying, setVerifying] = useState(false)
+  const [verifyMsg, setVerifyMsg] = useState<string | null>(null)
 
   // Fetch full detail (including fileUrl) whenever the document changes
   useEffect(() => {
@@ -240,6 +243,21 @@ export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
       handleError(e)
     } finally {
       setSavingData(false)
+    }
+  }
+
+  async function verifyDocument() {
+    if (!detail) return
+    setVerifying(true)
+    setVerifyMsg(null)
+    try {
+      const updated = await request<DocumentItem>(`/documents/${detail.id}/verify`, { method: 'POST' })
+      setDetail(updated)
+      setVerifyMsg('Document verified and linked to compliance checklists.')
+    } catch (e) {
+      setVerifyMsg(e instanceof ApiError ? e.userMessage : (e as Error).message)
+    } finally {
+      setVerifying(false)
     }
   }
 
@@ -460,6 +478,26 @@ export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
                 </button>
               </div>
               {reprocessMsg && <p className="text-xs text-gray-500 mt-2">{reprocessMsg}</p>}
+            </div>
+          )}
+
+          {/* Verify */}
+          {(doc.status === 'PROCESSED' || doc.status === 'NEEDS_REVIEW') && (
+            <div className="border-t border-gray-100 pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Mark as verified</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Confirms extraction is correct and links to compliance checklists.</p>
+                </div>
+                <button
+                  onClick={verifyDocument}
+                  disabled={verifying}
+                  className="text-xs bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 disabled:opacity-50 whitespace-nowrap"
+                >
+                  {verifying ? 'Verifying…' : 'Verify'}
+                </button>
+              </div>
+              {verifyMsg && <p className="text-xs text-gray-500 mt-2">{verifyMsg}</p>}
             </div>
           )}
 

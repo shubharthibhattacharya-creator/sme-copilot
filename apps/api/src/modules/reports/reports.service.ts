@@ -210,12 +210,38 @@ export class ReportsService {
     }
 
     if (reportType === 'AI_INSIGHTS_DIGEST') {
-      const insights = await this.prisma.aIInsight.findMany({
-        where: { companyId },
-        orderBy: [{ severity: 'desc' }, { createdAt: 'desc' }],
-        take: 20,
-        select: { module: true, category: true, severity: true, summary: true, createdAt: true },
-      })
+      const [insights, checklists] = await Promise.all([
+        this.prisma.aIInsight.findMany({
+          where: { companyId },
+          orderBy: [{ severity: 'desc' }, { createdAt: 'desc' }],
+          take: 20,
+          select: { module: true, category: true, severity: true, summary: true, createdAt: true },
+        }),
+        this.prisma.complianceChecklist.findMany({
+          where: { companyId, status: { in: ['IN_PROGRESS', 'READY', 'OVERDUE'] } },
+          orderBy: { dueDate: 'asc' },
+          take: 20,
+          select: {
+            id: true,
+            label: true,
+            dueDate: true,
+            readinessScore: true,
+            status: true,
+            missingItems: true,
+            client: { select: { id: true, name: true } },
+          },
+        }),
+      ])
+
+      const checklistReadiness = checklists.map((c) => ({
+        clientName: c.client.name,
+        label: c.label,
+        dueDate: c.dueDate.toISOString().split('T')[0],
+        readinessScore: c.readinessScore,
+        status: c.status,
+        missingCount: Array.isArray(c.missingItems) ? (c.missingItems as unknown[]).length : 0,
+      }))
+
       return {
         totalInsights: insights.length,
         bySeverity: {
@@ -224,6 +250,15 @@ export class ReportsService {
           INFO: insights.filter((i) => i.severity === 'INFO').length,
         },
         recentInsights: insights,
+        complianceReadiness: {
+          totalChecklists: checklists.length,
+          avgReadinessScore: checklists.length > 0
+            ? Math.round(checklists.reduce((s, c) => s + c.readinessScore, 0) / checklists.length)
+            : null,
+          overdueCount: checklists.filter((c) => c.status === 'OVERDUE').length,
+          readyCount: checklists.filter((c) => c.status === 'READY').length,
+          checklists: checklistReadiness,
+        },
       }
     }
 
