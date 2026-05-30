@@ -36,11 +36,12 @@ export class StorageService {
         }
       }
 
+      const stripQuotes = (v: string | undefined) => v?.replace(/^["']|["']$/g, '') ?? ''
       this.s3 = new S3Client({
         region: process.env['S3_REGION'] ?? 'auto',
         credentials: {
-          accessKeyId: process.env['S3_ACCESS_KEY_ID']!,
-          secretAccessKey: process.env['S3_SECRET_ACCESS_KEY']!,
+          accessKeyId: stripQuotes(process.env['S3_ACCESS_KEY_ID']),
+          secretAccessKey: stripQuotes(process.env['S3_SECRET_ACCESS_KEY']),
         },
         ...(endpoint ? { endpoint } : {}),
         // Use path-style URLs (https://endpoint/bucket/key) instead of virtual-hosted
