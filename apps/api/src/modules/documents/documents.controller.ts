@@ -1,7 +1,7 @@
 import {
   Controller, Get, Post, Patch, Delete, Param, Body, Query,
   UseInterceptors, UploadedFile, HttpCode, HttpStatus,
-  StreamableFile, NotFoundException,
+  StreamableFile, NotFoundException, BadRequestException,
 } from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { DocumentsService } from './documents.service'
@@ -24,10 +24,11 @@ export class DocumentsController {
   @Roles('ADMIN', 'OPERATIONS_MANAGER')
   @UseInterceptors(FileInterceptor('file'))
   upload(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: Express.Multer.File | undefined,
     @Body() dto: UploadDocumentDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
+    if (!file) throw new BadRequestException('No file attached')
     return this.documentsService.upload(file, dto, user)
   }
 
