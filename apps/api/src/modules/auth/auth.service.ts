@@ -54,14 +54,14 @@ export class AuthService {
     const fullName = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || emailAddr
 
     if (emailAddr) {
-      // Try 1: pending placeholder (webhook never fired)
+      // Try 1: pending placeholder (webhook never fired) — case-insensitive email
       let match = await this.prisma.user.findFirst({
-        where: { email: emailAddr, clerkId: { startsWith: 'pending_' } },
+        where: { email: { equals: emailAddr, mode: 'insensitive' }, clerkId: { startsWith: 'pending_' } },
       })
       // Try 2: previously provisioned user re-signing up (deleted + re-invited)
       if (!match) {
         match = await this.prisma.user.findFirst({
-          where: { email: emailAddr },
+          where: { email: { equals: emailAddr, mode: 'insensitive' } },
         })
       }
       if (match) {

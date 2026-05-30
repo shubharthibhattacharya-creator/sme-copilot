@@ -183,7 +183,7 @@ export class AdminService {
         companyId: company.id,
         clerkId: placeholderClerkId,
         role: 'ADMIN',
-        email: dto.adminEmail,
+        email: dto.adminEmail.toLowerCase().trim(),
         name: dto.adminName,
       },
     })
