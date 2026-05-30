@@ -78,8 +78,9 @@ export function FilingsClient({ initialRows, initialSummary, initialHeatmap }: P
   }, [request])
 
   const filtered = rows.filter((r) => {
+    if (!r || !r.client) return false
     if (filter !== 'ALL' && r.status !== filter) return false
-    if (search && !r.client.name.toLowerCase().includes(search.toLowerCase())) return false
+    if (search && !r.client.name?.toLowerCase().includes(search.toLowerCase())) return false
     return true
   })
 

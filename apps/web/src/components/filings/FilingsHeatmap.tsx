@@ -121,7 +121,7 @@ function HeatmapGrid({
             </tr>
           </thead>
           <tbody>
-            {clients.map((client) => (
+            {clients.filter(Boolean).map((client) => (
               <tr key={client.id}>
                 <td className="pr-4 py-0.5 align-middle">
                   <div

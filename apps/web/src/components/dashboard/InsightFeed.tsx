@@ -108,7 +108,10 @@ export function InsightFeed({ insights: initial }: InsightFeedProps) {
                 >
                   {insight.severity}
                 </span>
-                <span className="text-[10px] text-slate-400">{relativeTime(insight.createdAt)}</span>
+                {/* suppressHydrationWarning: Date.now() differs between server and client render */}
+                <span className="text-[10px] text-slate-400" suppressHydrationWarning>
+                  {relativeTime(insight.createdAt)}
+                </span>
               </div>
               <p className="text-sm text-slate-700 leading-snug">{insight.summary}</p>
             </li>

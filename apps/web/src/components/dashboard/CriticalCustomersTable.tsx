@@ -10,7 +10,7 @@ export function CriticalCustomersTable({
   customers,
   whatsappEnabled = false,
 }: CriticalCustomersTableProps) {
-  const sorted = [...customers].sort((a, b) => b.overdueAmount - a.overdueAmount)
+  const sorted = [...customers].filter(Boolean).sort((a, b) => b.overdueAmount - a.overdueAmount)
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-6 flex flex-col h-full">
