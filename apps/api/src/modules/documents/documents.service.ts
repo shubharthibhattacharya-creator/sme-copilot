@@ -39,14 +39,19 @@ export class DocumentsService {
     dto: UploadDocumentDto,
     user: AuthenticatedUser,
   ) {
+    this.logger.log(`[upload] start — companyId=${user.companyId} mime=${file.mimetype} size=${file.size}`)
+
     if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
       throw new BadRequestException('Only PDF, JPEG, PNG, and WebP files are allowed')
     }
+
+    this.logger.log('[upload] mime ok — fetching config')
     const maxFileSizeMb = await this.configSvc.getNum(user.companyId, ConfigKey.MAX_FILE_SIZE_MB)
     if (file.size > maxFileSizeMb * 1024 * 1024) {
       throw new BadRequestException(`File size must not exceed ${maxFileSizeMb} MB`)
     }
 
+    this.logger.log('[upload] config ok — saving file to storage')
     const { key, sizeBytes } = await this.storage.save(
       file.buffer,
       file.originalname,
@@ -54,6 +59,7 @@ export class DocumentsService {
       user.companyId,
     )
 
+    this.logger.log(`[upload] storage ok — key=${key} — creating DB record`)
     const document = await this.prisma.document.create({
       data: {
         companyId: user.companyId,
@@ -70,6 +76,8 @@ export class DocumentsService {
       },
     })
 
+    this.logger.log(`[upload] DB record created — id=${document.id} — starting fire-and-forget`)
+
     // Fire-and-forget OCR
     this.processOcr(document.id, user.companyId).catch((err: unknown) => {
       this.logger.error(`OCR failed for document ${document.id}`, err)
@@ -78,6 +86,7 @@ export class DocumentsService {
     // Notify uploader
     this.notifyUpload(document.id, user, 'staff').catch(() => undefined)
 
+    this.logger.log(`[upload] returning document — id=${document.id}`)
     return document
   }
 

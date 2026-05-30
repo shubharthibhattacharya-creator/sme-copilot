@@ -31,13 +31,17 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     const message = rawMessage
 
+    const stack = exception instanceof Error ? exception.stack : undefined
+
     if (status >= 500) {
-      this.logger.error(`[${request.method}] ${request.url} — ${rawMessage}`, exception instanceof Error ? exception.stack : undefined)
+      this.logger.error(`[${request.method}] ${request.url} — ${rawMessage}`, stack)
     }
 
     response.status(status).json({
       statusCode: status,
       message,
+      // Include stack in non-200 responses for easier debugging (remove before GA)
+      ...(status >= 500 && stack ? { stack: stack.split('\n').slice(0, 8) } : {}),
       timestamp: new Date().toISOString(),
       path: request.url,
     })
