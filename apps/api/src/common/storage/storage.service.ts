@@ -26,15 +26,25 @@ export class StorageService {
     this.bucket = process.env['S3_BUCKET']
 
     if (this.bucket) {
+      // Normalize endpoint: add https:// if protocol is missing (common R2/MinIO mistake)
+      const rawEndpoint = process.env['S3_ENDPOINT']
+      let endpoint: string | undefined
+      if (rawEndpoint) {
+        endpoint = rawEndpoint.startsWith('http') ? rawEndpoint : `https://${rawEndpoint}`
+        if (endpoint !== rawEndpoint) {
+          this.logger.warn(`S3_ENDPOINT "${rawEndpoint}" had no protocol — using "${endpoint}"`)
+        }
+      }
+
       this.s3 = new S3Client({
         region: process.env['S3_REGION'] ?? 'auto',
         credentials: {
           accessKeyId: process.env['S3_ACCESS_KEY_ID']!,
           secretAccessKey: process.env['S3_SECRET_ACCESS_KEY']!,
         },
-        ...(process.env['S3_ENDPOINT'] ? { endpoint: process.env['S3_ENDPOINT'] } : {}),
+        ...(endpoint ? { endpoint } : {}),
       })
-      this.logger.log(`StorageService: S3/R2 bucket "${this.bucket}"`)
+      this.logger.log(`StorageService: S3/R2 bucket "${this.bucket}" endpoint="${endpoint ?? 'default'}"`)
     } else {
       this.uploadDir = process.env['UPLOAD_DIR'] ?? path.join(process.cwd(), 'uploads')
       if (!fs.existsSync(this.uploadDir)) {
