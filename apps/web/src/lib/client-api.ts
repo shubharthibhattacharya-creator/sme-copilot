@@ -38,6 +38,9 @@ export function useApiClient() {
         const err = await response.json().catch(() => ({ message: 'Request failed' })) as { message?: string }
         throw new Error(err.message ?? `API error ${response.status}`)
       }
+      if (response.status === 204 || response.headers.get('content-length') === '0') {
+        return undefined as T
+      }
       return response.json() as Promise<T>
     },
     [getToken],
