@@ -2,7 +2,7 @@ import 'reflect-metadata'
 import { NestFactory } from '@nestjs/core'
 import { ValidationPipe, Logger } from '@nestjs/common'
 import { AppModule } from './app.module'
-import { HttpExceptionFilter } from './common/filters/http-exception.filter'
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import { validateEnv } from '@opsc/config'
 
 async function bootstrap() {
@@ -46,7 +46,7 @@ async function bootstrap() {
     }),
   )
 
-  app.useGlobalFilters(new HttpExceptionFilter())
+  app.useGlobalFilters(new GlobalExceptionFilter())
 
   // /health is outside the api/v1 prefix so Railway healthchecks work
   app.setGlobalPrefix('api/v1', { exclude: ['health'] })

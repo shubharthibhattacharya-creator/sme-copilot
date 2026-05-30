@@ -2,6 +2,10 @@
 
 import { useAuth } from '@clerk/nextjs'
 import { useCallback } from 'react'
+import { ApiError } from './api-error'
+import type { ApiErrorResponse } from './api-error'
+
+export { ApiError } from './api-error'
 
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001'
 const IS_DEV = process.env['NODE_ENV'] !== 'production'
@@ -24,7 +28,7 @@ export function useApiClient() {
       // In dev mode, prefer the localStorage bypass token so seeded users work
       // even when a real Clerk session exists from a different account.
       const devToken = getDevToken()
-      let token = devToken ?? (await getToken())
+      const token = devToken ?? (await getToken())
 
       const response = await fetch(`${API_URL}/api/v1${path}`, {
         ...options,
@@ -34,10 +38,27 @@ export function useApiClient() {
           ...(options.headers as Record<string, string> | undefined),
         },
       })
+
       if (!response.ok) {
-        const err = await response.json().catch(() => ({ message: 'Request failed' })) as { message?: string }
-        throw new Error(err.message ?? `API error ${response.status}`)
+        let errorBody: Partial<ApiErrorResponse>
+        try {
+          errorBody = (await response.json()) as Partial<ApiErrorResponse>
+        } catch {
+          throw new ApiError(
+            'NETWORK_ERROR',
+            'Could not reach the server.',
+            'Check your internet connection and try again.',
+            response.status,
+          )
+        }
+        throw new ApiError(
+          errorBody.errorCode ?? 'UNKNOWN_ERROR',
+          errorBody.userMessage ?? errorBody['message' as keyof typeof errorBody] as string ?? 'Something went wrong.',
+          errorBody.suggestion ?? 'Please try again.',
+          response.status,
+        )
       }
+
       if (response.status === 204 || response.headers.get('content-length') === '0') {
         return undefined as T
       }

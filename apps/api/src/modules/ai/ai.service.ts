@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import Anthropic from '@anthropic-ai/sdk'
+import { AppException, AiServiceUnavailableException } from '../../common/exceptions'
 import { PrismaService } from '../../prisma/prisma.service'
 import type { TenantConfig, DashboardSummary } from '@opsc/types'
 import type { AIModule, DocumentType } from '@opsc/database'
@@ -36,17 +37,24 @@ export class AiService {
     const dataSnapshot = await this.buildDataSnapshot(companyId, module)
     const systemPrompt = this.buildSystemPrompt(persona, company.industry)
 
-    const response = await this.anthropic.messages.create({
-      model: this.model,
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: `Generate 3 actionable business insights for the ${module} module based on this data:\n\n${JSON.stringify(dataSnapshot, null, 2)}`,
-        },
-      ],
-    })
+    let response: Awaited<ReturnType<typeof this.anthropic.messages.create>>
+    try {
+      response = await this.anthropic.messages.create({
+        model: this.model,
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: [
+          {
+            role: 'user',
+            content: `Generate 3 actionable business insights for the ${module} module based on this data:\n\n${JSON.stringify(dataSnapshot, null, 2)}`,
+          },
+        ],
+      })
+    } catch (err) {
+      if (err instanceof AppException) throw err
+      const errMsg = err instanceof Error ? err.message : String(err)
+      throw new AiServiceUnavailableException('insights', errMsg)
+    }
 
     const text = response.content[0]?.type === 'text' ? response.content[0].text : ''
 
@@ -84,12 +92,19 @@ export class AiService {
       { role: 'user', content: message },
     ]
 
-    const response = await this.anthropic.messages.create({
-      model: this.model,
-      max_tokens: 2048,
-      system: systemPrompt,
-      messages,
-    })
+    let response: Awaited<ReturnType<typeof this.anthropic.messages.create>>
+    try {
+      response = await this.anthropic.messages.create({
+        model: this.model,
+        max_tokens: 2048,
+        system: systemPrompt,
+        messages,
+      })
+    } catch (err) {
+      if (err instanceof AppException) throw err
+      const errMsg = err instanceof Error ? err.message : String(err)
+      throw new AiServiceUnavailableException('AI Assistant', errMsg)
+    }
 
     const reply = response.content[0]?.type === 'text' ? response.content[0].text : ''
     return { reply }
@@ -177,17 +192,27 @@ Always include a confidence score (0-1). Return null for fields you cannot deter
           } satisfies Anthropic.TextBlockParam,
         ]
 
-    const response = await this.anthropic.messages.create({
-      model: this.model,
-      max_tokens: 2000,
-      system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: contentBlocks,
-        },
-      ],
-    })
+    let response: Awaited<ReturnType<typeof this.anthropic.messages.create>>
+    try {
+      response = await this.anthropic.messages.create({
+        model: this.model,
+        max_tokens: 2000,
+        system: systemPrompt,
+        messages: [
+          {
+            role: 'user',
+            content: contentBlocks,
+          },
+        ],
+      })
+    } catch (err) {
+      if (err instanceof AppException) throw err
+      const errMsg = err instanceof Error ? err.message : String(err)
+      if (errMsg.includes('overloaded') || (err as { status?: number }).status === 529) {
+        throw new AiServiceUnavailableException('document extraction', errMsg)
+      }
+      throw new AiServiceUnavailableException('document extraction', errMsg)
+    }
 
     const raw = response.content[0]?.type === 'text' ? response.content[0].text : '{}'
     const cleaned = raw.replace(/```(?:json)?\n?/g, '').replace(/```\n?/g, '').trim()
@@ -210,17 +235,24 @@ Write a clear, professional 3-5 sentence summary of the report data.
 Rules: Reference specific numbers in Indian format (₹1,23,456). Highlight the most important insight first. End with one actionable recommendation.
 Tone: professional, direct, no fluff.`
 
-    const response = await this.anthropic.messages.create({
-      model: this.model,
-      max_tokens: 512,
-      system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: `Report type: ${reportType}\nBusiness context: ${tenantConfig.industryType} company.\n\nData:\n${JSON.stringify(dataSnapshot, null, 2)}`,
-        },
-      ],
-    })
+    let response: Awaited<ReturnType<typeof this.anthropic.messages.create>>
+    try {
+      response = await this.anthropic.messages.create({
+        model: this.model,
+        max_tokens: 512,
+        system: systemPrompt,
+        messages: [
+          {
+            role: 'user',
+            content: `Report type: ${reportType}\nBusiness context: ${tenantConfig.industryType} company.\n\nData:\n${JSON.stringify(dataSnapshot, null, 2)}`,
+          },
+        ],
+      })
+    } catch (err) {
+      if (err instanceof AppException) throw err
+      const errMsg = err instanceof Error ? err.message : String(err)
+      throw new AiServiceUnavailableException('report summary', errMsg)
+    }
 
     return response.content[0]?.type === 'text' ? response.content[0].text : ''
   }
@@ -239,17 +271,24 @@ Return format: [{ "category": string, "severity": "INFO"|"WARNING"|"CRITICAL", "
 BAD: "Your collections seem to be declining." GOOD: "Overdue receivables up ₹1.2L this week — 3 customers account for 78% of the risk."
 Never return motivational statements. Never hallucinate numbers not in the data.`
 
-    const response = await this.anthropic.messages.create({
-      model: this.model,
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: `Business context: ${config.industryType} company, persona: ${config.aiPersona}.\n\nCurrent data:\n${JSON.stringify(summary, null, 2)}`,
-        },
-      ],
-    })
+    let response: Awaited<ReturnType<typeof this.anthropic.messages.create>>
+    try {
+      response = await this.anthropic.messages.create({
+        model: this.model,
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: [
+          {
+            role: 'user',
+            content: `Business context: ${config.industryType} company, persona: ${config.aiPersona}.\n\nCurrent data:\n${JSON.stringify(summary, null, 2)}`,
+          },
+        ],
+      })
+    } catch (err) {
+      if (err instanceof AppException) throw err
+      const errMsg = err instanceof Error ? err.message : String(err)
+      throw new AiServiceUnavailableException('dashboard insights', errMsg)
+    }
 
     const raw = response.content[0]?.type === 'text' ? response.content[0].text : '[]'
     // Strip markdown code fences if present

@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common'
+import { AppException, TaxIntegrationConnectionFailedException, TaxSyncFailedException } from '../../common/exceptions'
 import { ConfigService } from '@nestjs/config'
 import { PrismaService } from '../../prisma/prisma.service'
 import { EncryptionService } from '../../common/encryption/encryption.service'
@@ -68,14 +69,26 @@ export class IntegrationsService {
     if (!integration || integration.provider === 'NONE') {
       return { ok: false, message: 'No integration configured' }
     }
-    const ok = await this.adapter(integration.provider).testConnection(companyId)
+    let ok: boolean
+    try {
+      ok = await this.adapter(integration.provider).testConnection(companyId)
+    } catch (err) {
+      if (err instanceof AppException) throw err
+      const errMsg = err instanceof Error ? err.message : String(err)
+      throw new TaxIntegrationConnectionFailedException(integration.provider, errMsg)
+    }
     if (ok) {
       await this.prisma.taxIntegration.update({
         where: { companyId },
         data: { isActive: true, lastSyncStatus: 'SYNCED' },
       })
+    } else {
+      throw new TaxIntegrationConnectionFailedException(
+        integration.provider,
+        'Adapter returned ok=false',
+      )
     }
-    return { ok, message: ok ? 'Connection successful' : 'Connection failed' }
+    return { ok, message: 'Connection successful' }
   }
 
   async disconnectIntegration(companyId: string) {
@@ -158,6 +171,9 @@ export class IntegrationsService {
       payload: payload as unknown as Prisma.InputJsonValue,
     }
 
+    const providerName = integration.provider
+    const docName = document.originalName
+
     try {
       const result = await this.adapter(integration.provider).pushDocument(companyId, payload)
       await this.prisma.document.update({
@@ -189,7 +205,8 @@ export class IntegrationsService {
         where: { companyId },
         data: { lastSyncStatus: 'FAILED' },
       })
-      throw err
+      if (err instanceof AppException) throw err
+      throw new TaxSyncFailedException(providerName, docName, msg)
     }
   }
 

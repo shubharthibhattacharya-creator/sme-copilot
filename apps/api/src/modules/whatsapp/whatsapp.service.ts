@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, Logger, Optional } from '@nestjs/common'
+import { AppException, WhatsAppSendFailedException, WhatsAppRateLimitException } from '../../common/exceptions'
 import { PrismaService } from '../../prisma/prisma.service'
 import { TwilioService } from './twilio.service'
 import { TemplateService } from './template.service'
@@ -724,10 +725,18 @@ export class WhatsAppService {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       this.logger.error(`Failed to send WhatsApp to ${toPhone}: ${msg}`)
-      return this.prisma.whatsAppMessage.update({
+      await this.prisma.whatsAppMessage.update({
         where: { id: record.id },
         data: { status: 'FAILED', failedAt: new Date(), errorMessage: msg },
       })
+      if (err instanceof AppException) throw err
+      const twilioErr = err as { code?: number; status?: number }
+      if (twilioErr.code === 20429 || twilioErr.status === 429) {
+        throw new WhatsAppRateLimitException()
+      }
+      // Resolve recipient name for the error message
+      const clientName = toPhone
+      throw new WhatsAppSendFailedException(clientName, msg)
     }
   }
 }

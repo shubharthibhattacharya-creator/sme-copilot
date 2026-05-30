@@ -1,4 +1,12 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common'
+import { Injectable, Logger, NotFoundException } from '@nestjs/common'
+import {
+  AppException,
+  DocumentOcrFailedException,
+  DocumentTooLargeException,
+  DocumentTypeNotSupportedException,
+  AiServiceUnavailableException,
+  AiResponseInvalidException,
+} from '../../common/exceptions'
 import { PrismaService } from '../../prisma/prisma.service'
 import { StorageService } from '../../common/storage/storage.service'
 import { AiService } from '../ai/ai.service'
@@ -40,11 +48,11 @@ export class DocumentsService {
     user: AuthenticatedUser,
   ) {
     if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
-      throw new BadRequestException('Only PDF, JPEG, PNG, and WebP files are allowed')
+      throw new DocumentTypeNotSupportedException(file.mimetype)
     }
     const maxFileSizeMb = await this.configSvc.getNum(user.companyId, ConfigKey.MAX_FILE_SIZE_MB)
     if (file.size > maxFileSizeMb * 1024 * 1024) {
-      throw new BadRequestException(`File size must not exceed ${maxFileSizeMb} MB`)
+      throw new DocumentTooLargeException(Math.round(file.size / 1024 / 1024))
     }
 
     const { key, sizeBytes } = await this.storage.save(
@@ -117,11 +125,24 @@ export class DocumentsService {
       const fileBuffer = await this.storage.readFile(doc.storageKey)
       const base64 = fileBuffer.toString('base64')
 
-      const extractedData = await this.aiService.extractDocumentData(
-        base64,
-        doc.mimeType,
-        doc.documentType as DocumentType,
-      )
+      let extractedData: Record<string, unknown>
+      try {
+        extractedData = await this.aiService.extractDocumentData(
+          base64,
+          doc.mimeType,
+          doc.documentType as DocumentType,
+        )
+        if (!extractedData || extractedData['confidence'] === undefined) {
+          throw new AiResponseInvalidException('document OCR', 'No confidence score returned')
+        }
+      } catch (aiErr) {
+        if (aiErr instanceof AppException) throw aiErr
+        const errMsg = aiErr instanceof Error ? aiErr.message : String(aiErr)
+        if (errMsg.includes('overloaded') || (aiErr as { status?: number }).status === 529) {
+          throw new AiServiceUnavailableException('OCR', errMsg)
+        }
+        throw new DocumentOcrFailedException(errMsg)
+      }
 
       const confidence = typeof extractedData['confidence'] === 'number'
         ? (extractedData['confidence'] as number)

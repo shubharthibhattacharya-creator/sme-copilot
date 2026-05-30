@@ -2,6 +2,9 @@
 import { useState, useRef } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import type { DocumentItem, DocumentType } from '@opsc/types'
+import { ApiError } from '@/lib/api-error'
+import { useApiError } from '@/hooks/useApiError'
+import { validators } from '@/lib/validators'
 
 const DOCUMENT_TYPES: { value: DocumentType; label: string }[] = [
   { value: 'INVOICE', label: 'Invoice' },
@@ -14,12 +17,16 @@ const DOCUMENT_TYPES: { value: DocumentType; label: string }[] = [
   { value: 'OTHER', label: 'Other' },
 ]
 
+const MAX_FILE_MB = 10
+const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp']
+
 interface Props {
   onUploaded: (doc: DocumentItem) => void
 }
 
 export function DocumentUploadButton({ onUploaded }: Props) {
   const { getToken } = useAuth()
+  const { handleError } = useApiError()
   const [uploading, setUploading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [docType, setDocType] = useState<DocumentType>('INVOICE')
@@ -28,7 +35,22 @@ export function DocumentUploadButton({ onUploaded }: Props) {
 
   async function handleUpload() {
     const file = fileRef.current?.files?.[0]
-    if (!file) return setError('Please select a file')
+    if (!file) {
+      setError('Please select a file')
+      return
+    }
+
+    // ── Client-side validation (prevents unnecessary API calls) ──────────────
+    const sizeError = validators.fileSize(file, MAX_FILE_MB)
+    if (sizeError) {
+      setError(sizeError)
+      return
+    }
+    const typeError = validators.fileType(file, ALLOWED_MIME_TYPES)
+    if (typeError) {
+      setError(typeError)
+      return
+    }
 
     setUploading(true)
     setError(null)
@@ -47,8 +69,18 @@ export function DocumentUploadButton({ onUploaded }: Props) {
       })
 
       if (!res.ok) {
-        const err = await res.json() as { message?: string }
-        throw new Error(err.message ?? 'Upload failed')
+        let errorBody: { errorCode?: string; userMessage?: string; suggestion?: string; message?: string } = {}
+        try {
+          errorBody = await res.json()
+        } catch {
+          // ignore parse error
+        }
+        throw new ApiError(
+          errorBody.errorCode ?? 'UPLOAD_FAILED',
+          errorBody.userMessage ?? errorBody.message ?? 'Upload failed',
+          errorBody.suggestion ?? 'Please try again.',
+          res.status,
+        )
       }
 
       const doc = await res.json() as DocumentItem
@@ -56,7 +88,12 @@ export function DocumentUploadButton({ onUploaded }: Props) {
       setShowForm(false)
       if (fileRef.current) fileRef.current.value = ''
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed')
+      if (err instanceof ApiError) {
+        // Show structured error message in the component (not a toast, it's inline)
+        setError(err.userMessage + (err.suggestion ? ` ${err.suggestion}` : ''))
+      } else {
+        handleError(err)
+      }
     } finally {
       setUploading(false)
     }
@@ -89,6 +126,7 @@ export function DocumentUploadButton({ onUploaded }: Props) {
         type="file"
         accept=".pdf,.jpg,.jpeg,.png,.webp"
         className="text-sm text-gray-600"
+        onChange={() => setError(null)}
       />
       <button
         onClick={handleUpload}
@@ -98,12 +136,14 @@ export function DocumentUploadButton({ onUploaded }: Props) {
         {uploading ? 'Uploading...' : 'Upload'}
       </button>
       <button
-        onClick={() => setShowForm(false)}
+        onClick={() => { setShowForm(false); setError(null) }}
         className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900"
       >
         Cancel
       </button>
-      {error && <span className="text-sm text-red-500">{error}</span>}
+      {error && (
+        <span className="text-sm text-red-500" role="alert">{error}</span>
+      )}
     </div>
   )
 }

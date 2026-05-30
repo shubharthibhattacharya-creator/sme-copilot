@@ -1,5 +1,11 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common'
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
+import {
+  InvalidGstinException,
+  InvalidPanException,
+  ClientAlreadyExistsException,
+  CsvImportPartialException,
+} from '../../common/exceptions'
 import type { CreateClientDto } from './dto/create-client.dto'
 import type { UpdateClientDto } from './dto/update-client.dto'
 import type { ListClientsDto } from './dto/list-clients.dto'
@@ -13,10 +19,10 @@ export class ClientsService {
 
   private validate(dto: { gstin?: string; pan?: string }) {
     if (dto.gstin && !GSTIN_RE.test(dto.gstin)) {
-      throw new BadRequestException('Invalid GSTIN format')
+      throw new InvalidGstinException(dto.gstin)
     }
     if (dto.pan && !PAN_RE.test(dto.pan)) {
-      throw new BadRequestException('Invalid PAN format')
+      throw new InvalidPanException(dto.pan)
     }
   }
 
@@ -26,7 +32,7 @@ export class ClientsService {
       const existing = await this.prisma.client.findUnique({
         where: { companyId_gstin: { companyId, gstin: dto.gstin } },
       })
-      if (existing) throw new ConflictException(`Client with GSTIN ${dto.gstin} already exists`)
+      if (existing) throw new ClientAlreadyExistsException(dto.gstin)
     }
     return this.prisma.client.create({ data: { companyId, ...dto } })
   }
@@ -156,9 +162,17 @@ export class ClientsService {
         if (err instanceof ConflictException) {
           skipped++
         } else {
-          errors.push(`Row ${i + 2}: ${err instanceof Error ? err.message : 'Unknown error'}`)
+          const errMsg = err instanceof Error ? err.message : 'Unknown error'
+          errors.push(`Row ${i + 2}: ${errMsg}`)
         }
       }
+    }
+
+    if (errors.length > 0 && created === 0) {
+      throw new CsvImportPartialException(created, errors.length, errors)
+    }
+    if (errors.length > 0) {
+      throw new CsvImportPartialException(created, errors.length, errors)
     }
 
     return { created, skipped, errors }

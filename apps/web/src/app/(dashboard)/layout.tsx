@@ -7,6 +7,9 @@ import { UserButton } from '@clerk/nextjs'
 import { apiClient } from '@/lib/api-client'
 import { INDUSTRY_DEFAULTS, type IndustryType, type ModuleKey } from '@opsc/types'
 import { ImpersonationBanner } from '@/components/ImpersonationBanner'
+import { ErrorBoundary } from '@/components/error-boundary'
+import { Toaster } from '@/components/ui/toast'
+import { UpgradeModal } from '@/components/ui/upgrade-modal'
 
 interface NavItem {
   href: string
@@ -109,8 +112,12 @@ export default async function DashboardLayout({
         </div>
       </aside>
 
-      <main className="flex-1 p-8">{children}</main>
+      <main className="flex-1 p-8">
+        <ErrorBoundary>{children}</ErrorBoundary>
+      </main>
     </div>
+    <Toaster />
+    <UpgradeModal />
     </div>
   )
 }

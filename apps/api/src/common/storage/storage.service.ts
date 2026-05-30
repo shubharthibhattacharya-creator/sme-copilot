@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { S3UploadFailedException } from '../exceptions'
 import * as path from 'path'
 import * as fs from 'fs'
 import * as crypto from 'crypto'
@@ -70,20 +71,25 @@ export class StorageService {
     const ext = this.getExtension(originalName, mimeType)
     const key = `${companyId}/${year}/${month}/${crypto.randomUUID()}${ext}`
 
-    if (this.s3 && this.bucket) {
-      await this.s3.send(
-        new PutObjectCommand({
-          Bucket: this.bucket,
-          Key: key,
-          Body: buffer,
-          ContentType: mimeType,
-          ContentLength: buffer.length,
-        }),
-      )
-    } else {
-      const fullPath = path.join(this.uploadDir, key)
-      fs.mkdirSync(path.dirname(fullPath), { recursive: true })
-      fs.writeFileSync(fullPath, buffer)
+    try {
+      if (this.s3 && this.bucket) {
+        await this.s3.send(
+          new PutObjectCommand({
+            Bucket: this.bucket,
+            Key: key,
+            Body: buffer,
+            ContentType: mimeType,
+            ContentLength: buffer.length,
+          }),
+        )
+      } else {
+        const fullPath = path.join(this.uploadDir, key)
+        fs.mkdirSync(path.dirname(fullPath), { recursive: true })
+        fs.writeFileSync(fullPath, buffer)
+      }
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err)
+      throw new S3UploadFailedException(detail)
     }
 
     return { key, sizeBytes: buffer.length }
