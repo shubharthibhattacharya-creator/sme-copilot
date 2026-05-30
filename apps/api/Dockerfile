@@ -63,7 +63,5 @@ COPY --from=builder /app/apps/api/dist             ./apps/api/dist
 COPY --from=builder /app/apps/api/package.json     ./apps/api/package.json
 COPY --from=builder /app/apps/api/node_modules     ./apps/api/node_modules
 
-# Run DB migration then start server
-# prisma db push is used (no migration files in repo yet)
-# Switch to `migrate deploy` once migration files are committed
-CMD ["node", "apps/api/dist/main.js"]
+# Run DB schema sync then start server
+CMD ["sh", "-c", "cd packages/database && npx prisma db push --skip-generate && cd /app && node apps/api/dist/main.js"]
