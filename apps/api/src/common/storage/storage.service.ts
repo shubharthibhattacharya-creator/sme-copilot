@@ -26,13 +26,13 @@ export class StorageService {
     this.bucket = process.env['S3_BUCKET']
 
     if (this.bucket) {
-      // Normalize endpoint: add https:// if protocol is missing (common R2/MinIO mistake)
-      const rawEndpoint = process.env['S3_ENDPOINT']
+      // Normalize endpoint: strip accidental surrounding quotes, add https:// if missing
+      const rawEndpoint = process.env['S3_ENDPOINT']?.replace(/^["']|["']$/g, '')
       let endpoint: string | undefined
       if (rawEndpoint) {
         endpoint = rawEndpoint.startsWith('http') ? rawEndpoint : `https://${rawEndpoint}`
-        if (endpoint !== rawEndpoint) {
-          this.logger.warn(`S3_ENDPOINT "${rawEndpoint}" had no protocol — using "${endpoint}"`)
+        if (endpoint !== process.env['S3_ENDPOINT']) {
+          this.logger.warn(`S3_ENDPOINT was normalized from "${process.env['S3_ENDPOINT']}" to "${endpoint}"`)
         }
       }
 
