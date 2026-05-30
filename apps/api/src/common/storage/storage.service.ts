@@ -43,6 +43,9 @@ export class StorageService {
           secretAccessKey: process.env['S3_SECRET_ACCESS_KEY']!,
         },
         ...(endpoint ? { endpoint } : {}),
+        // Use path-style URLs (https://endpoint/bucket/key) instead of virtual-hosted
+        // (https://bucket.endpoint/key). Required for Cloudflare R2 and MinIO.
+        forcePathStyle: true,
       })
       this.logger.log(`StorageService: S3/R2 bucket "${this.bucket}" endpoint="${endpoint ?? 'default'}"`)
     } else {
