@@ -21,6 +21,14 @@ export function DocumentsClient({ initialDocuments, initialRequests }: Props) {
     setDocuments(prev => ({ ...prev, items: [doc, ...prev.items] }))
   }
 
+  function handleDeleted(id: string) {
+    setDocuments(prev => ({
+      ...prev,
+      items: prev.items.filter(d => d.id !== id),
+      meta: { ...prev.meta, total: prev.meta.total - 1 },
+    }))
+  }
+
   return (
     <div>
       <div className="flex gap-3 mb-6">
@@ -43,6 +51,7 @@ export function DocumentsClient({ initialDocuments, initialRequests }: Props) {
       <DocumentDrawer
         document={selectedDocument}
         onClose={() => setSelectedDocument(null)}
+        onDeleted={handleDeleted}
       />
 
       <RequestModal

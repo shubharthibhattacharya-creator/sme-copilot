@@ -7,6 +7,7 @@ import type { DocumentItem } from '@opsc/types'
 interface Props {
   document: DocumentItem | null
   onClose: () => void
+  onDeleted?: (id: string) => void
 }
 
 function ConfidenceBar({ value }: { value: number }) {
@@ -92,7 +93,7 @@ function FileAttachment({ doc }: { doc: DocumentItem }) {
   )
 }
 
-export function DocumentDrawer({ document, onClose }: Props) {
+export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
   const { getToken } = useAuth()
   const { request } = useApiClient()
   const [detail, setDetail] = useState<DocumentItem | null>(document)
@@ -100,6 +101,8 @@ export function DocumentDrawer({ document, onClose }: Props) {
   const [pushMsg, setPushMsg] = useState<string | null>(null)
   const [reprocessing, setReprocessing] = useState(false)
   const [reprocessMsg, setReprocessMsg] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   // Fetch full detail (including fileUrl) whenever the document changes
   useEffect(() => {
@@ -141,6 +144,20 @@ export function DocumentDrawer({ document, onClose }: Props) {
     }, 3000)
     return () => clearInterval(interval)
   }, [detail?.id, detail?.status, getToken])
+
+  const deleteDocument = async () => {
+    if (!detail) return
+    setDeleting(true)
+    try {
+      await request(`/documents/${detail.id}`, { method: 'DELETE' })
+      onDeleted?.(detail.id)
+      onClose()
+    } catch (e) {
+      setConfirmDelete(false)
+      setDeleting(false)
+      alert((e as Error).message)
+    }
+  }
 
   const reprocess = async () => {
     if (!detail) return
@@ -190,7 +207,34 @@ export function DocumentDrawer({ document, onClose }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h2 className="font-semibold text-gray-900 truncate pr-4">{doc.originalName}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none shrink-0">×</button>
+          <div className="flex items-center gap-2 shrink-0">
+            {!confirmDelete ? (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50"
+              >
+                Delete
+              </button>
+            ) : (
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-red-600 font-medium">Delete file?</span>
+                <button
+                  onClick={deleteDocument}
+                  disabled={deleting}
+                  className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 disabled:opacity-50"
+                >
+                  {deleting ? '…' : 'Yes'}
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  className="text-xs text-gray-500 px-2 py-1 rounded hover:bg-gray-100"
+                >
+                  No
+                </button>
+              </div>
+            )}
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+          </div>
         </div>
 
         <div className="p-4 space-y-4">
