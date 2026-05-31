@@ -5,6 +5,7 @@ import { useApiClient } from '@/lib/client-api'
 import { ApiError } from '@/lib/api-error'
 import { useApiError } from '@/hooks/useApiError'
 import { usePermissions } from '@/contexts/permissions.context'
+import { Button } from '@/components/ui'
 import type { DocumentItem } from '@opsc/types'
 
 const PURPOSE_LABEL: Record<string, string> = {
@@ -110,7 +111,20 @@ function FileAttachment({ doc }: { doc: DocumentItem }) {
           href={fileUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 whitespace-nowrap"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            height: '32px',
+            padding: '0 12px',
+            fontSize: '13px',
+            borderRadius: 'var(--radius-md)',
+            background: 'var(--color-primary)',
+            color: 'var(--color-text-inverse)',
+            fontFamily: 'var(--font-family)',
+            fontWeight: 500,
+            textDecoration: 'none',
+            whiteSpace: 'nowrap',
+          }}
         >
           {isPdf ? 'View PDF' : isImage ? 'Full size' : 'Download'}
         </a>
@@ -305,28 +319,16 @@ export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
           <div className="flex items-center gap-2 shrink-0">
             {canDo('documents', 'delete') && (
               !confirmDelete ? (
-                <button
-                  onClick={() => setConfirmDelete(true)}
-                  className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50"
-                >
+                <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(true)} style={{ color: 'var(--color-error)' }}>
                   Delete
-                </button>
+                </Button>
               ) : (
                 <div className="flex items-center gap-1">
                   <span className="text-xs text-red-600 font-medium">Delete file?</span>
-                  <button
-                    onClick={deleteDocument}
-                    disabled={deleting}
-                    className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 disabled:opacity-50"
-                  >
-                    {deleting ? '…' : 'Yes'}
-                  </button>
-                  <button
-                    onClick={() => setConfirmDelete(false)}
-                    className="text-xs text-gray-500 px-2 py-1 rounded hover:bg-gray-100"
-                  >
-                    No
-                  </button>
+                  <Button variant="primary" size="sm" onClick={deleteDocument} disabled={deleting} loading={deleting} style={{ background: 'var(--color-error)', boxShadow: 'none' }}>
+                    Yes
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(false)}>No</Button>
                 </div>
               )
             )}
@@ -391,7 +393,9 @@ export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-medium text-gray-700">Extracted data</p>
                 {!editingData && doc.status !== 'PROCESSING' && doc.status !== 'UPLOADED' && (
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => {
                       const editable: Record<string, string> = {}
                       for (const [k, v] of Object.entries(extractedData)) {
@@ -400,10 +404,9 @@ export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
                       }
                       setEditingData(editable)
                     }}
-                    className="text-xs text-blue-600 hover:underline"
                   >
                     Edit / correct
-                  </button>
+                  </Button>
                 )}
               </div>
 
@@ -420,19 +423,10 @@ export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
                     </div>
                   ))}
                   <div className="flex gap-2 pt-1">
-                    <button
-                      onClick={saveExtractedData}
-                      disabled={savingData}
-                      className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      {savingData ? 'Saving…' : 'Save corrections'}
-                    </button>
-                    <button
-                      onClick={() => setEditingData(null)}
-                      className="text-xs text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-100"
-                    >
-                      Cancel
-                    </button>
+                    <Button variant="primary" size="sm" onClick={saveExtractedData} disabled={savingData} loading={savingData}>
+                      Save corrections
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={() => setEditingData(null)}>Cancel</Button>
                   </div>
                 </div>
               ) : (
@@ -473,13 +467,9 @@ export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
                       : 'Low confidence — re-run to try again.'}
                   </p>
                 </div>
-                <button
-                  onClick={reprocess}
-                  disabled={reprocessing}
-                  className="text-xs bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-700 disabled:opacity-50 whitespace-nowrap"
-                >
-                  {reprocessing ? 'Starting…' : 'Reprocess'}
-                </button>
+                <Button variant="secondary" size="sm" onClick={reprocess} disabled={reprocessing} loading={reprocessing}>
+                  Reprocess
+                </Button>
               </div>
               {reprocessMsg && <p className="text-xs text-gray-500 mt-2">{reprocessMsg}</p>}
             </div>
@@ -493,13 +483,9 @@ export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
                   <p className="text-sm font-medium text-gray-700">Mark as verified</p>
                   <p className="text-xs text-gray-400 mt-0.5">Confirms extraction is correct and links to compliance checklists.</p>
                 </div>
-                <button
-                  onClick={verifyDocument}
-                  disabled={verifying}
-                  className="text-xs bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 disabled:opacity-50 whitespace-nowrap"
-                >
-                  {verifying ? 'Verifying…' : 'Verify'}
-                </button>
+                <Button variant="primary" size="sm" onClick={verifyDocument} disabled={verifying} loading={verifying}>
+                  Verify
+                </Button>
               </div>
               {verifyMsg && <p className="text-xs text-gray-500 mt-2">{verifyMsg}</p>}
             </div>
@@ -524,13 +510,9 @@ export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
                 )}
               </div>
               {doc.status === 'PROCESSED' && doc.syncStatus !== 'SYNCING' && (
-                <button
-                  onClick={pushToIntegration}
-                  disabled={pushing}
-                  className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap"
-                >
-                  {pushing ? 'Pushing…' : doc.syncStatus === 'SYNCED' ? 'Re-sync' : 'Push to integration'}
-                </button>
+                <Button variant="primary" size="sm" onClick={pushToIntegration} disabled={pushing} loading={pushing}>
+                  {doc.syncStatus === 'SYNCED' ? 'Re-sync' : 'Push to integration'}
+                </Button>
               )}
             </div>
             {pushMsg && <p className="text-xs text-gray-500 mt-2">{pushMsg}</p>}
@@ -563,14 +545,12 @@ export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
                 <p className="text-xs font-medium text-orange-800 mb-1">Needs confirmation</p>
                 <p className="text-xs text-orange-700 mb-3">{doc.gstinConflictNote}</p>
                 <div className="flex gap-2">
-                  <button onClick={() => resolveClassification('FIRM')} disabled={!!resolving}
-                    className="text-xs bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 disabled:opacity-50">
-                    {resolving === 'FIRM' ? 'Saving…' : "Our firm's invoice"}
-                  </button>
-                  <button onClick={() => resolveClassification('CLIENT')} disabled={!!resolving}
-                    className="text-xs bg-purple-600 text-white px-3 py-1.5 rounded-lg hover:bg-purple-700 disabled:opacity-50">
-                    {resolving === 'CLIENT' ? 'Saving…' : "Client's document"}
-                  </button>
+                  <Button variant="primary" size="sm" onClick={() => resolveClassification('FIRM')} disabled={!!resolving} loading={resolving === 'FIRM'}>
+                    Our firm&apos;s invoice
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => resolveClassification('CLIENT')} disabled={!!resolving} loading={resolving === 'CLIENT'}>
+                    Client&apos;s document
+                  </Button>
                 </div>
               </div>
             )}

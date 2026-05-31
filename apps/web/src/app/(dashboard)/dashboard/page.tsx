@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { apiClient } from '@/lib/api-client'
+import { H1 } from '@/components/ui'
 import { MetricCard, MetricCardSkeleton } from '@/components/dashboard/MetricCard'
 import { InsightFeed } from '@/components/dashboard/InsightFeed'
 import { CriticalCustomersTable } from '@/components/dashboard/CriticalCustomersTable'
@@ -151,7 +152,7 @@ export default function DashboardPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-slate-900">Dashboard</h1>
+        <H1>Dashboard</H1>
         <p className="text-xs text-slate-400">Live data · refreshes on page load</p>
       </div>
 

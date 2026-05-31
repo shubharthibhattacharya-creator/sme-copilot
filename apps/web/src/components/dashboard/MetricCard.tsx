@@ -1,4 +1,5 @@
 import { cn, formatCurrency } from '@/lib/utils'
+import { Card, Label } from '@/components/ui'
 
 interface MetricCardProps {
   label: string
@@ -21,8 +22,8 @@ export function MetricCard({
     currency && typeof value === 'number' ? formatCurrency(value) : String(value)
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-6 flex flex-col gap-2">
-      <p className="text-sm font-medium text-slate-500">{label}</p>
+    <Card padding="24px" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <Label>{label}</Label>
       <p className="text-3xl font-bold text-slate-900 tabular-nums">{displayValue}</p>
 
       <div className="flex items-center gap-2 mt-1">
@@ -41,16 +42,16 @@ export function MetricCard({
         )}
         {subtext && <p className="text-xs text-slate-400">{subtext}</p>}
       </div>
-    </div>
+    </Card>
   )
 }
 
 export function MetricCardSkeleton() {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-6 flex flex-col gap-2">
+    <Card padding="24px" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
       <div className="h-4 w-28 bg-slate-200 animate-pulse rounded" />
       <div className="h-9 w-40 bg-slate-200 animate-pulse rounded" />
       <div className="h-3 w-20 bg-slate-100 animate-pulse rounded" />
-    </div>
+    </Card>
   )
 }

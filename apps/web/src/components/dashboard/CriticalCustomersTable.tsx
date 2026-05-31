@@ -1,4 +1,5 @@
 import { formatCurrency } from '@/lib/utils'
+import { Card, CardHeader, Button } from '@/components/ui'
 import type { CriticalCustomer } from '@opsc/types'
 
 interface CriticalCustomersTableProps {
@@ -13,8 +14,8 @@ export function CriticalCustomersTable({
   const sorted = [...customers].filter(Boolean).sort((a, b) => b.overdueAmount - a.overdueAmount)
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-6 flex flex-col h-full">
-      <h2 className="font-semibold text-slate-800 mb-4">Critical Customers</h2>
+    <Card padding="24px" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <CardHeader title="Critical Customers" />
 
       {sorted.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
@@ -49,9 +50,7 @@ export function CriticalCustomersTable({
                   </td>
                   <td className="py-3 text-right">
                     {whatsappEnabled ? (
-                      <button className="text-xs px-2 py-1 rounded bg-green-100 text-green-700 hover:bg-green-200 transition-colors">
-                        WhatsApp
-                      </button>
+                      <Button variant="ghost" size="sm">WhatsApp</Button>
                     ) : (
                       <span
                         className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-400 cursor-not-allowed"
@@ -67,6 +66,6 @@ export function CriticalCustomersTable({
           </table>
         </div>
       )}
-    </div>
+    </Card>
   )
 }

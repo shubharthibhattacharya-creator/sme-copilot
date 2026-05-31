@@ -1,5 +1,6 @@
 'use client'
 import type { DocumentItem, SyncStatus } from '@opsc/types'
+import { Card, FiledChip, ReviewChip, OverdueChip, PendingChip } from '@/components/ui'
 
 function SyncBadge({ status }: { status?: SyncStatus }) {
   if (!status || status === 'PENDING') return <span className="text-xs text-gray-300">—</span>
@@ -14,13 +15,6 @@ function SyncBadge({ status }: { status?: SyncStatus }) {
   return <span className={`text-xs font-medium ${cls}`}>{label}</span>
 }
 
-const OCR_STATUS: Record<string, { label: string; cls: string; pulse?: boolean }> = {
-  UPLOADED:     { label: 'Pending',    cls: 'bg-gray-100 text-gray-500' },
-  PROCESSING:   { label: 'Extracting', cls: 'bg-blue-100 text-blue-700', pulse: true },
-  PROCESSED:    { label: 'Done',       cls: 'bg-green-100 text-green-700' },
-  NEEDS_REVIEW: { label: 'Review',     cls: 'bg-amber-100 text-amber-700' },
-  FAILED:       { label: 'Failed',     cls: 'bg-red-100 text-red-700' },
-}
 
 const PURPOSE_BADGE: Record<string, { label: string; cls: string }> = {
   RECEIVABLE:      { label: 'Fee invoice',   cls: 'bg-teal-100 text-teal-700' },
@@ -54,7 +48,7 @@ export function DocumentList({ documents, onSelect }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <Card padding="0" style={{ overflow: 'hidden' }}>
       <table className="w-full text-sm">
         <thead className="bg-gray-50 border-b border-gray-200">
           <tr>
@@ -71,7 +65,6 @@ export function DocumentList({ documents, onSelect }: Props) {
         </thead>
         <tbody className="divide-y divide-gray-100">
           {documents.map(doc => {
-            const ocr = OCR_STATUS[doc.status] ?? OCR_STATUS['FAILED']!
             return (
               <tr
                 key={doc.id}
@@ -106,10 +99,17 @@ export function DocumentList({ documents, onSelect }: Props) {
 
                 {/* OCR / extraction status */}
                 <td className="px-4 py-3">
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${ocr.cls}`}>
-                    {ocr.pulse && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />}
-                    {ocr.label}
-                  </span>
+                  {doc.status === 'PROCESSED' ? (
+                    <FiledChip label="Done" size="sm" />
+                  ) : doc.status === 'NEEDS_REVIEW' ? (
+                    <ReviewChip label="Review" size="sm" />
+                  ) : doc.status === 'PROCESSING' ? (
+                    <ReviewChip label="Extracting…" size="sm" />
+                  ) : doc.status === 'FAILED' ? (
+                    <OverdueChip label="Failed" size="sm" />
+                  ) : (
+                    <PendingChip label="Pending" size="sm" />
+                  )}
                 </td>
 
                 <td className="px-4 py-3">
@@ -126,6 +126,6 @@ export function DocumentList({ documents, onSelect }: Props) {
           })}
         </tbody>
       </table>
-    </div>
+    </Card>
   )
 }

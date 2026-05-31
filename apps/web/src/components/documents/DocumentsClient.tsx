@@ -5,6 +5,7 @@ import { DocumentUploadButton } from './DocumentUploadButton'
 import { DocumentDrawer } from './DocumentDrawer'
 import { RequestModal } from './RequestModal'
 import { usePermissions } from '@/contexts/permissions.context'
+import { Button } from '@/components/ui'
 import type { DocumentItem, DocumentRequest } from '@opsc/types'
 
 interface Props {
@@ -36,12 +37,9 @@ export function DocumentsClient({ initialDocuments, initialRequests }: Props) {
       <div className="flex gap-3 mb-6">
         {canDo('documents', 'upload') && <DocumentUploadButton onUploaded={handleUploaded} />}
         {canDo('documents', 'request') && (
-          <button
-            onClick={() => setShowRequestModal(true)}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-          >
+          <Button variant="secondary" size="sm" onClick={() => setShowRequestModal(true)}>
             Request Document
-          </button>
+          </Button>
         )}
       </div>
 

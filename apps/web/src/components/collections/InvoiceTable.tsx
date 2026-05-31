@@ -5,6 +5,7 @@ import { cn, formatCurrency, formatDate } from '@/lib/utils'
 import { useApiClient } from '@/lib/client-api'
 import { useRouter } from 'next/navigation'
 import { usePermissions } from '@/contexts/permissions.context'
+import { Card, Button, StatusChip } from '@/components/ui'
 import type { InvoiceWithRisk, RiskLevel } from '@opsc/types'
 
 interface InvoiceTableProps {
@@ -22,12 +23,6 @@ const RISK_PILL: Record<RiskLevel, string> = {
   UNSCORED: 'bg-slate-100 text-slate-500',
 }
 
-const STATUS_PILL: Record<string, string> = {
-  PENDING: 'bg-blue-50 text-blue-600',
-  OVERDUE: 'bg-red-50 text-red-600',
-  PAID: 'bg-green-50 text-green-600',
-  PARTIAL: 'bg-amber-50 text-amber-600',
-}
 
 export function InvoiceTable({
   invoices,
@@ -67,7 +62,7 @@ export function InvoiceTable({
   }
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200">
+    <Card padding="0">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -125,36 +120,37 @@ export function InvoiceTable({
                   </span>
                 </td>
                 <td className="p-4 text-center">
-                  <span
-                    className={cn(
-                      'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-                      STATUS_PILL[inv.status] ?? 'bg-slate-100 text-slate-600',
-                    )}
-                  >
-                    {inv.status}
-                  </span>
+                  <StatusChip
+                    status={inv.status === 'PAID' ? 'filed' : inv.status === 'OVERDUE' ? 'overdue' : inv.status === 'PARTIAL' ? 'waiting-client' : 'pending'}
+                    label={inv.status}
+                    size="sm"
+                  />
                 </td>
                 <td className="p-4 text-right">
                   <div className="flex items-center justify-end gap-2">
                     {inv.status !== 'PAID' && (
                       <>
                         {canDo('collections', 'send_reminder') && (
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={(e) => handleRemind(e, inv.id)}
                             disabled={sendingReminder === inv.id}
-                            className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 disabled:opacity-50"
+                            loading={sendingReminder === inv.id}
                           >
-                            {sendingReminder === inv.id ? '…' : 'Remind'}
-                          </button>
+                            Remind
+                          </Button>
                         )}
                         {canDo('collections', 'mark_paid') && (
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={(e) => handleMarkPaid(e, inv.id)}
                             disabled={markingPaid === inv.id}
-                            className="text-xs px-2 py-1 rounded bg-green-50 text-green-600 hover:bg-green-100 disabled:opacity-50"
+                            loading={markingPaid === inv.id}
                           >
-                            {markingPaid === inv.id ? '…' : 'Paid'}
-                          </button>
+                            Paid
+                          </Button>
                         )}
                       </>
                     )}
@@ -173,23 +169,25 @@ export function InvoiceTable({
             {meta.total} invoices · page {currentPage} of {meta.totalPages}
           </p>
           <div className="flex gap-1">
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => onPageChange(currentPage - 1)}
               disabled={currentPage <= 1}
-              className="px-3 py-1 rounded border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-xs"
             >
               ← Prev
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => onPageChange(currentPage + 1)}
               disabled={currentPage >= meta.totalPages}
-              className="px-3 py-1 rounded border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-xs"
             >
               Next →
-            </button>
+            </Button>
           </div>
         </div>
       )}
-    </div>
+    </Card>
   )
 }

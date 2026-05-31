@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useApiClient } from '@/lib/client-api'
 import { ApiError } from '@/lib/api-error'
+import { Card, CardHeader, Button } from '@/components/ui'
 
 interface Insight {
   id: string
@@ -63,17 +64,15 @@ export function InsightFeed({ insights: initial }: InsightFeedProps) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-6 flex flex-col h-full">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="font-semibold text-slate-800">AI Insights</h2>
-        <button
-          onClick={handleRefresh}
-          disabled={loading}
-          className="text-xs px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {loading ? 'Generating…' : 'Refresh'}
-        </button>
-      </div>
+    <Card padding="24px" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <CardHeader
+        title="AI Insights"
+        action={
+          <Button variant="primary" size="sm" onClick={handleRefresh} disabled={loading} loading={loading}>
+            {loading ? 'Generating…' : 'Refresh'}
+          </Button>
+        }
+      />
 
       {error && (
         <p className="text-xs text-red-600 mb-3">{error}</p>
@@ -119,6 +118,6 @@ export function InsightFeed({ insights: initial }: InsightFeedProps) {
           ))}
         </ul>
       )}
-    </div>
+    </Card>
   )
 }

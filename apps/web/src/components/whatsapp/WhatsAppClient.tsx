@@ -3,6 +3,7 @@ import { useState, useCallback } from 'react'
 import { useApiClient } from '@/lib/client-api'
 import { useApiError } from '@/hooks/useApiError'
 import { usePermissions } from '@/contexts/permissions.context'
+import { Card, CardHeader, Button } from '@/components/ui'
 
 interface WhatsAppStats {
   total: number
@@ -132,10 +133,10 @@ export function WhatsAppClient({ initialStats, initialMessages, initialTemplates
               { label: 'Failed', value: stats.failed, highlight: stats.failed > 0 },
               { label: 'Delivery Rate', value: `${stats.deliveryRate}%` },
             ].map(({ label, value, highlight }) => (
-              <div key={label} className={`bg-white rounded-lg border p-4 ${highlight ? 'border-red-200 bg-red-50' : 'border-gray-200'}`}>
+              <Card key={label} padding="16px" style={highlight ? { borderColor: 'var(--color-error)', background: 'var(--color-error-light)' } : {}}>
                 <p className="text-sm text-gray-500">{label}</p>
                 <p className={`text-2xl font-semibold mt-1 ${highlight ? 'text-red-600' : 'text-gray-900'}`}>{value}</p>
-              </div>
+              </Card>
             ))}
           </div>
 
@@ -149,7 +150,7 @@ export function WhatsAppClient({ initialStats, initialMessages, initialTemplates
 
           {/* Template breakdown */}
           {stats.byTemplate.length > 0 && (
-            <div className="bg-white rounded-lg border border-gray-200 p-5">
+            <Card padding="20px">
               <h3 className="text-sm font-medium text-gray-900 mb-3">Messages by template</h3>
               <div className="space-y-2">
                 {stats.byTemplate.map((t) => (
@@ -165,7 +166,7 @@ export function WhatsAppClient({ initialStats, initialMessages, initialTemplates
                   </div>
                 ))}
               </div>
-            </div>
+            </Card>
           )}
 
           {/* Inbound docs info */}
@@ -180,38 +181,34 @@ export function WhatsAppClient({ initialStats, initialMessages, initialTemplates
 
           {/* Deadline nudge */}
           {canDo('whatsapp', 'bulk_send') && (
-            <div className="bg-white rounded-lg border border-gray-200 p-5">
-              <h3 className="text-sm font-medium text-gray-900 mb-1">Bulk Deadline Nudge</h3>
-              <p className="text-xs text-gray-500 mb-4">
-                Send GST deadline reminder to all clients with overdue invoices (max 50).
-              </p>
+            <Card padding="20px">
+              <CardHeader title="Bulk Deadline Nudge" subtitle="Send GST deadline reminder to all clients with overdue invoices (max 50)." />
               {nudgeResult && (
                 <p className="text-sm text-green-700 mb-3">
                   Sent {nudgeResult.sent} · Failed {nudgeResult.failed}
                 </p>
               )}
-              <button
+              <Button
+                variant="primary"
                 onClick={sendDeadlineNudge}
                 disabled={nudging}
-                className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700 disabled:opacity-60"
+                loading={nudging}
               >
-                {nudging ? 'Sending…' : 'Send Nudge to All Overdue Clients'}
-              </button>
-            </div>
+                Send Nudge to All Overdue Clients
+              </Button>
+            </Card>
           )}
         </div>
       )}
 
       {/* Messages Tab */}
       {tab === 'messages' && (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <Card padding="0" style={{ overflow: 'hidden' }}>
           <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
             <span className="text-sm font-medium text-gray-900">
               {messages.meta.total} messages
             </span>
-            <button onClick={refresh} className="text-xs text-blue-600 hover:underline">
-              Refresh
-            </button>
+            <Button variant="ghost" size="sm" onClick={refresh}>Refresh</Button>
           </div>
           <div className="divide-y divide-gray-100">
             {messages.data.length === 0 ? (
@@ -258,14 +255,14 @@ export function WhatsAppClient({ initialStats, initialMessages, initialTemplates
               })
             )}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Templates Tab */}
       {tab === 'templates' && (
         <div className="space-y-4">
           {templates.map((tmpl) => (
-            <div key={tmpl.key} className="bg-white rounded-lg border border-gray-200 p-5">
+            <Card key={tmpl.key} padding="20px">
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <h3 className="text-sm font-medium text-gray-900">{tmpl.name}</h3>
@@ -290,18 +287,8 @@ export function WhatsAppClient({ initialStats, initialMessages, initialTemplates
                     Variables: {tmpl.variables.map((v) => `{{${v}}}`).join(', ')}
                   </p>
                   <div className="flex gap-2">
-                    <button
-                      onClick={saveTemplate}
-                      className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={() => setEditingTemplate(null)}
-                      className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
-                    >
-                      Cancel
-                    </button>
+                    <Button variant="primary" size="sm" onClick={saveTemplate}>Save</Button>
+                    <Button variant="secondary" size="sm" onClick={() => setEditingTemplate(null)}>Cancel</Button>
                   </div>
                 </div>
               ) : (
@@ -310,19 +297,20 @@ export function WhatsAppClient({ initialStats, initialMessages, initialTemplates
                     {tmpl.body}
                   </pre>
                   {canDo('whatsapp', 'edit_templates') && (
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => {
                         setEditingTemplate(tmpl)
                         setEditBody(tmpl.body)
                       }}
-                      className="text-xs text-blue-600 hover:underline"
                     >
                       Customise
-                    </button>
+                    </Button>
                   )}
                 </div>
               )}
-            </div>
+            </Card>
           ))}
         </div>
       )}
