@@ -33,7 +33,8 @@ export function useApiClient() {
       const response = await fetch(`${API_URL}/api/v1${path}`, {
         ...options,
         headers: {
-          'Content-Type': 'application/json',
+          // Don't set Content-Type for FormData — let the browser set it with the boundary
+          ...(!(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...(options.headers as Record<string, string> | undefined),
         },
@@ -67,5 +68,24 @@ export function useApiClient() {
     [getToken],
   )
 
-  return { request }
+  const download = useCallback(
+    async (path: string, filename: string) => {
+      const devToken = getDevToken()
+      const token = devToken ?? (await getToken())
+      const response = await fetch(`${API_URL}/api/v1${path}`, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      })
+      if (!response.ok) throw new Error(`Download failed: ${response.statusText}`)
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+    },
+    [getToken],
+  )
+
+  return { request, download }
 }

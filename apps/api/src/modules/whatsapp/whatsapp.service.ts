@@ -3,6 +3,8 @@ import { AppException, WhatsAppSendFailedException, WhatsAppRateLimitException }
 import { PrismaService } from '../../prisma/prisma.service'
 import { TwilioService } from './twilio.service'
 import { TemplateService } from './template.service'
+import { ConfigService } from '../config/config.service'
+import { ConfigKey } from '../config/config-key.enum'
 import { DocumentsService } from '../documents/documents.service'
 import { FilingsService } from '../filings/filings.service'
 import { classifyInboundMessage } from './inbound-classifier'
@@ -26,6 +28,7 @@ export class WhatsAppService {
     private readonly prisma: PrismaService,
     private readonly twilio: TwilioService,
     private readonly templates: TemplateService,
+    private readonly configSvc: ConfigService,
     @Optional() private readonly documents: DocumentsService,
     @Optional() private readonly filings: FilingsService,
   ) {}
@@ -718,10 +721,39 @@ export class WhatsAppService {
 
   // ─── Dispatch helper ─────────────────────────────────────────────────────────
 
-  private async dispatchMessage(companyId: string, toPhone: string, body: string, templateKey: string) {
-    const record = await this.prisma.whatsAppMessage.create({
-      data: { companyId, direction: 'OUTBOUND', toPhone, templateKey, body, status: 'QUEUED' },
+  private async isInQuietHours(companyId: string): Promise<boolean> {
+    const [start, end] = await Promise.all([
+      this.configSvc.getNum(companyId, ConfigKey.WHATSAPP_QUIET_HOURS_START).catch(() => 22),
+      this.configSvc.getNum(companyId, ConfigKey.WHATSAPP_QUIET_HOURS_END).catch(() => 8),
+    ])
+    const hour = new Date().getHours()
+    if (start < end) return hour >= start && hour < end
+    return hour >= start || hour < end // wraps midnight
+  }
+
+  private async checkDailyLimit(companyId: string): Promise<void> {
+    const limit = await this.configSvc.getNum(companyId, ConfigKey.WHATSAPP_DAILY_MESSAGE_LIMIT).catch(() => 100)
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const count = await this.prisma.whatsAppMessage.count({
+      where: { companyId, direction: 'OUTBOUND', createdAt: { gte: today } },
     })
+    if (count >= limit) throw new WhatsAppRateLimitException()
+  }
+
+  private async dispatchMessage(companyId: string, toPhone: string, body: string, templateKey: string) {
+    await this.checkDailyLimit(companyId)
+    const inQuiet = await this.isInQuietHours(companyId)
+    const record = await this.prisma.whatsAppMessage.create({
+      data: {
+        companyId, direction: 'OUTBOUND', toPhone, templateKey, body,
+        status: inQuiet ? 'QUEUED' : 'QUEUED',
+        ...(inQuiet ? {} : {}),
+      },
+    })
+    if (inQuiet) {
+      this.logger.log(`WhatsApp to ${toPhone} deferred — outside quiet hours`)
+      return record
+    }
     try {
       const { sid } = await this.twilio.sendWhatsApp(toPhone, body)
       return this.prisma.whatsAppMessage.update({

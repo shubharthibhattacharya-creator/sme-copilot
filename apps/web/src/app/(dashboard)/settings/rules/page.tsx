@@ -8,7 +8,7 @@ export default async function RulesPage() {
   const token = await getToken()
   if (!token) return <div className="p-4 text-red-500">Authentication required</div>
 
-  const res = await fetch(`${API_URL}/api/v1/settings/config`, {
+  const res = await fetch(`${API_URL}/api/v1/settings/rules`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: 'no-store',
   })

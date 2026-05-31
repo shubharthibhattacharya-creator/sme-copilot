@@ -1,6 +1,8 @@
 import { Injectable, Logger, HttpStatus } from '@nestjs/common'
 import { Cron } from '@nestjs/schedule'
 import { PrismaService } from '../../prisma/prisma.service'
+import { ConfigService } from '../config/config.service'
+import { ConfigKey } from '../config/config-key.enum'
 import { AppException } from '../../common/exceptions'
 import type { FilingType, ChecklistStatus } from '@opsc/database'
 import type { CreateChecklistDto } from './dto/create-checklist.dto'
@@ -30,7 +32,10 @@ const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Se
 export class ReadinessService {
   private readonly logger = new Logger(ReadinessService.name)
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {}
 
   async recalculate(checklistId: string): Promise<void> {
     const checklist = await this.prisma.complianceChecklist.findUniqueOrThrow({
@@ -123,8 +128,10 @@ export class ReadinessService {
     // Status computation — never downgrade from FILED
     let status: ChecklistStatus = checklist.status
     if (status !== 'FILED') {
+      const graceDays = await this.configService.getNum(checklist.companyId, ConfigKey.GST_GRACE_PERIOD_DAYS).catch(() => 0)
+      const graceDeadline = new Date(checklist.dueDate.getTime() + graceDays * 86400000)
       if (readinessScore === 100) status = 'READY'
-      else if (new Date() > checklist.dueDate) status = 'OVERDUE'
+      else if (new Date() > graceDeadline) status = 'OVERDUE'
       else status = 'IN_PROGRESS'
     }
 
@@ -249,9 +256,13 @@ export class ReadinessService {
     }
 
     const label = this.buildLabel(dto.filingType as FilingType, dto.filingPeriod)
+    const [gstDay, tdsDay] = await Promise.all([
+      this.configService.getNum(companyId, ConfigKey.GST_DEADLINE_DAY).catch(() => 20),
+      this.configService.getNum(companyId, ConfigKey.TDS_DEADLINE_DAY).catch(() => 7),
+    ])
     const dueDate = dto.dueDate
       ? new Date(dto.dueDate)
-      : this.calculateDueDate(dto.filingType as FilingType, dto.filingPeriod)
+      : this.calculateDueDate(dto.filingType as FilingType, dto.filingPeriod, gstDay, tdsDay)
 
     const minCounts = (template.minDocCounts ?? {}) as Record<string, number>
     const missingItems = [...new Set(template.requiredDocTypes)].map((docType) => ({
@@ -344,22 +355,21 @@ export class ReadinessService {
     return `${FILING_TYPE_LABELS[filingType] ?? 'Filing'} — ${monthName} ${yearStr}`
   }
 
-  private calculateDueDate(filingType: FilingType, period: string): Date {
+  private calculateDueDate(filingType: FilingType, period: string, gstDeadlineDay = 20, tdsDeadlineDay = 7): Date {
     const [yearStr, monthStr] = period.split('-').map(Number)
     const year = yearStr ?? new Date().getFullYear()
     const month = monthStr ?? new Date().getMonth() + 1
 
-    // GST due 20th of next month; TDS due last day of next month after quarter; ITR due July 31
     if (filingType === 'ITR_ANNUAL') return new Date(year, 6, 31, 23, 59, 59) // July 31
     if (filingType === 'TDS_QUARTERLY') {
       const nextMonth = month === 12 ? 1 : month + 1
       const nextYear = month === 12 ? year + 1 : year
-      return new Date(nextYear, nextMonth - 1 + 1, 0, 23, 59, 59) // last day of month after quarter
+      return new Date(nextYear, nextMonth - 1, tdsDeadlineDay, 23, 59, 59)
     }
-    // Default: 20th of next month
+    // GST_MONTHLY / GST_QUARTERLY: configurable day of next month
     const dueMonth = month === 12 ? 1 : month + 1
     const dueYear = month === 12 ? year + 1 : year
-    return new Date(dueYear, dueMonth - 1, 20, 23, 59, 59)
+    return new Date(dueYear, dueMonth - 1, gstDeadlineDay, 23, 59, 59)
   }
 
   @Cron('0 7 1 * *')

@@ -12,6 +12,7 @@ export enum ConfigKey {
   MAX_REMINDERS_PER_INVOICE = 'max_reminders_per_invoice',
   CRITICAL_CUSTOMER_COUNT = 'critical_customer_count',
   DELAY_MULTIPLIER = 'delay_multiplier',
+  COLLECTIONS_DEFAULT_PAYMENT_TERMS_DAYS = 'collections_default_payment_terms_days',
 
   // AI Insights
   INSIGHT_CRITICAL_OVERDUE_AMOUNT = 'insight_critical_overdue_amount',
@@ -19,12 +20,16 @@ export enum ConfigKey {
   INSIGHT_WARNING_TREND_PERCENT = 'insight_warning_trend_percent',
   INSIGHT_TREND_WINDOW_DAYS = 'insight_trend_window_days',
   MAX_INSIGHTS_PER_REFRESH = 'max_insights_per_refresh',
+  INSIGHT_MIN_SEVERITY = 'insight_min_severity',
 
   // GST Compliance
   GST_DEADLINE_DAY = 'gst_deadline_day',
   GST_DEADLINE_URGENCY_DAYS = 'gst_deadline_urgency_days',
   QUARTERLY_DEADLINE_MONTHS = 'quarterly_deadline_months',
   LATE_FEE_RATE_PER_DAY = 'late_fee_rate_per_day',
+  GST_FILING_REMINDER_DAYS_BEFORE = 'gst_filing_reminder_days_before',
+  GST_GRACE_PERIOD_DAYS = 'gst_grace_period_days',
+  TDS_DEADLINE_DAY = 'tds_deadline_day',
 
   // Documents
   MAX_FILE_SIZE_MB = 'max_file_size_mb',
@@ -32,6 +37,9 @@ export enum ConfigKey {
   CONFIDENCE_THRESHOLD_AMBER = 'confidence_threshold_amber',
   AUTO_REJECT_BELOW_CONFIDENCE = 'auto_reject_below_confidence',
   OCR_POLL_INTERVAL_SECONDS = 'ocr_poll_interval_seconds',
+  DOCUMENT_CLASSIFICATION_MODE = 'document_classification_mode',
+  DOCUMENT_REQUEST_EXPIRY_DAYS = 'document_request_expiry_days',
+  DOCUMENT_OCR_MAX_RETRIES = 'document_ocr_max_retries',
 
   // Reports
   DEFAULT_REPORT_PERIOD = 'default_report_period',
@@ -40,6 +48,7 @@ export enum ConfigKey {
   AUTO_REPORT_ENABLED = 'auto_report_enabled',
   AUTO_REPORT_DAY_OF_MONTH = 'auto_report_day_of_month',
   AUTO_REPORT_RECIPIENTS = 'auto_report_recipients',
+  REPORT_RETENTION_DAYS = 'report_retention_days',
 
   // WhatsApp
   WHATSAPP_MAX_PER_MINUTE = 'whatsapp_max_per_minute',
@@ -47,10 +56,7 @@ export enum ConfigKey {
   WHATSAPP_QUIET_HOURS_START = 'whatsapp_quiet_hours_start',
   WHATSAPP_QUIET_HOURS_END = 'whatsapp_quiet_hours_end',
   WHATSAPP_MAX_PER_INVOICE = 'whatsapp_max_per_invoice',
-
-  // Documents — Classification
-  DOCUMENT_CLASSIFICATION_MODE = 'document_classification_mode',
-
-  // Collections — Invoice creation
-  COLLECTIONS_DEFAULT_PAYMENT_TERMS_DAYS = 'collections_default_payment_terms_days',
+  WHATSAPP_DAILY_MESSAGE_LIMIT = 'whatsapp_daily_message_limit',
+  WHATSAPP_RATE_LIMIT_PER_HOUR = 'whatsapp_rate_limit_per_hour',
+  WHATSAPP_AUTO_REPLY_ENABLED = 'whatsapp_auto_reply_enabled',
 }

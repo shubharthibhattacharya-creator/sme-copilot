@@ -438,17 +438,19 @@ model Client {
 }
 
 model SystemConfig {
-  id          String         @id @default(cuid())
-  key         String         @unique
-  value       String
-  dataType    ConfigDataType
-  category    ConfigCategory
-  label       String
-  description String?
-  unit        String?
-  minValue    String?
-  maxValue    String?
-  updatedAt   DateTime       @updatedAt
+  id           String         @id @default(cuid())
+  key          String         @unique
+  value        String
+  dataType     ConfigDataType
+  category     ConfigCategory
+  label        String
+  description  String?
+  unit         String?
+  minValue     String?
+  maxValue     String?
+  defaultValue String?
+  isPublic     Boolean        @default(true)
+  updatedAt    DateTime       @updatedAt
 
   @@map("system_configs")
 }
