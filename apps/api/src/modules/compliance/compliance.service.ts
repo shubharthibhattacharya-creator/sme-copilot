@@ -243,7 +243,7 @@ export class ComplianceService {
 
   async getDashboardSummary(companyId: string) {
     const now = new Date()
-    const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+    const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
     const threeDaysLater = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000)
 
     const include = {
@@ -255,9 +255,19 @@ export class ComplianceService {
       this.prisma.complianceChecklist.findMany({
         where: {
           companyId,
-          readinessScore: { lt: 50 },
-          dueDate: { lte: sevenDaysLater, gte: now },
-          status: { in: ['IN_PROGRESS', 'READY'] },
+          OR: [
+            // Upcoming filings with low readiness (next 30 days)
+            {
+              readinessScore: { lt: 50 },
+              dueDate: { lte: thirtyDaysLater, gte: now },
+              status: { in: ['IN_PROGRESS', 'READY'] },
+            },
+            // Already overdue with incomplete readiness
+            {
+              status: 'OVERDUE',
+              readinessScore: { lt: 100 },
+            },
+          ],
         },
         take: 5,
         orderBy: { dueDate: 'asc' },

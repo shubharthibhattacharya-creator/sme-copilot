@@ -207,10 +207,11 @@ function metricCards_empty_check(
 export default function DashboardPage() {
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-1">
         <H1>Dashboard</H1>
         <p className="text-xs text-slate-400">Live data · refreshes on page load</p>
       </div>
+      <p className="text-sm text-slate-500 mb-6">Welcome back! Here's what's happening with your operations.</p>
 
       <Suspense
         fallback={

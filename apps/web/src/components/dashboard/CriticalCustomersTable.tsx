@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { MessageSquare, Mail, Phone } from 'lucide-react'
+import { Mail, Phone } from 'lucide-react'
+import { WhatsAppIcon } from '@/components/ui/action-icon-button'
 import { formatCurrency } from '@/lib/utils'
 import { Card, CardHeader } from '@/components/ui'
 import { ActionIconButton } from '@/components/ui/action-icon-button'
@@ -59,7 +60,7 @@ function RowActions({ customer }: { customer: CriticalCustomer }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
       <ActionIconButton
-        icon={<MessageSquare size={14} strokeWidth={2} />}
+        icon={<WhatsAppIcon size={15} />}
         label={hasPhone && hasInvoice ? `WhatsApp ${customer.name}` : 'No phone number'}
         onClick={handleWhatsApp}
         color="whatsapp"
@@ -104,10 +105,11 @@ export function CriticalCustomersTable({ customers }: CriticalCustomersTableProp
                 <th className="text-right text-xs font-medium text-slate-500 pb-2 pr-4">
                   Overdue Amt
                 </th>
-                <th className="text-right text-xs font-medium text-slate-500 pb-2 pr-4">
+                <th className="text-left text-xs font-medium text-slate-500 pb-2 pr-4">
                   Oldest Invoice
                 </th>
                 <th className="text-right text-xs font-medium text-slate-500 pb-2" style={{ width: '96px' }}>
+                  Actions
                 </th>
               </tr>
             </thead>
@@ -120,7 +122,7 @@ export function CriticalCustomersTable({ customers }: CriticalCustomersTableProp
                   <td className="py-3 pr-4 text-right font-mono text-red-600 font-semibold">
                     {formatCurrency(c.overdueAmount)}
                   </td>
-                  <td className="py-3 pr-4 text-right text-slate-600">
+                  <td className="py-3 pr-4 text-left text-slate-600">
                     {c.oldestInvoiceDays}d
                   </td>
                   <td className="py-3 text-right">

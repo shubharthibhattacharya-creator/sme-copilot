@@ -936,6 +936,35 @@ async function main() {
       requiredDocTypes: ['FORM_16', 'BANK_STATEMENT'],
       missingItems: [],
     },
+    // Relative-date entries so "Compliance at Risk" always shows data
+    {
+      clientName: 'Verma IT Solutions',
+      filingType: FilingType.GST_MONTHLY,
+      filingPeriod: 'Current Month',
+      label: 'GST Monthly Filing — Verma IT — Current Month',
+      dueDate: daysFrom(5),
+      status: ChecklistStatus.IN_PROGRESS,
+      readinessScore: 20,
+      requiredDocTypes: ['INVOICE', 'BANK_STATEMENT', 'GST_RETURN'],
+      missingItems: [
+        { documentType: 'INVOICE', label: 'Sales Invoices', required: 1, received: 0 },
+        { documentType: 'GST_RETURN', label: 'GST Return Draft', required: 1, received: 0 },
+      ],
+    },
+    {
+      clientName: 'Sunrise Hospitality Pvt Ltd',
+      filingType: FilingType.TDS_QUARTERLY,
+      filingPeriod: 'Current Quarter',
+      label: 'TDS Return — Sunrise — Current Quarter',
+      dueDate: daysFrom(10),
+      status: ChecklistStatus.IN_PROGRESS,
+      readinessScore: 0,
+      requiredDocTypes: ['TDS_CERTIFICATE', 'BANK_STATEMENT'],
+      missingItems: [
+        { documentType: 'TDS_CERTIFICATE', label: 'TDS Certificates', required: 1, received: 0 },
+        { documentType: 'BANK_STATEMENT', label: 'Bank Statement', required: 1, received: 0 },
+      ],
+    },
   ]
 
   for (const cl of checklistScenarios) {
