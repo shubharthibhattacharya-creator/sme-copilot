@@ -420,11 +420,13 @@ async function main() {
   const companies = await prisma.company.findMany({ select: { id: true, name: true } })
   console.log('Companies in DB:', companies.map((c) => `"${c.name}"`).join(', '))
 
-  const company = companies.find((c) => c.name.toLowerCase().includes('chauhan'))
+  const targetName = process.env['SEED_COMPANY_NAME']
+  const company = targetName
+    ? companies.find((c) => c.name.toLowerCase() === targetName.toLowerCase())
+    : companies.find((c) => c.name.toLowerCase().includes('chauhan'))
   if (!company) {
-    console.error('\n❌ No company found with "chauhan" in the name.')
-    console.error('   Please sign in as the Chauhans admin first (this creates the company).')
-    console.error('   Then re-run this script.\n')
+    console.error(`\n❌ No company found matching "${targetName ?? 'chauhan'}"`)
+    console.error('   Available:', companies.map((c) => `"${c.name}"`).join(', '))
     return
   }
   console.log(`\n✓ Found company: "${company.name}" (${company.id})\n`)
