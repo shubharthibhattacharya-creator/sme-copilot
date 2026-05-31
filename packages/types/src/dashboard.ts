@@ -10,6 +10,9 @@ export interface CriticalCustomer {
   name: string
   overdueAmount: number
   oldestInvoiceDays: number
+  phone?: string
+  email?: string
+  invoiceId?: string
 }
 
 export interface LowStockItem {

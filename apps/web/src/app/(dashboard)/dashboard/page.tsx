@@ -164,7 +164,6 @@ async function DashboardContent() {
           {collectionsEnabled && (
             <CriticalCustomersTable
               customers={summary.criticalCustomers}
-              whatsappEnabled={whatsappEnabled}
             />
           )}
         </div>

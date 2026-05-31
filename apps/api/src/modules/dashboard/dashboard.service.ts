@@ -159,16 +159,27 @@ export class DashboardService {
       }),
       this.configSvc.getNum(companyId, ConfigKey.CRITICAL_CUSTOMER_COUNT).then((limit) =>
         this.prisma.$queryRaw<
-          Array<{ customerName: string; overdueAmount: string; oldestInvoiceDays: number }>
+          Array<{
+            customerName: string
+            phone: string | null
+            email: string | null
+            overdueAmount: string
+            oldestInvoiceDays: number
+            invoiceId: string | null
+          }>
         >`
-          SELECT "customerName",
-                 SUM(amount)::text  AS "overdueAmount",
-                 MAX("agingDays")   AS "oldestInvoiceDays"
-          FROM   invoices
-          WHERE  "companyId" = ${companyId}
-            AND  status = 'OVERDUE'
-          GROUP  BY "customerName"
-          ORDER  BY SUM(amount) DESC
+          SELECT i."customerName",
+                 MAX(COALESCE(cl.phone, i."customerPhone"))          AS "phone",
+                 MAX(cl.email)                                       AS "email",
+                 SUM(i.amount)::text                                 AS "overdueAmount",
+                 MAX(i."agingDays")                                  AS "oldestInvoiceDays",
+                 (array_agg(i.id ORDER BY i."agingDays" DESC))[1]   AS "invoiceId"
+          FROM   invoices i
+          LEFT   JOIN clients cl ON cl.id = i."clientId"
+          WHERE  i."companyId" = ${companyId}
+            AND  i.status = 'OVERDUE'
+          GROUP  BY i."customerName"
+          ORDER  BY SUM(i.amount) DESC
           LIMIT  ${limit}
         `,
       ),
@@ -283,6 +294,9 @@ export class DashboardService {
         name: c.customerName,
         overdueAmount: Number(c.overdueAmount),
         oldestInvoiceDays: Number(c.oldestInvoiceDays),
+        ...(c.phone ? { phone: c.phone } : {}),
+        ...(c.email ? { email: c.email } : {}),
+        ...(c.invoiceId ? { invoiceId: c.invoiceId } : {}),
       })),
       inventoryAlerts: Number(inventoryAlertsRaw[0]?.count ?? BigInt(0)),
       lowStockItems: lowStockRaw.map((item) => ({

@@ -10,6 +10,9 @@ export class CriticalCustomerDto {
   name!: string
   overdueAmount!: number
   oldestInvoiceDays!: number
+  phone?: string
+  email?: string
+  invoiceId?: string
 }
 
 export class LowStockItemDto {

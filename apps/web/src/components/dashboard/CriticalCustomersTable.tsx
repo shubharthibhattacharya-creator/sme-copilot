@@ -1,16 +1,90 @@
+'use client'
+
+import { useState } from 'react'
+import { MessageSquare, Mail, Phone } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import { Card, CardHeader, Button } from '@/components/ui'
+import { Card, CardHeader } from '@/components/ui'
+import { ActionIconButton } from '@/components/ui/action-icon-button'
+import { useApiClient } from '@/lib/client-api'
+import { useApiError } from '@/hooks/useApiError'
+import { toast } from '@/components/ui/toast'
 import type { CriticalCustomer } from '@opsc/types'
 
 interface CriticalCustomersTableProps {
   customers: CriticalCustomer[]
-  whatsappEnabled?: boolean
 }
 
-export function CriticalCustomersTable({
-  customers,
-  whatsappEnabled = false,
-}: CriticalCustomersTableProps) {
+function RowActions({ customer }: { customer: CriticalCustomer }) {
+  const [sending, setSending] = useState(false)
+  const { request } = useApiClient()
+  const { handleError } = useApiError()
+
+  async function handleWhatsApp(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (!customer.invoiceId) return
+    setSending(true)
+    try {
+      await request('/whatsapp/send', {
+        method: 'POST',
+        body: JSON.stringify({ type: 'FEE_REMINDER', invoiceId: customer.invoiceId }),
+      })
+      toast.success(`WhatsApp sent to ${customer.name}`)
+    } catch (err) {
+      handleError(err)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  function handleEmail(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (!customer.email) return
+    window.location.href = `mailto:${customer.email}?subject=Payment reminder`
+  }
+
+  function handleCall(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (!customer.phone) return
+    if (/Mobi|Android/i.test(navigator.userAgent)) {
+      window.location.href = `tel:${customer.phone}`
+    } else {
+      toast.info(`Call ${customer.name}: ${customer.phone}`)
+    }
+  }
+
+  const hasPhone = Boolean(customer.phone)
+  const hasEmail = Boolean(customer.email)
+  const hasInvoice = Boolean(customer.invoiceId)
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+      <ActionIconButton
+        icon={<MessageSquare size={14} strokeWidth={2} />}
+        label={hasPhone && hasInvoice ? `WhatsApp ${customer.name}` : 'No phone number'}
+        onClick={handleWhatsApp}
+        color="whatsapp"
+        disabled={!hasPhone || !hasInvoice}
+        loading={sending}
+      />
+      <ActionIconButton
+        icon={<Mail size={14} strokeWidth={2} />}
+        label={hasEmail ? `Email ${customer.name}` : 'No email address'}
+        onClick={handleEmail}
+        color="email"
+        disabled={!hasEmail}
+      />
+      <ActionIconButton
+        icon={<Phone size={14} strokeWidth={2} />}
+        label={hasPhone ? `Call ${customer.name}` : 'No phone number'}
+        onClick={handleCall}
+        color="call"
+        disabled={!hasPhone}
+      />
+    </div>
+  )
+}
+
+export function CriticalCustomersTable({ customers }: CriticalCustomersTableProps) {
   const sorted = [...customers].filter(Boolean).sort((a, b) => b.overdueAmount - a.overdueAmount)
 
   return (
@@ -33,7 +107,8 @@ export function CriticalCustomersTable({
                 <th className="text-right text-xs font-medium text-slate-500 pb-2 pr-4">
                   Oldest Invoice
                 </th>
-                <th className="text-right text-xs font-medium text-slate-500 pb-2">Action</th>
+                <th className="text-right text-xs font-medium text-slate-500 pb-2" style={{ width: '96px' }}>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -49,16 +124,9 @@ export function CriticalCustomersTable({
                     {c.oldestInvoiceDays}d
                   </td>
                   <td className="py-3 text-right">
-                    {whatsappEnabled ? (
-                      <Button variant="ghost" size="sm">WhatsApp</Button>
-                    ) : (
-                      <span
-                        className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-400 cursor-not-allowed"
-                        title="WhatsApp not enabled for your plan"
-                      >
-                        Remind
-                      </span>
-                    )}
+                    <div className="flex items-center justify-end">
+                      <RowActions customer={c} />
+                    </div>
                   </td>
                 </tr>
               ))}
