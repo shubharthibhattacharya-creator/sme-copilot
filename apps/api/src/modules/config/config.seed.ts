@@ -56,6 +56,10 @@ export const SYSTEM_CONFIG_ROWS: SystemConfigRow[] = [
   { key: 'whatsapp_quiet_hours_start', value: '22', dataType: 'NUMBER', category: 'WHATSAPP', label: 'Quiet hours start (hour)', description: 'Hour of day (24h) after which WhatsApp messages are queued, not sent immediately.', unit: 'hour (0–23)', minValue: '0', maxValue: '23' },
   { key: 'whatsapp_quiet_hours_end', value: '8', dataType: 'NUMBER', category: 'WHATSAPP', label: 'Quiet hours end (hour)', description: 'Hour of day (24h) after which queued messages resume sending.', unit: 'hour (0–23)', minValue: '0', maxValue: '23' },
   { key: 'whatsapp_max_per_invoice', value: '3', dataType: 'NUMBER', category: 'WHATSAPP', label: 'Max reminders per invoice', description: 'Maximum number of WhatsApp reminders sent per overdue invoice before stopping.', unit: 'count', minValue: '1', maxValue: '10' },
+  // ── Documents — Classification ────────────────────────────────────────────────
+  { key: 'document_classification_mode', value: '"smart"', dataType: 'STRING', category: 'DOCUMENTS', label: 'Document classification mode', description: "How the system determines whether an uploaded document is your firm's fee invoice or a client's tax document. Values: smart | explicit" },
+  // ── Collections — Invoice creation ───────────────────────────────────────────
+  { key: 'collections_default_payment_terms_days', value: '30', dataType: 'NUMBER', category: 'COLLECTIONS', label: 'Default payment terms (days)', description: 'Number of days after invoice date before payment is due, used when creating invoices from uploaded PDFs.', unit: 'days', minValue: '1', maxValue: '365' },
 ]
 
 export async function seedSystemConfig(prisma: PrismaClient): Promise<void> {

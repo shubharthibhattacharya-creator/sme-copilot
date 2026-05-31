@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
 import { ConfigKey } from './config-key.enum'
+import { seedSystemConfig } from './config.seed'
 
 // Hardcoded safety-net defaults (should never hit in prod if seed ran)
 const CONFIG_DEFAULTS: Record<string, unknown> = {
@@ -61,10 +62,18 @@ export interface ConfigEntry {
 export type ConfigSnapshot = Record<string, ConfigEntry>
 
 @Injectable()
-export class ConfigService {
+export class ConfigService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ConfigService.name)
 
   constructor(private readonly prisma: PrismaService) {}
+
+  async onApplicationBootstrap() {
+    try {
+      await seedSystemConfig(this.prisma)
+    } catch (err) {
+      this.logger.error('Failed to seed SystemConfig on startup', err)
+    }
+  }
 
   async get(companyId: string, key: ConfigKey): Promise<unknown> {
     const [override, system] = await Promise.all([
