@@ -419,12 +419,94 @@ export class AdminService {
     return this.prisma.company.update({ where: { id }, data: updateData as never })
   }
 
-  // ── Deactivate tenant ────────────────────────────────────────────────────────
+  // ── Deactivate / reactivate tenant ──────────────────────────────────────────
 
   async deactivateTenant(id: string) {
     const company = await this.prisma.company.findUnique({ where: { id } })
     if (!company) throw new NotFoundException('Tenant not found')
     await this.prisma.company.update({ where: { id }, data: { isActive: false } })
+    return { ok: true }
+  }
+
+  async reactivateTenant(id: string) {
+    const company = await this.prisma.company.findUnique({ where: { id } })
+    if (!company) throw new NotFoundException('Tenant not found')
+    await this.prisma.company.update({ where: { id }, data: { isActive: true } })
+    return { ok: true }
+  }
+
+  // ── User management ──────────────────────────────────────────────────────────
+
+  async listUsers(companyId: string) {
+    const users = await this.prisma.user.findMany({
+      where: { companyId },
+      select: { id: true, name: true, email: true, role: true, isActive: true, clerkId: true, updatedAt: true },
+      orderBy: { createdAt: 'asc' },
+    })
+    return users.map((u) => ({
+      ...u,
+      isPending: u.clerkId.startsWith('pending_'),
+      updatedAt: u.updatedAt.toISOString(),
+    }))
+  }
+
+  async addUser(companyId: string, dto: { email: string; name: string; role?: string }) {
+    const company = await this.prisma.company.findUnique({ where: { id: companyId } })
+    if (!company) throw new NotFoundException('Tenant not found')
+
+    const email = dto.email.toLowerCase().trim()
+    const existing = await this.prisma.user.findFirst({ where: { companyId, email } })
+    if (existing) {
+      if (!existing.isActive) {
+        // Reactivate and re-invite
+        await this.prisma.user.update({ where: { id: existing.id }, data: { isActive: true, name: dto.name, role: (dto.role ?? 'STAFF') as never } })
+        await this.sendClerkInvite(email, companyId, dto.role ?? 'STAFF').catch(() => null)
+        return { id: existing.id, reactivated: true }
+      }
+      throw new BadRequestException(`A user with email ${email} already exists in this tenant`)
+    }
+
+    const role = (dto.role ?? 'STAFF') as never
+    const placeholderClerkId = `pending_${companyId}_${Date.now()}`
+    const user = await this.prisma.user.create({
+      data: { companyId, clerkId: placeholderClerkId, role, email, name: dto.name },
+    })
+
+    let inviteSent = false
+    try {
+      await this.sendClerkInvite(email, companyId, dto.role ?? 'STAFF')
+      inviteSent = true
+    } catch (err) {
+      this.logger.warn(`Clerk invite failed for new user ${email}: ${String(err)}`)
+    }
+
+    return { id: user.id, inviteSent }
+  }
+
+  async updateUserRole(companyId: string, userId: string, role: string) {
+    const user = await this.prisma.user.findFirst({ where: { id: userId, companyId } })
+    if (!user) throw new NotFoundException('User not found')
+
+    await this.prisma.user.update({ where: { id: userId }, data: { role: role as never } })
+
+    // Sync Clerk metadata if user has signed in (non-placeholder clerkId)
+    if (!user.clerkId.startsWith('pending_')) {
+      await this.syncClerkUserMetadata(user.clerkId, { role }).catch(() => null)
+    }
+
+    return { ok: true }
+  }
+
+  async removeUser(companyId: string, userId: string) {
+    const user = await this.prisma.user.findFirst({ where: { id: userId, companyId } })
+    if (!user) throw new NotFoundException('User not found')
+
+    const adminCount = await this.prisma.user.count({ where: { companyId, role: 'ADMIN', isActive: true } })
+    if (user.role === 'ADMIN' && adminCount <= 1) {
+      throw new BadRequestException('Cannot remove the last admin user')
+    }
+
+    await this.prisma.user.update({ where: { id: userId }, data: { isActive: false } })
     return { ok: true }
   }
 

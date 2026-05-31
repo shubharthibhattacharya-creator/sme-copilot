@@ -82,6 +82,66 @@ export class AdminController {
     return this.admin.deactivateTenant(id)
   }
 
+  @Post('tenants/:id/reactivate')
+  @HttpCode(HttpStatus.OK)
+  reactivateTenant(@Param('id') id: string) {
+    return this.admin.reactivateTenant(id)
+  }
+
+  // ── User management ────────────────────────────────────────────────────────
+
+  @Get('tenants/:id/users')
+  listUsers(@Param('id') id: string) {
+    return this.admin.listUsers(id)
+  }
+
+  @Post('tenants/:id/users')
+  @HttpCode(HttpStatus.CREATED)
+  addUser(
+    @Param('id') id: string,
+    @Body() dto: { email: string; name: string; role?: string },
+  ) {
+    return this.admin.addUser(id, dto)
+  }
+
+  @Patch('tenants/:id/users/:userId')
+  @HttpCode(HttpStatus.OK)
+  updateUserRole(
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+    @Body('role') role: string,
+  ) {
+    return this.admin.updateUserRole(id, userId, role)
+  }
+
+  @Delete('tenants/:id/users/:userId')
+  @HttpCode(HttpStatus.OK)
+  removeUser(@Param('id') id: string, @Param('userId') userId: string) {
+    return this.admin.removeUser(id, userId)
+  }
+
+  // ── Pending invitations ────────────────────────────────────────────────────
+
+  @Get('tenants/:id/invitations')
+  listInvitations(@Param('id') id: string) {
+    return this.admin.getPendingInvitations(id)
+  }
+
+  @Post('tenants/:id/invitations/:invId/resend')
+  @HttpCode(HttpStatus.OK)
+  resendInvitationById(
+    @Param('id') id: string,
+    @Param('invId') invId: string,
+  ) {
+    return this.admin.resendInvitation(id, invId)
+  }
+
+  @Delete('tenants/:id/invitations/:invId')
+  @HttpCode(HttpStatus.OK)
+  revokeInvitation(@Param('invId') invId: string) {
+    return this.admin.revokeInvitationById(invId)
+  }
+
   // ── Client import ──────────────────────────────────────────────────────────
 
   @Post('tenants/:id/clients/import')

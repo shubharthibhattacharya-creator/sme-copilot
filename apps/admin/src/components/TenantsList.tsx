@@ -23,6 +23,7 @@ export function TenantsList({ initialTenants }: Props) {
   const [industry, setIndustry] = useState('')
   const [plan, setPlan] = useState('')
   const [confirming, setConfirming] = useState<string | null>(null)
+  const [reactivating, setReactivating] = useState<string | null>(null)
 
   const filtered = tenants.filter((t) => {
     if (search && !t.name.toLowerCase().includes(search.toLowerCase())) return false
@@ -45,6 +46,14 @@ export function TenantsList({ initialTenants }: Props) {
       setTenants((prev) => prev.map((t) => t.id === id ? { ...t, isActive: false } : t))
       setConfirming(null)
     } catch { alert('Deactivation failed') }
+  }
+
+  async function handleReactivate(id: string) {
+    try {
+      await fetch(`/api/admin/tenants/${id}/reactivate`, { method: 'POST' })
+      setTenants((prev) => prev.map((t) => t.id === id ? { ...t, isActive: true } : t))
+      setReactivating(null)
+    } catch { alert('Reactivation failed') }
   }
 
   return (
@@ -122,7 +131,7 @@ export function TenantsList({ initialTenants }: Props) {
                     <div className="flex items-center gap-2">
                       <Link href={`/tenants/${t.id}`} className="text-xs text-indigo-400 hover:text-indigo-300">View</Link>
                       <button onClick={() => handleImpersonate(t.id, t.name)} className="text-xs text-amber-400 hover:text-amber-300">Impersonate</button>
-                      {t.isActive && (
+                      {t.isActive ? (
                         confirming === t.id ? (
                           <span className="flex items-center gap-1">
                             <button onClick={() => handleDeactivate(t.id)} className="text-xs text-red-400 hover:text-red-300">Confirm</button>
@@ -130,6 +139,15 @@ export function TenantsList({ initialTenants }: Props) {
                           </span>
                         ) : (
                           <button onClick={() => setConfirming(t.id)} className="text-xs text-red-500 hover:text-red-400">Deactivate</button>
+                        )
+                      ) : (
+                        reactivating === t.id ? (
+                          <span className="flex items-center gap-1">
+                            <button onClick={() => handleReactivate(t.id)} className="text-xs text-green-400 hover:text-green-300">Confirm</button>
+                            <button onClick={() => setReactivating(null)} className="text-xs text-gray-400">Cancel</button>
+                          </span>
+                        ) : (
+                          <button onClick={() => setReactivating(t.id)} className="text-xs text-green-500 hover:text-green-400">Reactivate</button>
                         )
                       )}
                     </div>

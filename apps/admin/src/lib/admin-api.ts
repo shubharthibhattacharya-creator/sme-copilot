@@ -135,6 +135,25 @@ export interface ImpersonationResult {
   url: string
 }
 
+export interface TenantUser {
+  id: string
+  name: string
+  email: string
+  role: string
+  isActive: boolean
+  isPending: boolean
+  updatedAt: string
+}
+
+export interface PendingInvitation {
+  id: string
+  email: string
+  role: string
+  moduleAccess: string[]
+  createdAt: string
+  expiresAt: string | null
+}
+
 // ── API methods ───────────────────────────────────────────────────────────────
 
 export const adminApi = {
@@ -149,6 +168,24 @@ export const adminApi = {
       req<TenantSummary>(`/admin/tenants/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
     deactivate: (id: string) =>
       req<{ ok: boolean }>(`/admin/tenants/${id}/deactivate`, { method: 'DELETE' }),
+    reactivate: (id: string) =>
+      req<{ ok: boolean }>(`/admin/tenants/${id}/reactivate`, { method: 'POST' }),
+    listUsers: (id: string) => req<TenantUser[]>(`/admin/tenants/${id}/users`),
+    addUser: (id: string, body: { email: string; name: string; role?: string }) =>
+      req<{ id: string; inviteSent?: boolean; reactivated?: boolean }>(`/admin/tenants/${id}/users`, {
+        method: 'POST', body: JSON.stringify(body),
+      }),
+    updateUserRole: (id: string, userId: string, role: string) =>
+      req<{ ok: boolean }>(`/admin/tenants/${id}/users/${userId}`, {
+        method: 'PATCH', body: JSON.stringify({ role }),
+      }),
+    removeUser: (id: string, userId: string) =>
+      req<{ ok: boolean }>(`/admin/tenants/${id}/users/${userId}`, { method: 'DELETE' }),
+    listInvitations: (id: string) => req<PendingInvitation[]>(`/admin/tenants/${id}/invitations`),
+    resendInvitation: (id: string, invId: string) =>
+      req<{ ok: boolean }>(`/admin/tenants/${id}/invitations/${invId}/resend`, { method: 'POST' }),
+    revokeInvitation: (id: string, invId: string) =>
+      req<{ ok: boolean }>(`/admin/tenants/${id}/invitations/${invId}`, { method: 'DELETE' }),
     importClients: (id: string, file: File) => {
       const fd = new FormData()
       fd.append('file', file)
