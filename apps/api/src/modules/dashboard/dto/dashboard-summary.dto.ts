@@ -1,3 +1,11 @@
+export class KpiMetricDto {
+  current!: number
+  previous!: number
+  trendPct!: number
+  trendDir!: 'up' | 'down' | 'flat'
+  sparkline!: number[]
+}
+
 export class CriticalCustomerDto {
   name!: string
   overdueAmount!: number
@@ -13,10 +21,10 @@ export class LowStockItemDto {
 }
 
 export class DashboardSummaryDto {
-  totalReceivables!: number
-  overdueAmount!: number
-  overdueCount!: number
-  avgAgingDays!: number
+  totalReceivables!: KpiMetricDto
+  overdueAmount!: KpiMetricDto
+  overdueCount!: KpiMetricDto
+  avgDaysOverdue!: KpiMetricDto
   collectionsTrend!: number
   criticalCustomers!: CriticalCustomerDto[]
   inventoryAlerts!: number

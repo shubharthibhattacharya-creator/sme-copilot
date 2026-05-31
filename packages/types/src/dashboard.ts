@@ -1,3 +1,11 @@
+export interface KpiMetric {
+  current: number
+  previous: number
+  trendPct: number
+  trendDir: 'up' | 'down' | 'flat'
+  sparkline: number[]
+}
+
 export interface CriticalCustomer {
   name: string
   overdueAmount: number
@@ -13,10 +21,10 @@ export interface LowStockItem {
 }
 
 export interface DashboardSummary {
-  totalReceivables: number
-  overdueAmount: number
-  overdueCount: number
-  avgAgingDays: number
+  totalReceivables: KpiMetric
+  overdueAmount: KpiMetric
+  overdueCount: KpiMetric
+  avgDaysOverdue: KpiMetric
   /** Week-over-week % change in paid invoices. Negative = collections declined. */
   collectionsTrend: number
   criticalCustomers: CriticalCustomer[]

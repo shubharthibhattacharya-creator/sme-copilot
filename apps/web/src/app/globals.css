@@ -92,3 +92,26 @@ input:focus, textarea:focus, select:focus {
     @apply bg-background text-foreground;
   }
 }
+
+/* ── KPI skeleton shimmer ────────────────────── */
+@keyframes shimmer {
+  0%   { opacity: 1; }
+  50%  { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+.skeleton {
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* ── KPI grid responsive ─────────────────────── */
+@media (max-width: 1024px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}

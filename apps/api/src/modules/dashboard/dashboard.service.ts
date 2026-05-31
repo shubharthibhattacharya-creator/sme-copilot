@@ -19,15 +19,93 @@ export class DashboardService {
     private readonly configSvc: ConfigService,
   ) {}
 
+  private computeTrend(
+    current: number,
+    previous: number,
+  ): { trendPct: number; trendDir: 'up' | 'down' | 'flat' } {
+    if (previous === 0) return { trendPct: 0, trendDir: 'flat' }
+    const pct = ((current - previous) / previous) * 100
+    return {
+      trendPct: Math.round(Math.abs(pct) * 10) / 10,
+      trendDir: pct > 0.5 ? 'up' : pct < -0.5 ? 'down' : 'flat',
+    }
+  }
+
+  private async getMonthlySparkline(
+    companyId: string,
+    metric: 'receivables' | 'overdueAmount' | 'overdueCount' | 'avgDays',
+    monthsBack = 6,
+  ): Promise<number[]> {
+    const results: number[] = []
+    const now = new Date()
+
+    for (let i = monthsBack - 1; i >= 0; i--) {
+      const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59)
+
+      let value = 0
+
+      if (metric === 'receivables') {
+        const r = await this.prisma.invoice.aggregate({
+          where: {
+            companyId,
+            status: { in: ['PENDING', 'OVERDUE'] },
+            createdAt: { lte: monthEnd },
+          },
+          _sum: { amount: true },
+        })
+        value = Number(r._sum.amount ?? 0)
+      } else if (metric === 'overdueAmount') {
+        const r = await this.prisma.invoice.aggregate({
+          where: {
+            companyId,
+            status: 'OVERDUE',
+            updatedAt: { gte: monthStart, lte: monthEnd },
+          },
+          _sum: { amount: true },
+        })
+        value = Number(r._sum.amount ?? 0)
+      } else if (metric === 'overdueCount') {
+        value = await this.prisma.invoice.count({
+          where: {
+            companyId,
+            status: 'OVERDUE',
+            updatedAt: { gte: monthStart, lte: monthEnd },
+          },
+        })
+      } else if (metric === 'avgDays') {
+        const r = await this.prisma.invoice.aggregate({
+          where: {
+            companyId,
+            status: 'OVERDUE',
+            updatedAt: { gte: monthStart, lte: monthEnd },
+          },
+          _avg: { agingDays: true },
+        })
+        value = Math.round(Number(r._avg.agingDays ?? 0))
+      }
+
+      results.push(value)
+    }
+
+    return results
+  }
+
   async getSummary(companyId: string): Promise<DashboardSummaryDto> {
     const now = new Date()
+    const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59)
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
     const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
 
     const [
       totalReceivablesAgg,
-      overdueCount,
+      overdueCountCurrent,
       overdueAgg,
+      prevTotalReceivablesAgg,
+      prevOverdueCountPrev,
+      prevOverdueAgg,
+      prevAvgDaysAgg,
       criticalCustomersRaw,
       inventoryAlertsRaw,
       lowStockRaw,
@@ -48,6 +126,37 @@ export class DashboardService {
         _sum: { amount: true },
         _avg: { agingDays: true },
       }),
+      this.prisma.invoice.aggregate({
+        where: {
+          companyId,
+          status: { in: ['PENDING', 'OVERDUE', 'PARTIAL'] },
+          createdAt: { lte: previousMonthEnd },
+        },
+        _sum: { amount: true },
+      }),
+      this.prisma.invoice.count({
+        where: {
+          companyId,
+          status: 'OVERDUE',
+          updatedAt: { gte: previousMonthStart, lte: previousMonthEnd },
+        },
+      }),
+      this.prisma.invoice.aggregate({
+        where: {
+          companyId,
+          status: 'OVERDUE',
+          updatedAt: { gte: previousMonthStart, lte: previousMonthEnd },
+        },
+        _sum: { amount: true },
+      }),
+      this.prisma.invoice.aggregate({
+        where: {
+          companyId,
+          status: 'OVERDUE',
+          updatedAt: { gte: previousMonthStart, lte: previousMonthEnd },
+        },
+        _avg: { agingDays: true },
+      }),
       this.configSvc.getNum(companyId, ConfigKey.CRITICAL_CUSTOMER_COUNT).then((limit) =>
         this.prisma.$queryRaw<
           Array<{ customerName: string; overdueAmount: string; oldestInvoiceDays: number }>
@@ -61,7 +170,7 @@ export class DashboardService {
           GROUP  BY "customerName"
           ORDER  BY SUM(amount) DESC
           LIMIT  ${limit}
-        `
+        `,
       ),
       this.prisma.$queryRaw<Array<{ count: bigint }>>`
         SELECT COUNT(*) AS count
@@ -109,6 +218,34 @@ export class DashboardService {
       }),
     ])
 
+    // Sparklines — 4 streams in parallel, each with 6 sequential monthly queries
+    const [receivablesSparkline, overdueAmountSparkline, overdueCountSparkline, avgDaysSparkline] =
+      await Promise.all([
+        this.getMonthlySparkline(companyId, 'receivables'),
+        this.getMonthlySparkline(companyId, 'overdueAmount'),
+        this.getMonthlySparkline(companyId, 'overdueCount'),
+        this.getMonthlySparkline(companyId, 'avgDays'),
+      ])
+
+    // Current values
+    const totalReceivablesCurrent = Number(totalReceivablesAgg._sum.amount ?? 0)
+    const overdueAmountCurrent = Number(overdueAgg._sum.amount ?? 0)
+    const overdueCountCurrentVal = overdueCountCurrent
+    const avgDaysCurrent = Math.round(Number(overdueAgg._avg.agingDays ?? 0))
+
+    // Previous values
+    const totalReceivablesPrevious = Number(prevTotalReceivablesAgg._sum.amount ?? 0)
+    const overdueAmountPrevious = Number(prevOverdueAgg._sum.amount ?? 0)
+    const overdueCountPrevious = prevOverdueCountPrev
+    const avgDaysPrevious = Math.round(Number(prevAvgDaysAgg._avg.agingDays ?? 0))
+
+    // Trends
+    const receivablesTrend = this.computeTrend(totalReceivablesCurrent, totalReceivablesPrevious)
+    const overdueAmountTrend = this.computeTrend(overdueAmountCurrent, overdueAmountPrevious)
+    const overdueCountTrend = this.computeTrend(overdueCountCurrentVal, overdueCountPrevious)
+    const avgDaysTrend = this.computeTrend(avgDaysCurrent, avgDaysPrevious)
+
+    // Collections trend (week-over-week %)
     const currentWeekPaid = Number(currentWeekAgg._sum.amount ?? 0)
     const lastWeekPaid = Number(lastWeekAgg._sum.amount ?? 0)
     const collectionsTrend =
@@ -117,10 +254,30 @@ export class DashboardService {
         : Math.round(((currentWeekPaid - lastWeekPaid) / lastWeekPaid) * 10000) / 100
 
     return {
-      totalReceivables: Number(totalReceivablesAgg._sum.amount ?? 0),
-      overdueAmount: Number(overdueAgg._sum.amount ?? 0),
-      overdueCount,
-      avgAgingDays: Math.round(overdueAgg._avg.agingDays ?? 0),
+      totalReceivables: {
+        current: totalReceivablesCurrent,
+        previous: totalReceivablesPrevious,
+        ...receivablesTrend,
+        sparkline: receivablesSparkline,
+      },
+      overdueAmount: {
+        current: overdueAmountCurrent,
+        previous: overdueAmountPrevious,
+        ...overdueAmountTrend,
+        sparkline: overdueAmountSparkline,
+      },
+      overdueCount: {
+        current: overdueCountCurrentVal,
+        previous: overdueCountPrevious,
+        ...overdueCountTrend,
+        sparkline: overdueCountSparkline,
+      },
+      avgDaysOverdue: {
+        current: avgDaysCurrent,
+        previous: avgDaysPrevious,
+        ...avgDaysTrend,
+        sparkline: avgDaysSparkline,
+      },
       collectionsTrend,
       criticalCustomers: criticalCustomersRaw.map((c) => ({
         name: c.customerName,
@@ -184,7 +341,7 @@ export class DashboardService {
     let rawInsights: Array<{ category: string; severity: string; summary: string }>
 
     try {
-      rawInsights = await this.aiService.generateDashboardInsights(summary, tenantConfig)
+      rawInsights = await this.aiService.generateDashboardInsights(summary as any, tenantConfig)
     } catch (err) {
       this.logger.error('AI insight generation failed', err)
       return
@@ -193,9 +350,9 @@ export class DashboardService {
     // Apply business-rule severity floor on top of AI-provided severity
     const severityOrder: Record<string, number> = { INFO: 0, WARNING: 1, CRITICAL: 2 }
     const businessSeverity =
-      summary.overdueAmount > criticalOverdueAmount
+      summary.overdueAmount.current > criticalOverdueAmount
         ? 'CRITICAL'
-        : summary.overdueCount > warningOverdueCount ||
+        : summary.overdueCount.current > warningOverdueCount ||
             summary.collectionsTrend < warningTrendPercent ||
             summary.inventoryAlerts > 0
           ? 'WARNING'
