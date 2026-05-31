@@ -229,6 +229,7 @@ export class AdminService {
     email: string,
     companyId: string,
     role: string = 'ADMIN',
+    moduleAccess?: string[],
   ) {
     const secretKey = process.env['CLERK_SECRET_KEY']
     if (!secretKey) {
@@ -259,6 +260,7 @@ export class AdminService {
         public_metadata: {
           companyId,
           role,
+          moduleAccess: moduleAccess ?? [],
           invitedBy: 'opscopilot-admin',
         },
         redirect_url: `${process.env['NEXT_PUBLIC_APP_URL'] ?? 'http://localhost:3000'}/onboarding`,
@@ -310,6 +312,87 @@ export class AdminService {
       })),
       skipDuplicates: true,
     })
+  }
+
+  // ── Clerk user helpers ───────────────────────────────────────────────────────
+
+  async syncClerkUserMetadata(clerkId: string, metadata: Record<string, unknown>) {
+    const secretKey = process.env['CLERK_SECRET_KEY']
+    if (!secretKey) return
+    await fetch(`https://api.clerk.com/v1/users/${clerkId}/metadata`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${secretKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ public_metadata: metadata }),
+    })
+  }
+
+  async deleteClerkUser(clerkId: string) {
+    const secretKey = process.env['CLERK_SECRET_KEY']
+    if (!secretKey) return
+    await fetch(`https://api.clerk.com/v1/users/${clerkId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${secretKey}` },
+    })
+  }
+
+  async getPendingInvitations(companyId: string) {
+    const secretKey = process.env['CLERK_SECRET_KEY']
+    if (!secretKey) return []
+    const res = await fetch('https://api.clerk.com/v1/invitations?status=pending&limit=100', {
+      headers: { Authorization: `Bearer ${secretKey}` },
+    })
+    if (!res.ok) return []
+    const list = await res.json() as Array<{
+      id: string; email_address: string; public_metadata: Record<string, unknown>;
+      created_at: number; expires_at?: number
+    }>
+    return list
+      .filter((inv) => inv.public_metadata?.['companyId'] === companyId)
+      .map((inv) => ({
+        id: inv.id,
+        email: inv.email_address,
+        role: inv.public_metadata?.['role'] as string ?? 'STAFF',
+        moduleAccess: (inv.public_metadata?.['moduleAccess'] as string[]) ?? [],
+        createdAt: new Date(inv.created_at).toISOString(),
+        expiresAt: inv.expires_at ? new Date(inv.expires_at).toISOString() : null,
+      }))
+  }
+
+  async resendInvitation(companyId: string, invitationId: string) {
+    const secretKey = process.env['CLERK_SECRET_KEY']
+    if (!secretKey) throw new Error('Clerk not configured')
+    // Get the existing invitation details
+    const res = await fetch(`https://api.clerk.com/v1/invitations?status=pending&limit=100`, {
+      headers: { Authorization: `Bearer ${secretKey}` },
+    })
+    if (!res.ok) throw new Error('Failed to list invitations')
+    const list = await res.json() as Array<{
+      id: string; email_address: string; public_metadata: Record<string, unknown>
+    }>
+    const inv = list.find((i) => i.id === invitationId && i.public_metadata?.['companyId'] === companyId)
+    if (!inv) throw new NotFoundException('Invitation not found')
+
+    // Revoke old
+    await fetch(`https://api.clerk.com/v1/invitations/${invitationId}/revoke`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${secretKey}` },
+    })
+    // Resend with same params
+    const role = inv.public_metadata?.['role'] as string ?? 'ADMIN'
+    const moduleAccess = (inv.public_metadata?.['moduleAccess'] as string[]) ?? []
+    await this.sendClerkInvite(inv.email_address, companyId, role, moduleAccess)
+    return { ok: true }
+  }
+
+  async revokeInvitationById(invitationId: string) {
+    const secretKey = process.env['CLERK_SECRET_KEY']
+    if (!secretKey) throw new Error('Clerk not configured')
+    const res = await fetch(`https://api.clerk.com/v1/invitations/${invitationId}/revoke`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${secretKey}` },
+    })
+    if (!res.ok) throw new BadRequestException('Failed to revoke invitation')
+    return { ok: true }
   }
 
   // ── Update tenant ────────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import { useAuth } from '@clerk/nextjs'
 import { useApiClient } from '@/lib/client-api'
 import { ApiError } from '@/lib/api-error'
 import { useApiError } from '@/hooks/useApiError'
+import { usePermissions } from '@/contexts/permissions.context'
 import type { DocumentItem } from '@opsc/types'
 
 const PURPOSE_LABEL: Record<string, string> = {
@@ -122,6 +123,7 @@ export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
   const { getToken } = useAuth()
   const { request } = useApiClient()
   const { handleError } = useApiError()
+  const { canDo } = usePermissions()
   const [detail, setDetail] = useState<DocumentItem | null>(document)
   const [pushing, setPushing] = useState(false)
   const [pushMsg, setPushMsg] = useState<string | null>(null)
@@ -301,30 +303,32 @@ export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h2 className="font-semibold text-gray-900 truncate pr-4">{doc.originalName}</h2>
           <div className="flex items-center gap-2 shrink-0">
-            {!confirmDelete ? (
-              <button
-                onClick={() => setConfirmDelete(true)}
-                className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50"
-              >
-                Delete
-              </button>
-            ) : (
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-red-600 font-medium">Delete file?</span>
+            {canDo('documents', 'delete') && (
+              !confirmDelete ? (
                 <button
-                  onClick={deleteDocument}
-                  disabled={deleting}
-                  className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 disabled:opacity-50"
+                  onClick={() => setConfirmDelete(true)}
+                  className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50"
                 >
-                  {deleting ? '…' : 'Yes'}
+                  Delete
                 </button>
-                <button
-                  onClick={() => setConfirmDelete(false)}
-                  className="text-xs text-gray-500 px-2 py-1 rounded hover:bg-gray-100"
-                >
-                  No
-                </button>
-              </div>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-red-600 font-medium">Delete file?</span>
+                  <button
+                    onClick={deleteDocument}
+                    disabled={deleting}
+                    className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {deleting ? '…' : 'Yes'}
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    className="text-xs text-gray-500 px-2 py-1 rounded hover:bg-gray-100"
+                  >
+                    No
+                  </button>
+                </div>
+              )
             )}
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
           </div>
@@ -482,7 +486,7 @@ export function DocumentDrawer({ document, onClose, onDeleted }: Props) {
           )}
 
           {/* Verify */}
-          {(doc.status === 'PROCESSED' || doc.status === 'NEEDS_REVIEW') && (
+          {canDo('documents', 'verify') && (doc.status === 'PROCESSED' || doc.status === 'NEEDS_REVIEW') && (
             <div className="border-t border-gray-100 pt-4">
               <div className="flex items-center justify-between">
                 <div>

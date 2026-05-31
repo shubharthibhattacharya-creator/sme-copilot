@@ -15,9 +15,12 @@ import { KnowledgeService } from './knowledge.service'
 import { ChatMessageDto } from './dto/chat.dto'
 import { CreateKnowledgeDocumentDto } from './dto/knowledge.dto'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
+import { Roles } from '../../common/decorators/roles.decorator'
+import { RequireModuleAccess } from '../../common/decorators/require-module.decorator'
 import type { AuthenticatedUser } from '@opsc/types'
 
 @Controller('assistant')
+@RequireModuleAccess('assistant')
 export class AssistantController {
   constructor(
     private readonly assistant: AssistantService,
@@ -58,11 +61,13 @@ export class AssistantController {
   }
 
   @Post('knowledge')
+  @Roles('ADMIN')
   ingestDocument(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateKnowledgeDocumentDto) {
     return this.knowledge.ingestDocument(user.companyId, dto)
   }
 
   @Delete('knowledge/:id')
+  @Roles('ADMIN')
   @HttpCode(HttpStatus.OK)
   deleteDocument(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.knowledge.deleteDocument(user.companyId, id)

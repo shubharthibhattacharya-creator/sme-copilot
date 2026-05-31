@@ -4,9 +4,13 @@ import { ReportsService } from './reports.service'
 import { ReportExportService } from './report-export.service'
 import { CreateReportDto } from './dto/create-report.dto'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
+import { Roles } from '../../common/decorators/roles.decorator'
+import { RequireModuleAccess } from '../../common/decorators/require-module.decorator'
 import type { AuthenticatedUser } from '@opsc/types'
 
 @Controller('reports')
+@Roles('ADMIN', 'OPERATIONS_MANAGER')
+@RequireModuleAccess('reports')
 export class ReportsController {
   constructor(
     private readonly reportsService: ReportsService,

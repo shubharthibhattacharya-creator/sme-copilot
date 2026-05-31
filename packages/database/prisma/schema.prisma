@@ -218,15 +218,16 @@ model Company {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  clerkId   String   @unique
-  companyId String
-  role      UserRole @default(STAFF)
-  name      String
-  email     String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  clerkId       String   @unique
+  companyId     String
+  role          UserRole @default(STAFF)
+  name          String
+  email         String
+  isActive      Boolean  @default(true)
+  moduleAccess  String[] @default([])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Relations
   company                Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)

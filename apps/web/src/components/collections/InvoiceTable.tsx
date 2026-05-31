@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { cn, formatCurrency, formatDate } from '@/lib/utils'
 import { useApiClient } from '@/lib/client-api'
 import { useRouter } from 'next/navigation'
+import { usePermissions } from '@/contexts/permissions.context'
 import type { InvoiceWithRisk, RiskLevel } from '@opsc/types'
 
 interface InvoiceTableProps {
@@ -39,6 +40,7 @@ export function InvoiceTable({
   const [sendingReminder, setSendingReminder] = useState<string | null>(null)
   const { request } = useApiClient()
   const router = useRouter()
+  const { canDo } = usePermissions()
 
   async function handleMarkPaid(e: React.MouseEvent, id: string) {
     e.stopPropagation()
@@ -136,20 +138,24 @@ export function InvoiceTable({
                   <div className="flex items-center justify-end gap-2">
                     {inv.status !== 'PAID' && (
                       <>
-                        <button
-                          onClick={(e) => handleRemind(e, inv.id)}
-                          disabled={sendingReminder === inv.id}
-                          className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 disabled:opacity-50"
-                        >
-                          {sendingReminder === inv.id ? '…' : 'Remind'}
-                        </button>
-                        <button
-                          onClick={(e) => handleMarkPaid(e, inv.id)}
-                          disabled={markingPaid === inv.id}
-                          className="text-xs px-2 py-1 rounded bg-green-50 text-green-600 hover:bg-green-100 disabled:opacity-50"
-                        >
-                          {markingPaid === inv.id ? '…' : 'Paid'}
-                        </button>
+                        {canDo('collections', 'send_reminder') && (
+                          <button
+                            onClick={(e) => handleRemind(e, inv.id)}
+                            disabled={sendingReminder === inv.id}
+                            className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 disabled:opacity-50"
+                          >
+                            {sendingReminder === inv.id ? '…' : 'Remind'}
+                          </button>
+                        )}
+                        {canDo('collections', 'mark_paid') && (
+                          <button
+                            onClick={(e) => handleMarkPaid(e, inv.id)}
+                            disabled={markingPaid === inv.id}
+                            className="text-xs px-2 py-1 rounded bg-green-50 text-green-600 hover:bg-green-100 disabled:opacity-50"
+                          >
+                            {markingPaid === inv.id ? '…' : 'Paid'}
+                          </button>
+                        )}
                       </>
                     )}
                   </div>

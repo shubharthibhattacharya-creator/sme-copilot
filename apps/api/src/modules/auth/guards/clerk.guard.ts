@@ -35,12 +35,12 @@ export class ClerkAuthGuard implements CanActivate {
     if (impersonationCompanyId && request.headers['x-admin-secret'] === process.env['ADMIN_SECRET']) {
       const user = await this.prisma.user.findFirst({
         where: { companyId: impersonationCompanyId, role: 'ADMIN' },
-        select: { id: true, clerkId: true, companyId: true, role: true, email: true, name: true },
+        select: { id: true, clerkId: true, companyId: true, role: true, email: true, name: true, moduleAccess: true },
       })
       if (!user) throw new UnauthorizedException('No admin user found for impersonated company')
       ;(request as Request & { user: AuthenticatedUser }).user = {
         clerkId: user.clerkId, userId: user.id, companyId: user.companyId,
-        role: user.role, email: user.email, name: user.name,
+        role: user.role, email: user.email, name: user.name, moduleAccess: user.moduleAccess,
       }
       return true
     }
@@ -60,12 +60,12 @@ export class ClerkAuthGuard implements CanActivate {
       const clerkId = token.slice(5)
       const user = await this.prisma.user.findUnique({
         where: { clerkId },
-        select: { id: true, clerkId: true, companyId: true, role: true, email: true, name: true },
+        select: { id: true, clerkId: true, companyId: true, role: true, email: true, name: true, moduleAccess: true },
       })
       if (!user) throw new UnauthorizedException(`Dev user not found: ${clerkId}`)
       ;(request as Request & { user: AuthenticatedUser }).user = {
         clerkId: user.clerkId, userId: user.id, companyId: user.companyId,
-        role: user.role, email: user.email, name: user.name,
+        role: user.role, email: user.email, name: user.name, moduleAccess: user.moduleAccess,
       }
       return true
     }
@@ -91,6 +91,7 @@ export class ClerkAuthGuard implements CanActivate {
         email: true,
         name: true,
         isActive: true,
+        moduleAccess: true,
       },
     })
 
@@ -109,6 +110,7 @@ export class ClerkAuthGuard implements CanActivate {
       role: user.role,
       email: user.email,
       name: user.name,
+      moduleAccess: user.moduleAccess,
     }
 
     ;(request as Request & { user: AuthenticatedUser }).user = authenticatedUser

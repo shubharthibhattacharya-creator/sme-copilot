@@ -4,6 +4,8 @@ import { verifyToken, createClerkClient } from '@clerk/backend'
 import { PrismaService } from '../../prisma/prisma.service'
 import { INDUSTRY_DEFAULTS } from '@opsc/types'
 import type { IndustryType } from '@opsc/types'
+import { sanitiseModuleAccess, ROLE_DEFAULT_MODULES } from '../../common/permissions/role-defaults'
+import type { UserRole } from '@opsc/database'
 
 interface ClerkWebhookEvent {
   type: string
@@ -65,11 +67,19 @@ export class AuthService {
         })
       }
       if (match) {
+        // Sync moduleAccess from Clerk publicMetadata if present
+        const meta = clerkUser.publicMetadata as Record<string, unknown>
+        const role = (match.role as UserRole) ?? 'STAFF'
+        const rawModules = Array.isArray(meta?.['moduleAccess']) ? meta['moduleAccess'] as string[] : []
+        const moduleAccess = rawModules.length
+          ? sanitiseModuleAccess(role, rawModules)
+          : (match.moduleAccess.length > 0 ? match.moduleAccess : ROLE_DEFAULT_MODULES[role])
+
         await this.prisma.user.update({
           where: { id: match.id },
-          data: { clerkId: clerkUserId, name: fullName, isActive: true },
+          data: { clerkId: clerkUserId, name: fullName, isActive: true, moduleAccess },
         })
-        this.logger.log(`Provisioned user ${emailAddr} (clerkId updated)`)
+        this.logger.log(`Provisioned user ${emailAddr} (clerkId updated, modules: [${moduleAccess.join(',')}])`)
         return { ok: true }
       }
     }

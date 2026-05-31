@@ -10,10 +10,12 @@ import {
 import { CollectionsService } from './collections.service'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import { Roles } from '../../common/decorators/roles.decorator'
+import { RequireModuleAccess } from '../../common/decorators/require-module.decorator'
 import type { AuthenticatedUser } from '@opsc/types'
 import { ListCollectionsDto } from './dto/list-collections.dto'
 
 @Controller('collections')
+@RequireModuleAccess('collections')
 export class CollectionsController {
   constructor(private readonly collectionsService: CollectionsService) {}
 

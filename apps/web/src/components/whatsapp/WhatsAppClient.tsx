@@ -2,6 +2,7 @@
 import { useState, useCallback } from 'react'
 import { useApiClient } from '@/lib/client-api'
 import { useApiError } from '@/hooks/useApiError'
+import { usePermissions } from '@/contexts/permissions.context'
 
 interface WhatsAppStats {
   total: number
@@ -53,6 +54,7 @@ const STATUS_COLORS: Record<string, string> = {
 export function WhatsAppClient({ initialStats, initialMessages, initialTemplates }: Props) {
   const { request } = useApiClient()
   const { handleError } = useApiError()
+  const { canDo } = usePermissions()
   const [tab, setTab] = useState<'overview' | 'messages' | 'templates'>('overview')
   const [stats, setStats] = useState(initialStats)
   const [messages, setMessages] = useState(initialMessages)
@@ -177,24 +179,26 @@ export function WhatsAppClient({ initialStats, initialMessages, initialTemplates
           </div>
 
           {/* Deadline nudge */}
-          <div className="bg-white rounded-lg border border-gray-200 p-5">
-            <h3 className="text-sm font-medium text-gray-900 mb-1">Bulk Deadline Nudge</h3>
-            <p className="text-xs text-gray-500 mb-4">
-              Send GST deadline reminder to all clients with overdue invoices (max 50).
-            </p>
-            {nudgeResult && (
-              <p className="text-sm text-green-700 mb-3">
-                Sent {nudgeResult.sent} · Failed {nudgeResult.failed}
+          {canDo('whatsapp', 'bulk_send') && (
+            <div className="bg-white rounded-lg border border-gray-200 p-5">
+              <h3 className="text-sm font-medium text-gray-900 mb-1">Bulk Deadline Nudge</h3>
+              <p className="text-xs text-gray-500 mb-4">
+                Send GST deadline reminder to all clients with overdue invoices (max 50).
               </p>
-            )}
-            <button
-              onClick={sendDeadlineNudge}
-              disabled={nudging}
-              className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700 disabled:opacity-60"
-            >
-              {nudging ? 'Sending…' : 'Send Nudge to All Overdue Clients'}
-            </button>
-          </div>
+              {nudgeResult && (
+                <p className="text-sm text-green-700 mb-3">
+                  Sent {nudgeResult.sent} · Failed {nudgeResult.failed}
+                </p>
+              )}
+              <button
+                onClick={sendDeadlineNudge}
+                disabled={nudging}
+                className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700 disabled:opacity-60"
+              >
+                {nudging ? 'Sending…' : 'Send Nudge to All Overdue Clients'}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -305,15 +309,17 @@ export function WhatsAppClient({ initialStats, initialMessages, initialTemplates
                   <pre className="text-sm text-gray-600 whitespace-pre-wrap font-sans bg-gray-50 rounded p-3 mb-3">
                     {tmpl.body}
                   </pre>
-                  <button
-                    onClick={() => {
-                      setEditingTemplate(tmpl)
-                      setEditBody(tmpl.body)
-                    }}
-                    className="text-xs text-blue-600 hover:underline"
-                  >
-                    Customise
-                  </button>
+                  {canDo('whatsapp', 'edit_templates') && (
+                    <button
+                      onClick={() => {
+                        setEditingTemplate(tmpl)
+                        setEditBody(tmpl.body)
+                      }}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      Customise
+                    </button>
+                  )}
                 </div>
               )}
             </div>

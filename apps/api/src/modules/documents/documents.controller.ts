@@ -11,9 +11,11 @@ import { ListDocumentsDto } from './dto/list-documents.dto'
 import { CreateDocumentRequestDto } from './dto/create-document-request.dto'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import { Roles } from '../../common/decorators/roles.decorator'
+import { RequireModuleAccess } from '../../common/decorators/require-module.decorator'
 import type { AuthenticatedUser } from '@opsc/types'
 
 @Controller('documents')
+@RequireModuleAccess('documents')
 export class DocumentsController {
   constructor(
     private readonly documentsService: DocumentsService,

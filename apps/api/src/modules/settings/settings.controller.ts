@@ -9,6 +9,7 @@ import { SettingsService } from './settings.service'
 import { UpdateFirmProfileDto } from './dto/update-firm-profile.dto'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import { Roles } from '../../common/decorators/roles.decorator'
+import { RequireModuleAccess } from '../../common/decorators/require-module.decorator'
 import type { AuthenticatedUser } from '@opsc/types'
 import { ConfigService } from '../config/config.service'
 import { ConfigKey } from '../config/config-key.enum'
@@ -16,6 +17,7 @@ import { ConfigKey } from '../config/config-key.enum'
 const RISK_WEIGHT_KEYS = [ConfigKey.RISK_WEIGHT_AGING, ConfigKey.RISK_WEIGHT_AMOUNT, ConfigKey.RISK_WEIGHT_HISTORY]
 
 @Controller('settings')
+@RequireModuleAccess('settings')
 export class SettingsController {
   constructor(
     private readonly settings: SettingsService,
@@ -23,6 +25,7 @@ export class SettingsController {
   ) {}
 
   @Get('profile')
+  @Roles('ADMIN', 'OPERATIONS_MANAGER', 'STAFF')
   getProfile(@CurrentUser() user: AuthenticatedUser) {
     return this.settings.getFirmProfile(user.companyId)
   }
@@ -63,6 +66,7 @@ export class SettingsController {
   // ── Business Rules endpoints ──────────────────────────────────────────────────
 
   @Get('rules')
+  @Roles('ADMIN', 'OPERATIONS_MANAGER')
   getRules(@CurrentUser() user: AuthenticatedUser) {
     return this.configService.getAll(user.companyId, true)
   }
@@ -293,20 +297,66 @@ export class SettingsController {
     return { ok: true, message: 'All custom rules have been reset to system defaults' }
   }
 
+  // ── Permissions ───────────────────────────────────────────────────────────────
+
+  @Get('me/permissions')
+  @Roles('ADMIN', 'OPERATIONS_MANAGER', 'STAFF')
+  getMyPermissions(@CurrentUser() user: AuthenticatedUser) {
+    return this.settings.getMyPermissions(user.companyId, user.userId)
+  }
+
   // ── Team ──────────────────────────────────────────────────────────────────────
 
   @Get('team')
+  @Roles('ADMIN')
   listTeam(@CurrentUser() user: AuthenticatedUser) {
     return this.settings.listTeam(user.companyId)
   }
 
-  @Patch('team/:userId/role')
-  changeRole(
+  @Patch('team/:userId')
+  @Roles('ADMIN')
+  updateTeamMember(
     @CurrentUser() user: AuthenticatedUser,
     @Param('userId') userId: string,
-    @Body('role') role: 'ADMIN' | 'OPERATIONS_MANAGER' | 'STAFF',
+    @Body() dto: { role?: 'ADMIN' | 'OPERATIONS_MANAGER' | 'STAFF'; moduleAccess?: string[] },
   ) {
-    return this.settings.changeUserRole(user.companyId, userId, role)
+    return this.settings.updateTeamMember(user.companyId, userId, user.userId, dto)
+  }
+
+  @Delete('team/:userId')
+  @Roles('ADMIN')
+  @HttpCode(HttpStatus.OK)
+  deactivateTeamMember(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('userId') userId: string,
+  ) {
+    return this.settings.deactivateTeamMember(user.companyId, userId, user.userId)
+  }
+
+  @Get('team/pending-invitations')
+  @Roles('ADMIN')
+  getPendingInvitations(@CurrentUser() user: AuthenticatedUser) {
+    return this.settings.getPendingInvitations(user.companyId)
+  }
+
+  @Post('team/pending-invitations/:invitationId/resend')
+  @Roles('ADMIN')
+  @HttpCode(HttpStatus.OK)
+  resendInvitation(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('invitationId') invitationId: string,
+  ) {
+    return this.settings.resendInvitation(user.companyId, invitationId)
+  }
+
+  @Delete('team/pending-invitations/:invitationId')
+  @Roles('ADMIN')
+  @HttpCode(HttpStatus.OK)
+  revokeInvitation(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('invitationId') invitationId: string,
+  ) {
+    return this.settings.revokeInvitation(invitationId)
   }
 
   @Post('team/invite')
@@ -314,7 +364,7 @@ export class SettingsController {
   @HttpCode(HttpStatus.OK)
   inviteTeamMember(
     @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: { email: string; role: 'ADMIN' | 'OPERATIONS_MANAGER' | 'STAFF' },
+    @Body() dto: { email: string; role: 'ADMIN' | 'OPERATIONS_MANAGER' | 'STAFF'; moduleAccess?: string[] },
   ) {
     return this.settings.inviteTeamMember(user.companyId, dto)
   }

@@ -14,9 +14,14 @@ import { TemplateService } from './template.service'
 import { SendMessageDto, SendMessageType } from './dto/send-message.dto'
 import { ListMessagesDto } from './dto/list-messages.dto'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
+import { Roles } from '../../common/decorators/roles.decorator'
+import { RequireModuleAccess } from '../../common/decorators/require-module.decorator'
+import { Public } from '../../common/decorators/public.decorator'
 import type { AuthenticatedUser } from '@opsc/types'
 
 @Controller('whatsapp')
+@Roles('ADMIN', 'OPERATIONS_MANAGER')
+@RequireModuleAccess('whatsapp')
 export class WhatsAppController {
   constructor(
     private readonly whatsapp: WhatsAppService,
@@ -108,6 +113,7 @@ export class WhatsAppController {
   // Respond with 204 quickly — Twilio will retry if it gets a 5xx.
 
   @Post('webhook')
+  @Public()
   @HttpCode(HttpStatus.NO_CONTENT)
   async twilioWebhook(@Body() data: Record<string, string>) {
     if (data['MessageStatus']) {

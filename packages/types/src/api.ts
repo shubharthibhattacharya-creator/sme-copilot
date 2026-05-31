@@ -32,4 +32,5 @@ export interface AuthenticatedUser {
   role: 'ADMIN' | 'OPERATIONS_MANAGER' | 'STAFF'
   email: string
   name: string
+  moduleAccess: string[]
 }

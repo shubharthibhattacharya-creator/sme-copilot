@@ -13,12 +13,14 @@ import {
 import { ComplianceService } from './compliance.service'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import { Roles } from '../../common/decorators/roles.decorator'
+import { RequireModuleAccess } from '../../common/decorators/require-module.decorator'
 import { CreateChecklistDto } from './dto/create-checklist.dto'
 import { UpdateChecklistDto } from './dto/update-checklist.dto'
 import { UpsertTemplateDto } from './dto/upsert-template.dto'
 import type { AuthenticatedUser } from '@opsc/types'
 
 @Controller('compliance')
+@RequireModuleAccess('compliance')
 export class ComplianceController {
   constructor(private readonly svc: ComplianceService) {}
 
