@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Card, CardHeader } from '@/components/ui'
 
 interface ChecklistRow {
   id: string
@@ -28,23 +29,21 @@ function ReadinessBadge({ score }: { score: number }) {
 export function ComplianceAtRiskWidget({ atRisk }: Props) {
   if (atRisk.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h3 className="text-sm font-semibold text-gray-900 mb-1">Compliance at risk</h3>
-        <p className="text-xs text-gray-500 mb-3">Clients with upcoming filings and low readiness</p>
-        <div className="flex items-center gap-2 text-green-600 text-sm py-4">
+      <Card padding="20px">
+        <CardHeader title="Compliance at risk" subtitle="Clients with upcoming filings and low readiness" />
+        <div className="flex items-center gap-2 text-green-600 text-sm py-2">
           <span className="text-lg">✓</span>
           All filings are on track.
         </div>
-      </div>
+      </Card>
     )
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
-      <h3 className="text-sm font-semibold text-gray-900 mb-1">Compliance at risk</h3>
-      <p className="text-xs text-gray-500 mb-3">Clients with upcoming filings and low readiness</p>
+    <Card padding="20px">
+      <CardHeader title="Compliance at risk" subtitle="Clients with upcoming filings and low readiness" />
 
-      <div className="divide-y divide-gray-100">
+      <div className="divide-y divide-slate-100">
         {atRisk.map((item) => {
           const days = Math.ceil((new Date(item.dueDate).getTime() - Date.now()) / 86400000)
           const dueCls = days <= 3 ? 'text-red-600 font-semibold' : days <= 7 ? 'text-amber-600' : 'text-gray-500'
@@ -72,6 +71,6 @@ export function ComplianceAtRiskWidget({ atRisk }: Props) {
           )
         })}
       </div>
-    </div>
+    </Card>
   )
 }
