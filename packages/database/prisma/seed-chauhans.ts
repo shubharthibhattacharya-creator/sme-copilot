@@ -8,8 +8,7 @@
  *   pnpm --filter @opsc/database db:seed:chauhans
  */
 
-import {
-  PrismaClient,
+import { Prisma, PrismaClient,
   FilerType,
   FilingCategory,
   FilingType,
@@ -620,7 +619,7 @@ async function main() {
         twilioSid: `SM${Math.random().toString(36).slice(2, 34)}`,
         sentAt: new Date(Date.now() - msg.hoursAgo * 3600000),
         deliveredAt: msg.status === MessageStatus.DELIVERED || msg.status === MessageStatus.READ ? new Date(Date.now() - (msg.hoursAgo - 1) * 3600000) : null,
-        metadata: (msg as any).numMedia ? { numMedia: 1 } : null,
+        metadata: (msg as any).numMedia ? { numMedia: 1 } : Prisma.JsonNull,
       },
     })
   }
@@ -787,7 +786,7 @@ async function main() {
         storageKey: `${company.id}/2026/${String(rand(1, 12)).padStart(2, '0')}/seed-${Math.random().toString(36).slice(2, 10)}.pdf`,
         fileSizeBytes: rand(28000, 250000),
         mimeType: 'application/pdf',
-        extractedData: doc.extractedData ?? null,
+        extractedData: doc.extractedData ?? Prisma.JsonNull,
         notes: doc.notes ?? null,
         filingPeriod: doc.filingPeriod ?? null,
         documentOwner: doc.documentOwner,
