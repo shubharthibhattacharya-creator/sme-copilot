@@ -19,6 +19,7 @@ interface FilingRow {
   daysRemaining: number
   status: 'FILED' | 'PENDING' | 'OVERDUE'
   document: { id: string; originalName: string; filingPeriod: string | null } | null
+  checklistId: string | null
 }
 
 interface FilingSummary {

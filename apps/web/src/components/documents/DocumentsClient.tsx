@@ -13,11 +13,24 @@ interface Props {
   initialRequests: DocumentRequest[]
 }
 
+const DOC_TYPE_LABEL: Record<string, string> = {
+  INVOICE: 'Invoice', GST_RETURN: 'GST Return', TDS_CERTIFICATE: 'TDS Certificate',
+  BANK_STATEMENT: 'Bank Statement', FORM_16: 'Form 16', PURCHASE_ORDER: 'Purchase Order',
+  DELIVERY_NOTE: 'Delivery Note', OTHER: 'Other',
+}
+
+const REQUEST_STATUS_STYLE: Record<string, string> = {
+  PENDING:   'bg-amber-100 text-amber-700',
+  FULFILLED: 'bg-green-100 text-green-700',
+  CANCELLED: 'bg-gray-100 text-gray-500',
+}
+
 export function DocumentsClient({ initialDocuments, initialRequests }: Props) {
   const [documents, setDocuments] = useState(initialDocuments)
   const [requests] = useState(initialRequests)
   const [selectedDocument, setSelectedDocument] = useState<DocumentItem | null>(null)
   const [showRequestModal, setShowRequestModal] = useState(false)
+  const [showRequests, setShowRequests] = useState(false)
   const { canDo } = usePermissions()
 
   function handleUploaded(doc: DocumentItem) {
@@ -32,6 +45,8 @@ export function DocumentsClient({ initialDocuments, initialRequests }: Props) {
     }))
   }
 
+  const pendingRequests = requests.filter(r => r.status === 'PENDING')
+
   return (
     <div>
       <div className="flex gap-3 mb-6">
@@ -43,10 +58,48 @@ export function DocumentsClient({ initialDocuments, initialRequests }: Props) {
         )}
       </div>
 
-      <div className="mb-4 text-sm text-gray-500">
-        {documents.meta.total} document{documents.meta.total !== 1 ? 's' : ''}
-        {requests.length > 0 && ` · ${requests.filter(r => r.status === 'PENDING').length} pending requests`}
+      <div className="mb-4 text-sm text-gray-500 flex items-center gap-3">
+        <span>{documents.meta.total} document{documents.meta.total !== 1 ? 's' : ''}</span>
+        {requests.length > 0 && (
+          <button
+            onClick={() => setShowRequests(v => !v)}
+            className="text-amber-600 hover:underline"
+          >
+            {pendingRequests.length} pending request{pendingRequests.length !== 1 ? 's' : ''}
+          </button>
+        )}
       </div>
+
+      {/* Pending document requests panel */}
+      {showRequests && requests.length > 0 && (
+        <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-amber-200 flex items-center justify-between">
+            <span className="text-sm font-medium text-amber-800">Document Requests</span>
+            <button onClick={() => setShowRequests(false)} className="text-amber-500 hover:text-amber-700 text-xs">Hide</button>
+          </div>
+          <div className="divide-y divide-amber-100">
+            {requests.map((req) => (
+              <div key={req.id} className="px-4 py-3 flex items-center gap-3 text-sm">
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${REQUEST_STATUS_STYLE[req.status] ?? 'bg-gray-100 text-gray-500'}`}>
+                  {req.status}
+                </span>
+                <span className="font-medium text-gray-800">{DOC_TYPE_LABEL[req.documentType] ?? req.documentType}</span>
+                {req.dueDate && (
+                  <span className="text-xs text-gray-500">
+                    Due {new Date(req.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                  </span>
+                )}
+                {req.notes && <span className="text-xs text-gray-400 truncate">{req.notes}</span>}
+                {req.status === 'FULFILLED' && req.fulfilledDocument && (
+                  <span className="text-xs text-green-600 ml-auto shrink-0">
+                    ✓ {req.fulfilledDocument.originalName}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <DocumentList documents={documents.items} onSelect={setSelectedDocument} />
 

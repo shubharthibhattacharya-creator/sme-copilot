@@ -325,16 +325,46 @@ export class DocumentsService {
   }
 
   async createRequest(dto: CreateDocumentRequestDto, user: AuthenticatedUser) {
-    return this.prisma.documentRequest.create({
+    const req = await this.prisma.documentRequest.create({
       data: {
         companyId: user.companyId,
         requestedById: user.userId,
-        requestedFromUserId: dto.requestedFromUserId,
+        requestedFromUserId: dto.requestedFromUserId ?? user.userId,
+        clientId: dto.clientId ?? undefined,
         documentType: dto.documentType,
         dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
         notes: dto.notes,
       },
     })
+
+    // Auto-send WhatsApp to client if clientId provided and client has a phone
+    if (dto.clientId) {
+      const client = await this.prisma.client.findUnique({
+        where: { id: dto.clientId },
+        select: { phone: true, name: true },
+      })
+      if (client?.phone) {
+        const company = await this.prisma.company.findUnique({
+          where: { id: user.companyId },
+          select: { name: true },
+        })
+        const docLabel = dto.documentType.replace(/_/g, ' ')
+        const dueDateStr = dto.dueDate ? new Date(dto.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'as soon as possible'
+        const body = `Dear ${client.name},\n\nWe need the following document from you: *${docLabel}*\n\nPlease share it by ${dueDateStr}.${dto.notes ? `\n\nNote: ${dto.notes}` : ''}\n\nThank you,\n${company?.name ?? 'Your CA Firm'}`
+        await this.prisma.whatsAppMessage.create({
+          data: {
+            companyId: user.companyId,
+            clientId: dto.clientId,
+            toPhone: client.phone,
+            templateKey: 'doc_request',
+            body,
+            status: 'QUEUED',
+          },
+        }).catch(() => null) // non-fatal
+      }
+    }
+
+    return req
   }
 
   async listRequests(companyId: string) {

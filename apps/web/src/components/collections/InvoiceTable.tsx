@@ -55,7 +55,10 @@ export function InvoiceTable({
     e.stopPropagation()
     setSendingReminder(id)
     try {
-      await request(`/collections/${id}/remind`, { method: 'POST' })
+      await request('/whatsapp/send', {
+        method: 'POST',
+        body: JSON.stringify({ type: 'FEE_REMINDER', invoiceId: id }),
+      })
     } finally {
       setSendingReminder(null)
     }

@@ -19,6 +19,7 @@ interface FilingRow {
   daysRemaining: number
   status: 'FILED' | 'PENDING' | 'OVERDUE'
   document: { id: string; originalName: string; filingPeriod: string | null } | null
+  checklistId: string | null
 }
 
 interface FilingSummary {
@@ -65,6 +66,8 @@ export function FilingsClient({ initialRows, initialSummary, initialHeatmap }: P
   const [view, setView]         = useState<ViewMode>('calendar')
   const [filter, setFilter]     = useState<'ALL' | 'OVERDUE' | 'PENDING' | 'FILED'>('ALL')
   const [search, setSearch]     = useState('')
+  const [filing, setFiling]     = useState<string | null>(null) // checklistId being filed
+  const [confirmFiling, setConfirmFiling] = useState<string | null>(null) // checklistId awaiting confirm
 
   const refresh = useCallback(async () => {
     const [r, s, h] = await Promise.all([
@@ -76,6 +79,20 @@ export function FilingsClient({ initialRows, initialSummary, initialHeatmap }: P
     setSummary(s)
     setHeatmap(h)
   }, [request])
+
+  async function handleMarkFiled(checklistId: string) {
+    setFiling(checklistId)
+    try {
+      await request(`/compliance/checklists/${checklistId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'FILED' }),
+      })
+      setConfirmFiling(null)
+      await refresh()
+    } finally {
+      setFiling(null)
+    }
+  }
 
   const filtered = rows.filter((r) => {
     if (!r || !r.client) return false
@@ -168,12 +185,13 @@ export function FilingsClient({ initialRows, initialSummary, initialHeatmap }: P
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Days</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Status</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Document</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-gray-500">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500">
+                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-500">
                     {search ? 'No clients match your search.' : 'No clients found.'}
                   </td>
                 </tr>
@@ -210,6 +228,35 @@ export function FilingsClient({ initialRows, initialSummary, initialHeatmap }: P
                         </span>
                       ) : (
                         <span className="text-xs text-gray-400">No document</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {row.status !== 'FILED' && row.checklistId && (
+                        confirmFiling === row.checklistId ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs">
+                            <span className="text-gray-600">Confirm?</span>
+                            <button
+                              onClick={() => handleMarkFiled(row.checklistId!)}
+                              disabled={filing === row.checklistId}
+                              className="px-2 py-0.5 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                            >
+                              {filing === row.checklistId ? '…' : 'Yes'}
+                            </button>
+                            <button
+                              onClick={() => setConfirmFiling(null)}
+                              className="px-2 py-0.5 text-gray-500 hover:bg-gray-100 rounded"
+                            >
+                              No
+                            </button>
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmFiling(row.checklistId!)}
+                            className="text-xs px-2.5 py-1 text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 whitespace-nowrap"
+                          >
+                            Mark Filed
+                          </button>
+                        )
                       )}
                     </td>
                   </tr>

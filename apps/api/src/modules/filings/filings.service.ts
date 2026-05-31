@@ -38,6 +38,7 @@ export interface FilingRow {
   daysRemaining: number
   status: FilingStatus
   document: { id: string; originalName: string; filingPeriod: string | null } | null
+  checklistId: string | null  // compliance checklist id for this client+period, if one exists
 }
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -179,7 +180,35 @@ export class FilingsService {
         document: matchedDoc
           ? { id: matchedDoc.id, originalName: matchedDoc.originalName, filingPeriod: matchedDoc.filingPeriod }
           : null,
+        checklistId: null, // filled in below
       })
+    }
+
+    // Attach checklistId — batch-fetch all active checklists for these clients
+    if (rows.length > 0) {
+      const clientIds = rows.map((r) => r.client.id)
+      const checklists = await this.prisma.complianceChecklist.findMany({
+        where: {
+          companyId,
+          clientId: { in: clientIds },
+          filingType: { in: ['GST_MONTHLY', 'GST_QUARTERLY'] },
+          status: { not: 'FILED' },
+        },
+        select: { id: true, clientId: true, filingPeriod: true },
+      })
+      // Index by clientId → checklistId (latest match wins)
+      for (const cl of checklists) {
+        const row = rows.find((r) => r.client.id === cl.clientId)
+        if (!row) continue
+        // Convert calendar period "Apr 2026" → "2026-04" for comparison
+        const [monthStr, yearStr] = row.period.split(' ')
+        const monthIdx = MONTH_NAMES.indexOf(monthStr ?? '')
+        if (monthIdx === -1) continue
+        const periodKey = `${yearStr}-${String(monthIdx + 1).padStart(2, '0')}`
+        if (cl.filingPeriod === periodKey || cl.filingPeriod === row.period) {
+          row.checklistId = cl.id
+        }
+      }
     }
 
     // Sort: OVERDUE first, then by daysRemaining asc

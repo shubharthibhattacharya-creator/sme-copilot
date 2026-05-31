@@ -213,11 +213,23 @@ interface Props {
   initialReports: ReportItem[]
 }
 
+// Default date range: start of current month → today
+function defaultStart() {
+  const d = new Date()
+  d.setDate(1)
+  return d.toISOString().split('T')[0]!
+}
+function defaultEnd() {
+  return new Date().toISOString().split('T')[0]!
+}
+
 export function ReportingClient({ initialReports }: Props) {
   const { request } = useApiClient()
   const { getToken } = useAuth()
   const [reports, setReports] = useState(initialReports)
   const [selectedType, setSelectedType] = useState<ReportType>('COLLECTIONS_AGING')
+  const [periodStart, setPeriodStart] = useState(defaultStart)
+  const [periodEnd, setPeriodEnd] = useState(defaultEnd)
   const [generating, setGenerating] = useState(false)
   const [expandedReport, setExpandedReport] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -255,7 +267,11 @@ export function ReportingClient({ initialReports }: Props) {
     try {
       const report = await request<ReportItem>('/reports', {
         method: 'POST',
-        body: JSON.stringify({ reportType: selectedType }),
+        body: JSON.stringify({
+          reportType: selectedType,
+          periodStart: periodStart || undefined,
+          periodEnd: periodEnd || undefined,
+        }),
       })
       setReports(prev => [report, ...prev])
     } catch (err) {
@@ -286,6 +302,28 @@ export function ReportingClient({ initialReports }: Props) {
             </button>
           ))}
         </div>
+        {/* Date range */}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-500 whitespace-nowrap">From</label>
+            <input
+              type="date"
+              value={periodStart}
+              onChange={(e) => setPeriodStart(e.target.value)}
+              className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-500 whitespace-nowrap">To</label>
+            <input
+              type="date"
+              value={periodEnd}
+              onChange={(e) => setPeriodEnd(e.target.value)}
+              className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
         {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
         <button
           onClick={generateReport}
