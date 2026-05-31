@@ -104,6 +104,8 @@ async function DashboardContent() {
             label="Total receivables"
             value={formatINR(summary.totalReceivables.current)}
             icon={<IndianRupee size={16} strokeWidth={2} />}
+            iconColor="#2563EB"
+            iconBg="#EFF6FF"
             trendPct={summary.totalReceivables.trendPct}
             trendDir={summary.totalReceivables.trendDir}
             trendLabel="vs last month"
@@ -114,6 +116,8 @@ async function DashboardContent() {
             label="Overdue amount"
             value={formatINR(summary.overdueAmount.current)}
             icon={<AlertCircle size={16} strokeWidth={2} />}
+            iconColor="#DC2626"
+            iconBg="#FEF2F2"
             trendPct={summary.overdueAmount.trendPct}
             trendDir={summary.overdueAmount.trendDir}
             trendLabel="vs last month"
@@ -124,6 +128,8 @@ async function DashboardContent() {
             label="Overdue invoices"
             value={String(summary.overdueCount.current)}
             icon={<FileText size={16} strokeWidth={2} />}
+            iconColor="#D97706"
+            iconBg="#FFFBEB"
             trendPct={summary.overdueCount.trendPct}
             trendDir={summary.overdueCount.trendDir}
             trendLabel="vs last month"
@@ -134,6 +140,8 @@ async function DashboardContent() {
             label="Avg days overdue"
             value={`${summary.avgDaysOverdue.current} days`}
             icon={<Clock size={16} strokeWidth={2} />}
+            iconColor="#7C3AED"
+            iconBg="#F5F3FF"
             trendPct={summary.avgDaysOverdue.trendPct}
             trendDir={summary.avgDaysOverdue.trendDir}
             trendLabel="vs last month"

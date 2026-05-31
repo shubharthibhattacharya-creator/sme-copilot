@@ -72,6 +72,8 @@ interface KpiCardProps {
   label: string
   value: string
   icon: React.ReactNode
+  iconColor?: string
+  iconBg?: string
   trendPct: number
   trendDir: 'up' | 'down' | 'flat'
   trendLabel: string
@@ -84,6 +86,8 @@ export function KpiCard({
   label,
   value,
   icon,
+  iconColor = 'var(--color-primary)',
+  iconBg = 'var(--color-primary-light)',
   trendPct,
   trendDir,
   trendLabel,
@@ -138,12 +142,12 @@ export function KpiCard({
             width: '32px',
             height: '32px',
             borderRadius: 'var(--radius-md)',
-            background: 'var(--color-primary-light)',
+            background: iconBg,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
-            color: 'var(--color-primary)',
+            color: iconColor,
           }}
         >
           {icon}

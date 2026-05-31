@@ -89,7 +89,7 @@ export function CriticalCustomersTable({ customers }: CriticalCustomersTableProp
 
   return (
     <Card padding="24px" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <CardHeader title="Critical Customers" />
+      <CardHeader title="Top Overdue Customers" />
 
       {sorted.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
