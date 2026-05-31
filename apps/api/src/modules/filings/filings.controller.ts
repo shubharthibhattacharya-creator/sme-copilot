@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common'
+import { Body, Controller, Get, Post } from '@nestjs/common'
 import { FilingsService } from './filings.service'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import type { AuthenticatedUser } from '@opsc/types'
@@ -20,5 +20,34 @@ export class FilingsController {
   @Get('heatmap')
   getHeatmap(@CurrentUser() user: AuthenticatedUser) {
     return this.filings.getHeatmap(user.companyId)
+  }
+
+  @Post('bulk-request-docs')
+  bulkRequestDocs(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { clientIds: string[]; sendWhatsApp?: boolean },
+  ) {
+    return this.filings.bulkRequestDocs(
+      user.companyId,
+      user.userId,
+      body.clientIds ?? [],
+      body.sendWhatsApp ?? true,
+    )
+  }
+
+  @Post('bulk-nudge')
+  bulkNudge(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { clientIds: string[] },
+  ) {
+    return this.filings.bulkNudge(user.companyId, body.clientIds ?? [])
+  }
+
+  @Post('bulk-mark-filed')
+  bulkMarkFiled(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { clientIds: string[] },
+  ) {
+    return this.filings.bulkMarkFiled(user.companyId, user.userId, body.clientIds ?? [])
   }
 }
