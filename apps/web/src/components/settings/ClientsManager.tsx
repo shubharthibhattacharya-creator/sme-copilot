@@ -41,23 +41,39 @@ const EMPTY_FORM = {
   filerType: 'MONTHLY', filingCategory: 'REGULAR', serviceScope: [] as string[],
 }
 
-// ── GSTIN status badge ────────────────────────────────────────────────────────
-const STATUS_CONFIG: Record<GstinVerificationStatus, { label: string; classes: string; dot: string }> = {
-  VERIFIED:    { label: 'GSTIN Verified',           classes: 'bg-green-50 text-green-700 border-green-200',  dot: 'bg-green-500' },
-  CANCELLED:   { label: 'GSTIN Cancelled',          classes: 'bg-red-50 text-red-700 border-red-200',        dot: 'bg-red-500' },
-  SUSPENDED:   { label: 'GSTIN Suspended',          classes: 'bg-orange-50 text-orange-700 border-orange-200', dot: 'bg-orange-400' },
-  NOT_FOUND:   { label: 'GSTIN Not Found in Portal', classes: 'bg-yellow-50 text-yellow-700 border-yellow-200', dot: 'bg-yellow-400' },
-  PENDING:     { label: 'GSTIN Validation Pending', classes: 'bg-gray-100 text-gray-500 border-gray-200',    dot: 'bg-gray-400' },
-  UNVALIDATED: { label: 'GSTIN Not Validated',      classes: 'bg-gray-100 text-gray-400 border-gray-200',    dot: 'bg-gray-300' },
+// ── GSTIN validation column ───────────────────────────────────────────────────
+type ValidationDisplay = 'Success' | 'Pending' | 'Failed'
+
+const VALIDATION_MAP: Record<GstinVerificationStatus, {
+  display: ValidationDisplay
+  reason: string
+  classes: string
+  dot: string
+}> = {
+  VERIFIED:    { display: 'Success', reason: 'Active registration confirmed with GST portal',       classes: 'bg-green-50 text-green-700',   dot: 'bg-green-500' },
+  CANCELLED:   { display: 'Failed',  reason: 'Registration is cancelled in the GST portal',         classes: 'bg-red-50 text-red-600',       dot: 'bg-red-500' },
+  SUSPENDED:   { display: 'Failed',  reason: 'Registration is currently suspended in the GST portal', classes: 'bg-red-50 text-red-600',    dot: 'bg-red-500' },
+  NOT_FOUND:   { display: 'Failed',  reason: 'GSTIN not found in GST portal — may be a typo or very new registration', classes: 'bg-red-50 text-red-600', dot: 'bg-red-500' },
+  PENDING:     { display: 'Pending', reason: 'GST portal was unreachable — validation will be retried tonight at 3 AM', classes: 'bg-amber-50 text-amber-700', dot: 'bg-amber-400' },
+  UNVALIDATED: { display: 'Pending', reason: 'Validation not yet attempted',                         classes: 'bg-gray-100 text-gray-500',   dot: 'bg-gray-400' },
 }
 
-function GstinBadge({ status, className = '' }: { status: GstinVerificationStatus; className?: string }) {
-  const cfg = STATUS_CONFIG[status]
+function GstinValidationCell({ status }: { status: GstinVerificationStatus }) {
+  const cfg = VALIDATION_MAP[status]
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border ${cfg.classes} ${className}`}>
-      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dot}`} />
-      {cfg.label}
-    </span>
+    <div className="relative group inline-block">
+      <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full cursor-default ${cfg.classes}`}>
+        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dot}`} />
+        {cfg.display}
+      </span>
+      {/* Tooltip */}
+      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-20 pointer-events-none">
+        <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap max-w-[260px] whitespace-normal shadow-lg">
+          {cfg.reason}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -266,7 +282,7 @@ export function ClientsManager({ initialClients }: Props) {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {['Name', 'GSTIN', 'Filer type', 'Services', 'Invoices', 'Status', 'Actions'].map((h) => (
+                {['Name', 'GSTIN', 'GSTIN Validation', 'Filer type', 'Services', 'Invoices', 'Status', 'Actions'].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
@@ -279,17 +295,13 @@ export function ClientsManager({ initialClients }: Props) {
                       {c.name}
                     </button>
                   </td>
+                  <td className="px-4 py-3 font-mono text-gray-600 text-xs">
+                    {c.gstin ?? <span className="text-gray-400 not-italic">—</span>}
+                  </td>
                   <td className="px-4 py-3">
-                    {c.gstin ? (
-                      <div className="space-y-1">
-                        <span className="font-mono text-gray-600 text-xs">{c.gstin}</span>
-                        <div>
-                          <GstinBadge status={c.gstinVerificationStatus} />
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="text-gray-400 text-xs">—</span>
-                    )}
+                    {c.gstin
+                      ? <GstinValidationCell status={c.gstinVerificationStatus} />
+                      : <span className="text-gray-400 text-xs">—</span>}
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{c.filerType}</span>
@@ -365,7 +377,7 @@ export function ClientsManager({ initialClients }: Props) {
                         Validating…
                       </span>
                     ) : gstinResult ? (
-                      <GstinBadge status={gstinResult.status} />
+                      <GstinValidationCell status={gstinResult.status} />
                     ) : null}
                   </div>
                 </div>
