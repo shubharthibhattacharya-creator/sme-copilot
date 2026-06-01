@@ -1,10 +1,25 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common'
+import { createHash } from 'crypto'
 import { PrismaService } from '../../prisma/prisma.service'
 import { EmbeddingService } from './embedding.service'
 import type { CreateKnowledgeDocumentDto } from './dto/knowledge.dto'
 
 const CHUNK_SIZE = 800 // characters per chunk
 const CHUNK_OVERLAP = 100
+
+// Stable content key for dedup — short SHA-256 hex of the chunk text
+function chunkKey(content: string): string {
+  return createHash('sha256').update(content).digest('hex').slice(0, 32)
+}
+
+// Parse pgvector text representation "[0.1,-0.2,...]" into number[]
+function parseVec(vecText: string): number[] {
+  try {
+    return JSON.parse(vecText) as number[]
+  } catch {
+    return vecText.replace(/^\[|\]$/g, '').split(',').map(Number)
+  }
+}
 
 function splitIntoChunks(text: string): string[] {
   const chunks: string[] = []
@@ -36,12 +51,25 @@ export class KnowledgeService {
     const chunks = splitIntoChunks(dto.content)
     this.logger.log(`Ingesting "${dto.title}": ${chunks.length} chunks`)
 
-    // 3. Generate embeddings in batch
-    const embeddings = await this.embedding.embedBatch(chunks)
+    // 3. Deduplicate embeddings — reuse existing vectors for unchanged chunks
+    const uniqueChunks = [...new Set(chunks)]
+    const existingEmbeddingMap = await this.fetchExistingEmbeddings(companyId, uniqueChunks)
+
+    const chunksNeedingEmbed = uniqueChunks.filter((c) => !existingEmbeddingMap.has(chunkKey(c)))
+    if (chunksNeedingEmbed.length > 0) {
+      const newVecs = await this.embedding.embedBatch(chunksNeedingEmbed)
+      chunksNeedingEmbed.forEach((c, i) => existingEmbeddingMap.set(chunkKey(c), newVecs[i]!))
+    }
+
+    const reused = chunks.length - chunksNeedingEmbed.length
+    if (reused > 0) {
+      this.logger.log(`Reused ${reused}/${chunks.length} embeddings from cache`)
+    }
 
     // 4. Store chunks with embeddings via raw SQL (Prisma doesn't support vector inserts natively)
     for (let i = 0; i < chunks.length; i++) {
-      const vec = `[${embeddings[i]!.join(',')}]`
+      const embedding = existingEmbeddingMap.get(chunkKey(chunks[i]!))!
+      const vec = `[${embedding.join(',')}]`
       await this.prisma.$executeRaw`
         INSERT INTO "knowledge_chunks" ("id", "documentId", "companyId", "chunkIndex", "content", "embedding", "createdAt")
         VALUES (
@@ -124,5 +152,36 @@ export class KnowledgeService {
       where: { id: documentId },
       data: { isActive },
     })
+  }
+
+  // ─── Embedding dedup helpers ─────────────────────────────────────────────────
+
+  // Returns a map of chunkKey → embedding for all existing chunks in this company
+  // whose content matches any of the provided chunks.
+  private async fetchExistingEmbeddings(
+    companyId: string,
+    chunks: string[],
+  ): Promise<Map<string, number[]>> {
+    const result = new Map<string, number[]>()
+    if (chunks.length === 0) return result
+
+    const placeholders = chunks.map((_, i) => `$${i + 2}`).join(',')
+    const rows = await this.prisma.$queryRawUnsafe<Array<{ content: string; embedding: string }>>(
+      `SELECT content, embedding::text AS embedding
+       FROM "knowledge_chunks"
+       WHERE "companyId" = $1
+         AND content IN (${placeholders})
+       LIMIT 500`,
+      companyId,
+      ...chunks,
+    )
+
+    for (const row of rows) {
+      const key = chunkKey(row.content)
+      if (!result.has(key)) {
+        result.set(key, parseVec(row.embedding))
+      }
+    }
+    return result
   }
 }

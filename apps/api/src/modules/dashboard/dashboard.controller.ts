@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Query,
   HttpCode,
   HttpStatus,
   Logger,
@@ -28,9 +29,12 @@ export class DashboardController {
 
   @Post('insights/refresh')
   @HttpCode(HttpStatus.ACCEPTED)
-  refreshInsights(@CurrentUser() user: AuthenticatedUser) {
+  refreshInsights(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('force') force?: string,
+  ) {
     // Fire-and-forget — AI generation is async
-    this.dashboardService.refreshInsights(user.companyId).catch((err: unknown) => {
+    this.dashboardService.refreshInsights(user.companyId, force === 'true').catch((err: unknown) => {
       this.logger.error('Insight refresh failed for company ' + user.companyId, err)
     })
     return { message: 'Insight generation started' }

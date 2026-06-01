@@ -331,7 +331,42 @@ export class DashboardService {
     })
   }
 
-  async refreshInsights(companyId: string): Promise<void> {
+  async refreshInsights(companyId: string, force = false): Promise<void> {
+    // ── Event-invalidated cache ────────────────────────────────────────────────
+    if (!force) {
+      const lastInsight = await this.prisma.aIInsight.findFirst({
+        where: { companyId },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true },
+      })
+      if (lastInsight) {
+        const ageMs = Date.now() - lastInsight.createdAt.getTime()
+        if (ageMs < 60 * 60 * 1000) {
+          // Insights are less than 1 hour old — only regenerate if data changed
+          const since = lastInsight.createdAt
+          const [changedInvoice, changedDoc, changedChecklist] = await Promise.all([
+            this.prisma.invoice.findFirst({
+              where: { companyId, updatedAt: { gt: since } },
+              select: { id: true },
+            }),
+            this.prisma.document.findFirst({
+              where: { companyId, updatedAt: { gt: since } },
+              select: { id: true },
+            }),
+            this.prisma.complianceChecklist.findFirst({
+              where: { companyId, updatedAt: { gt: since } },
+              select: { id: true },
+            }),
+          ])
+          if (!changedInvoice && !changedDoc && !changedChecklist) {
+            this.logger.debug(`Skipping insight refresh for ${companyId} — no data changes since last generation`)
+            return
+          }
+        }
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     const company = await this.prisma.company.findUniqueOrThrow({
       where: { id: companyId },
       select: { tenantConfig: true },

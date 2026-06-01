@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Optional } from '@nestjs/common'
+import { Injectable, NotFoundException, BadRequestException, Optional } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
 import { Prisma } from '@opsc/database'
 import { AgingBreakdownDto } from './dto/aging-breakdown.dto'
@@ -212,6 +212,30 @@ export class CollectionsService {
       select: { id: true, customerName: true, amount: true, status: true },
     })
     if (!invoice) throw new NotFoundException('Invoice not found')
+
+    // ── Reminder interval guard ───────────────────────────────────────────────
+    const intervalDays = await this.configSvc.getNum(companyId, ConfigKey.REMINDER_INTERVAL_DAYS)
+    const intervalAgo = new Date(Date.now() - intervalDays * 24 * 60 * 60 * 1000)
+    const recentReminder = await this.prisma.auditLog.findFirst({
+      where: {
+        companyId,
+        entity: 'invoice',
+        entityId: invoiceId,
+        action: 'REMINDER_SENT',
+        createdAt: { gt: intervalAgo },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    })
+    if (recentReminder) {
+      const sentOn = recentReminder.createdAt.toLocaleDateString('en-IN', {
+        day: 'numeric', month: 'short', year: 'numeric',
+      })
+      throw new BadRequestException(
+        `Reminder already sent on ${sentOn}. Next reminder allowed after ${intervalDays} day${intervalDays === 1 ? '' : 's'}.`,
+      )
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     const company = await this.prisma.company.findUniqueOrThrow({
       where: { id: companyId },

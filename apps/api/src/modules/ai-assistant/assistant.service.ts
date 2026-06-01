@@ -4,8 +4,8 @@ import { PrismaService } from '../../prisma/prisma.service'
 import { KnowledgeService } from './knowledge.service'
 import type { ChatMessageDto } from './dto/chat.dto'
 
-const MAX_CONTEXT_CHUNKS = 5
-const MAX_HISTORY_MESSAGES = 10
+const MAX_CONTEXT_CHUNKS = 3
+const MAX_HISTORY_MESSAGES = 6
 
 @Injectable()
 export class AssistantService {
@@ -75,13 +75,13 @@ export class AssistantService {
       },
     ]
 
-    const systemPrompt = this.buildSystemPrompt(contextText, chunks)
+    const systemBlocks = this.buildSystemBlocks(contextText, chunks)
 
-    // 6. Call Claude
+    // 6. Call Claude with prompt caching on the static system prefix
     const response = await this.anthropic.messages.create({
       model: this.model,
       max_tokens: 2048,
-      system: systemPrompt,
+      system: systemBlocks,
       messages,
     })
 
@@ -156,13 +156,15 @@ export class AssistantService {
 
   // ─── Private ────────────────────────────────────────────────────────────────
 
-  private buildSystemPrompt(
+  // Returns content blocks with the static base cached via Anthropic prompt caching.
+  // The dynamic chunk context (changes per query) is a separate, uncached block.
+  private buildSystemBlocks(
     contextText: string,
     chunks: Array<{ documentTitle: string; similarity: number }>,
-  ): string {
-    const hasContext = contextText.length > 0
-
-    const base = `You are an internal AI assistant for a CA firm in India. You help staff with GST compliance, TDS filings, client management, and general accounting procedures.
+  ): Anthropic.TextBlockParam[] {
+    const staticBase: Anthropic.TextBlockParam = {
+      type: 'text',
+      text: `You are an internal AI assistant for a CA firm in India. You help staff with GST compliance, TDS filings, client management, and general accounting procedures.
 
 Rules:
 - Answer only from the provided knowledge base context when available
@@ -171,17 +173,17 @@ Rules:
 - Be concise and professional
 - Use Indian regulatory terminology (GST, TDS, ITR, PAN, GSTIN, etc.)
 - Format amounts in Indian notation (₹1,23,456)
-- Never hallucinate regulatory details — if unsure, say so`
-
-    if (hasContext) {
-      return `${base}
-
-## Knowledge Base Context
-${chunks.map((c, i) => `Source ${i + 1}: "${c.documentTitle}" (relevance: ${Math.round(c.similarity * 100)}%)`).join('\n')}
-
-${contextText}`
+- Never hallucinate regulatory details — if unsure, say so`,
+      cache_control: { type: 'ephemeral' },
     }
 
-    return base
+    if (contextText.length === 0) return [staticBase]
+
+    const dynamicContext: Anthropic.TextBlockParam = {
+      type: 'text',
+      text: `## Knowledge Base Context\n${chunks.map((c, i) => `Source ${i + 1}: "${c.documentTitle}" (relevance: ${Math.round(c.similarity * 100)}%)`).join('\n')}\n\n${contextText}`,
+    }
+
+    return [staticBase, dynamicContext]
   }
 }
