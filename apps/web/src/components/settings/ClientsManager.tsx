@@ -1,7 +1,10 @@
 'use client'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useApiClient } from '@/lib/client-api'
 import { ApiError } from '@/lib/api-error'
+
+type GstinVerificationStatus =
+  | 'UNVALIDATED' | 'VERIFIED' | 'CANCELLED' | 'SUSPENDED' | 'NOT_FOUND' | 'PENDING'
 
 interface Client {
   id: string
@@ -15,7 +18,15 @@ interface Client {
   filingCategory: string
   serviceScope: string[]
   isActive: boolean
+  gstinVerificationStatus: GstinVerificationStatus
+  gstinLegalName: string | null
   _count: { invoices: number; documents: number }
+}
+
+interface GstinLookupResult {
+  status: GstinVerificationStatus
+  legalName: string | null
+  registrationStatus: string | null
 }
 
 interface Props {
@@ -29,6 +40,28 @@ const EMPTY_FORM = {
   name: '', gstin: '', pan: '', contactPerson: '', phone: '', email: '',
   filerType: 'MONTHLY', filingCategory: 'REGULAR', serviceScope: [] as string[],
 }
+
+// ── GSTIN status badge ────────────────────────────────────────────────────────
+const STATUS_CONFIG: Record<GstinVerificationStatus, { label: string; classes: string; dot: string }> = {
+  VERIFIED:    { label: 'GSTIN Verified',           classes: 'bg-green-50 text-green-700 border-green-200',  dot: 'bg-green-500' },
+  CANCELLED:   { label: 'GSTIN Cancelled',          classes: 'bg-red-50 text-red-700 border-red-200',        dot: 'bg-red-500' },
+  SUSPENDED:   { label: 'GSTIN Suspended',          classes: 'bg-orange-50 text-orange-700 border-orange-200', dot: 'bg-orange-400' },
+  NOT_FOUND:   { label: 'GSTIN Not Found in Portal', classes: 'bg-yellow-50 text-yellow-700 border-yellow-200', dot: 'bg-yellow-400' },
+  PENDING:     { label: 'GSTIN Validation Pending', classes: 'bg-gray-100 text-gray-500 border-gray-200',    dot: 'bg-gray-400' },
+  UNVALIDATED: { label: 'GSTIN Not Validated',      classes: 'bg-gray-100 text-gray-400 border-gray-200',    dot: 'bg-gray-300' },
+}
+
+function GstinBadge({ status, className = '' }: { status: GstinVerificationStatus; className?: string }) {
+  const cfg = STATUS_CONFIG[status]
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border ${cfg.classes} ${className}`}>
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dot}`} />
+      {cfg.label}
+    </span>
+  )
+}
+
+const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/
 
 export function ClientsManager({ initialClients }: Props) {
   const { request } = useApiClient()
@@ -44,6 +77,12 @@ export function ClientsManager({ initialClients }: Props) {
   const [importResult, setImportResult] = useState<{ created: number; skipped: number; errors: string[] } | null>(null)
   const [statsClient, setStatsClient] = useState<{ id: string; name: string; stats: Record<string, unknown> } | null>(null)
 
+  // ── GSTIN validation state ─────────────────────────────────────────────────
+  const [gstinValidating, setGstinValidating] = useState(false)
+  const [gstinResult, setGstinResult] = useState<GstinLookupResult | null>(null)
+  const [nameSuggestion, setNameSuggestion] = useState<string | null>(null)
+  const validationAbortRef = useRef<AbortController | null>(null)
+
   const refresh = useCallback(async () => {
     const res = await request<{ data: Client[]; meta: { total: number; totalPages: number } }>('/clients?limit=50')
     setClients(res.data)
@@ -54,6 +93,8 @@ export function ClientsManager({ initialClients }: Props) {
     setEditClient(null)
     setForm(EMPTY_FORM)
     setFormError('')
+    setGstinResult(null)
+    setNameSuggestion(null)
     setShowModal(true)
   }
 
@@ -71,7 +112,62 @@ export function ClientsManager({ initialClients }: Props) {
       serviceScope: c.serviceScope,
     })
     setFormError('')
+    setGstinResult(null)
+    setNameSuggestion(null)
     setShowModal(true)
+  }
+
+  // ── Triggered on GSTIN field blur ─────────────────────────────────────────
+  async function handleGstinBlur() {
+    const gstin = form.gstin.trim().toUpperCase()
+    if (!gstin || !GSTIN_RE.test(gstin)) {
+      setGstinResult(null)
+      setNameSuggestion(null)
+      return
+    }
+
+    // Cancel any in-flight validation
+    validationAbortRef.current?.abort()
+    const controller = new AbortController()
+    validationAbortRef.current = controller
+
+    setGstinValidating(true)
+    setGstinResult(null)
+    setNameSuggestion(null)
+
+    try {
+      const result = await request<GstinLookupResult>(`/clients/gstin/validate?gstin=${gstin}`)
+      if (controller.signal.aborted) return
+      setGstinResult(result)
+
+      // Name suggestion logic: only if name field is non-empty and GSTN returned a name
+      if (result.legalName) {
+        if (!form.name.trim()) {
+          // Name field is empty — inform user rather than auto-filling
+          // (per decision: don't auto-fill, just show a note)
+          setNameSuggestion(null)
+        } else if (result.legalName.trim().toLowerCase() !== form.name.trim().toLowerCase()) {
+          // GSTN name differs from what's entered — show suggestion
+          setNameSuggestion(result.legalName)
+        }
+      } else if (result.status === 'VERIFIED') {
+        // Verified but no name returned from GSTN — inform user
+        setNameSuggestion('__NO_NAME__')
+      }
+    } catch {
+      if (!controller.signal.aborted) {
+        setGstinResult({ status: 'PENDING', legalName: null, registrationStatus: null })
+      }
+    } finally {
+      if (!controller.signal.aborted) setGstinValidating(false)
+    }
+  }
+
+  function acceptNameSuggestion() {
+    if (nameSuggestion && nameSuggestion !== '__NO_NAME__') {
+      setForm((f) => ({ ...f, name: nameSuggestion }))
+    }
+    setNameSuggestion(null)
   }
 
   function toggleService(svc: string) {
@@ -135,6 +231,9 @@ export function ClientsManager({ initialClients }: Props) {
 
   const CSV_TEMPLATE = 'name,gstin,pan,contactPerson,phone,email,filerType\nSample Client,29AABCS1429B1Z4,AABCS1429B,Rajesh Kumar,+919876543210,rajesh@example.com,MONTHLY'
 
+  // Disable save while GSTIN is validating
+  const saveDisabled = saving || gstinValidating
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -180,7 +279,18 @@ export function ClientsManager({ initialClients }: Props) {
                       {c.name}
                     </button>
                   </td>
-                  <td className="px-4 py-3 font-mono text-gray-600 text-xs">{c.gstin ?? '—'}</td>
+                  <td className="px-4 py-3">
+                    {c.gstin ? (
+                      <div className="space-y-1">
+                        <span className="font-mono text-gray-600 text-xs">{c.gstin}</span>
+                        <div>
+                          <GstinBadge status={c.gstinVerificationStatus} />
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-xs">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{c.filerType}</span>
                   </td>
@@ -219,15 +329,103 @@ export function ClientsManager({ initialClients }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
                 <label className="text-xs text-gray-600 mb-1 block">Name *</label>
-                <input type="text" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               </div>
-              <div>
+
+              {/* ── GSTIN field with validation ── */}
+              <div className="col-span-2">
                 <label className="text-xs text-gray-600 mb-1 block">GSTIN</label>
-                <input type="text" value={form.gstin} onChange={(e) => setForm((f) => ({ ...f, gstin: e.target.value.toUpperCase() }))}
-                  maxLength={15} placeholder="29AABCS1429B1Z4"
-                  className="w-full text-sm font-mono border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={form.gstin}
+                    onChange={(e) => {
+                      setForm((f) => ({ ...f, gstin: e.target.value.toUpperCase() }))
+                      setGstinResult(null)
+                      setNameSuggestion(null)
+                    }}
+                    onBlur={handleGstinBlur}
+                    maxLength={15}
+                    placeholder="29AABCS1429B1Z4"
+                    className="w-full text-sm font-mono border border-gray-300 rounded-lg px-3 py-2 pr-36 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  {/* Inline status on the right of the input */}
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                    {gstinValidating ? (
+                      <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                        <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                        </svg>
+                        Validating…
+                      </span>
+                    ) : gstinResult ? (
+                      <GstinBadge status={gstinResult.status} />
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* GSTN returned verified but no legal name */}
+                {!gstinValidating && nameSuggestion === '__NO_NAME__' && (
+                  <p className="mt-1.5 text-xs text-amber-600">
+                    GSTIN is verified but no registered name was returned by the GST portal.
+                  </p>
+                )}
+
+                {/* Name suggestion banner */}
+                {!gstinValidating && nameSuggestion && nameSuggestion !== '__NO_NAME__' && (
+                  <div className="mt-2 flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                    <div>
+                      <p className="text-xs text-blue-700 font-medium">GSTN registered name:</p>
+                      <p className="text-xs text-blue-900 font-semibold mt-0.5">{nameSuggestion}</p>
+                    </div>
+                    <div className="flex gap-2 ml-3 shrink-0">
+                      <button
+                        type="button"
+                        onClick={acceptNameSuggestion}
+                        className="text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 px-2.5 py-1 rounded"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNameSuggestion(null)}
+                        className="text-xs font-medium text-gray-500 hover:text-gray-700 px-2 py-1 rounded"
+                      >
+                        Ignore
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Cancelled / Suspended warning */}
+                {!gstinValidating && gstinResult?.status === 'CANCELLED' && (
+                  <p className="mt-1.5 text-xs text-red-600 font-medium">
+                    ⚠ This GSTIN&apos;s registration is cancelled in the GST portal. Verify with your client before proceeding.
+                  </p>
+                )}
+                {!gstinValidating && gstinResult?.status === 'SUSPENDED' && (
+                  <p className="mt-1.5 text-xs text-orange-600 font-medium">
+                    ⚠ This GSTIN&apos;s registration is currently suspended in the GST portal.
+                  </p>
+                )}
+                {!gstinValidating && gstinResult?.status === 'NOT_FOUND' && (
+                  <p className="mt-1.5 text-xs text-yellow-700">
+                    GSTIN not found in the GST portal. It may be a new registration or there may be a typo. Client will be saved with validation status &quot;Not Found&quot;.
+                  </p>
+                )}
+                {!gstinValidating && gstinResult?.status === 'PENDING' && (
+                  <p className="mt-1.5 text-xs text-gray-500">
+                    Could not reach the GST portal right now. Client will be saved and validation will be retried automatically.
+                  </p>
+                )}
               </div>
+
               <div>
                 <label className="text-xs text-gray-600 mb-1 block">PAN</label>
                 <input type="text" value={form.pan} onChange={(e) => setForm((f) => ({ ...f, pan: e.target.value.toUpperCase() }))}
@@ -278,10 +476,14 @@ export function ClientsManager({ initialClients }: Props) {
             </div>
 
             {formError && <p className="text-sm text-red-600">{formError}</p>}
+
             <div className="flex gap-2 pt-2">
-              <button onClick={save} disabled={saving}
-                className="flex-1 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-60">
-                {saving ? 'Saving…' : editClient ? 'Update' : 'Create'}
+              <button
+                onClick={save}
+                disabled={saveDisabled}
+                className="flex-1 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {gstinValidating ? 'Validating GSTIN…' : saving ? 'Saving…' : editClient ? 'Update' : 'Create'}
               </button>
               <button onClick={() => setShowModal(false)}
                 className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200">

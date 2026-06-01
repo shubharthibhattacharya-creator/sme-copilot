@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common'
+import { Injectable, NotFoundException, ConflictException, Optional } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
 import {
   InvalidGstinException,
@@ -9,13 +9,17 @@ import {
 import type { CreateClientDto } from './dto/create-client.dto'
 import type { UpdateClientDto } from './dto/update-client.dto'
 import type { ListClientsDto } from './dto/list-clients.dto'
+import type { GstinService } from './gstin.service'
 
 const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/
 const PAN_RE   = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/
 
 @Injectable()
 export class ClientsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly gstinSvc?: GstinService,
+  ) {}
 
   private validate(dto: { gstin?: string; pan?: string }) {
     if (dto.gstin && !GSTIN_RE.test(dto.gstin)) {
@@ -34,7 +38,12 @@ export class ClientsService {
       })
       if (existing) throw new ClientAlreadyExistsException(dto.gstin)
     }
-    return this.prisma.client.create({ data: { companyId, ...dto } })
+    const client = await this.prisma.client.create({ data: { companyId, ...dto } })
+    // Fire-and-forget GSTIN validation — result stored asynchronously
+    if (dto.gstin && this.gstinSvc) {
+      this.gstinSvc.validateAndStore(client.id, dto.gstin).catch(() => undefined)
+    }
+    return client
   }
 
   async list(companyId: string, query: ListClientsDto) {
@@ -78,7 +87,12 @@ export class ClientsService {
   async update(companyId: string, id: string, dto: UpdateClientDto) {
     this.validate(dto)
     await this.findOne(companyId, id)
-    return this.prisma.client.update({ where: { id }, data: dto })
+    const updated = await this.prisma.client.update({ where: { id }, data: dto })
+    // Re-validate if GSTIN changed
+    if (dto.gstin && this.gstinSvc) {
+      this.gstinSvc.validateAndStore(id, dto.gstin).catch(() => undefined)
+    }
+    return updated
   }
 
   async softDelete(companyId: string, id: string) {

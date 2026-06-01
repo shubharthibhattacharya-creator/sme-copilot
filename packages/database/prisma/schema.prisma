@@ -16,6 +16,15 @@ datasource db {
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
+enum GstinVerificationStatus {
+  UNVALIDATED  // Never attempted
+  VERIFIED     // Active registration confirmed with GSTN
+  CANCELLED    // GSTIN exists but registration is cancelled
+  SUSPENDED    // GSTIN exists but registration is suspended
+  NOT_FOUND    // Valid format but not found in GSTN
+  PENDING      // API call failed or timed out — will retry
+}
+
 enum FilerType {
   MONTHLY
   QUARTERLY
@@ -420,6 +429,12 @@ model Client {
   serviceScope   String[]
   gstDeadlineDay Int?
   isActive       Boolean        @default(true)
+
+  // GSTIN verification
+  gstinVerificationStatus GstinVerificationStatus @default(UNVALIDATED)
+  gstinLegalName          String?
+  gstinVerifiedAt         DateTime?
+
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 

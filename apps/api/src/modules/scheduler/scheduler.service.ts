@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule'
 import { PrismaService } from '../../prisma/prisma.service'
 import { FilingsService } from '../filings/filings.service'
 import { EmailService } from '../email/email.service'
+import { GstinService } from '../clients/gstin.service'
 
 @Injectable()
 export class SchedulerService {
@@ -12,6 +13,7 @@ export class SchedulerService {
     private readonly prisma: PrismaService,
     private readonly filings: FilingsService,
     private readonly email: EmailService,
+    private readonly gstinSvc: GstinService,
   ) {}
 
   /**
@@ -66,5 +68,21 @@ export class SchedulerService {
     }
 
     this.logger.log(`Deadline reminders complete — sent=${sent}, skipped=${skipped}`)
+  }
+
+  /**
+   * Daily at 3 AM IST (21:30 UTC previous day).
+   * Retries GSTIN verification for all clients in PENDING status.
+   * Runs off-peak to avoid GSTN API load during filing season.
+   */
+  @Cron('30 21 * * *')
+  async retryPendingGstinVerifications(): Promise<void> {
+    this.logger.log('Running GSTIN verification retry job')
+    try {
+      const { retried, resolved } = await this.gstinSvc.retryPending()
+      this.logger.log(`GSTIN retry complete — retried=${retried}, resolved=${resolved}`)
+    } catch (err) {
+      this.logger.error('GSTIN retry job failed', err)
+    }
   }
 }

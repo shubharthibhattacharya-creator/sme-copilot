@@ -53,4 +53,5 @@ export {
   FilingType,
   ChecklistStatus,
   NotificationType,
+  GstinVerificationStatus,
 } from '@prisma/client';

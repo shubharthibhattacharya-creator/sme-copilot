@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, HttpCode, HttpStatus } from '@nestjs/common'
 import { ClientsService } from './clients.service'
+import { GstinService } from './gstin.service'
 import { CreateClientDto } from './dto/create-client.dto'
 import { UpdateClientDto } from './dto/update-client.dto'
 import { ListClientsDto } from './dto/list-clients.dto'
@@ -8,7 +9,10 @@ import type { AuthenticatedUser } from '@opsc/types'
 
 @Controller('clients')
 export class ClientsController {
-  constructor(private readonly clients: ClientsService) {}
+  constructor(
+    private readonly clients: ClientsService,
+    private readonly gstin: GstinService,
+  ) {}
 
   @Get()
   list(@CurrentUser() user: AuthenticatedUser, @Query() query: ListClientsDto) {
@@ -45,5 +49,11 @@ export class ClientsController {
   @HttpCode(HttpStatus.OK)
   importCsv(@CurrentUser() user: AuthenticatedUser, @Body('csv') csv: string) {
     return this.clients.importFromCsv(user.companyId, csv)
+  }
+
+  // ── GSTIN real-time lookup (called from form on blur) ───────────────────────
+  @Get('gstin/validate')
+  validateGstin(@Query('gstin') gstin: string) {
+    return this.gstin.lookup(gstin)
   }
 }
