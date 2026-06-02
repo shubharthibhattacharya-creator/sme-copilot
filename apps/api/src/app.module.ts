@@ -26,6 +26,7 @@ import { IntegrationsModule } from './modules/integrations/integrations.module'
 import { EncryptionModule } from './common/encryption/encryption.module'
 import { SchedulerModule } from './modules/scheduler/scheduler.module'
 import { ComplianceModule } from './modules/compliance/compliance.module'
+import { QueueModule } from './common/queue/queue.module'
 
 @Module({
   controllers: [HealthController],
@@ -35,6 +36,7 @@ import { ComplianceModule } from './modules/compliance/compliance.module'
       envFilePath: '../../.env',
     }),
     EncryptionModule,
+    QueueModule,
     EmailModule,
     OpscConfigModule,
     PrismaModule,

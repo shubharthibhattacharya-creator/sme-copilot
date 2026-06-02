@@ -5,17 +5,21 @@ import {
   Query,
   HttpCode,
   HttpStatus,
-  Logger,
 } from '@nestjs/common'
+import { InjectQueue } from '@nestjs/bullmq'
+import { Queue } from 'bullmq'
 import { DashboardService } from './dashboard.service'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
+import { QUEUE_INSIGHTS } from '../../common/queue/queue.constants'
+import type { InsightsJobData } from './insights.processor'
 import type { AuthenticatedUser } from '@opsc/types'
 
 @Controller('dashboard')
 export class DashboardController {
-  private readonly logger = new Logger(DashboardController.name)
-
-  constructor(private readonly dashboardService: DashboardService) {}
+  constructor(
+    private readonly dashboardService: DashboardService,
+    @InjectQueue(QUEUE_INSIGHTS) private readonly insightsQueue: Queue<InsightsJobData>,
+  ) {}
 
   @Get('summary')
   getSummary(@CurrentUser() user: AuthenticatedUser) {
@@ -29,13 +33,13 @@ export class DashboardController {
 
   @Post('insights/refresh')
   @HttpCode(HttpStatus.ACCEPTED)
-  refreshInsights(
+  async refreshInsights(
     @CurrentUser() user: AuthenticatedUser,
     @Query('force') force?: string,
   ) {
-    // Fire-and-forget — AI generation is async
-    this.dashboardService.refreshInsights(user.companyId, force === 'true').catch((err: unknown) => {
-      this.logger.error('Insight refresh failed for company ' + user.companyId, err)
+    await this.insightsQueue.add('refresh', {
+      companyId: user.companyId,
+      force: force === 'true',
     })
     return { message: 'Insight generation started' }
   }

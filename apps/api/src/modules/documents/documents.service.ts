@@ -1,4 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { InjectQueue } from '@nestjs/bullmq'
+import { Queue } from 'bullmq'
 import {
   AppException,
   DocumentOcrFailedException,
@@ -18,6 +20,8 @@ import { IntegrationsService } from '../integrations/integrations.service'
 import { DocumentClassificationService } from './document-classification.service'
 import { DocumentToInvoiceService } from './document-to-invoice.service'
 import { ReadinessService } from '../compliance/readiness.service'
+import { QUEUE_OCR } from '../../common/queue/queue.constants'
+import type { OcrJobData } from './ocr.processor'
 import type { UploadDocumentDto } from './dto/upload-document.dto'
 import type { ListDocumentsDto } from './dto/list-documents.dto'
 import type { CreateDocumentRequestDto } from './dto/create-document-request.dto'
@@ -47,6 +51,7 @@ export class DocumentsService {
     private readonly classificationService: DocumentClassificationService,
     private readonly bridgeService: DocumentToInvoiceService,
     private readonly readinessService: ReadinessService,
+    @InjectQueue(QUEUE_OCR) private readonly ocrQueue: Queue<OcrJobData>,
   ) {}
 
   async upload(
@@ -91,10 +96,8 @@ export class DocumentsService {
       },
     })
 
-    // Fire-and-forget OCR
-    this.processOcr(document.id, user.companyId).catch((err: unknown) => {
-      this.logger.error(`OCR failed for document ${document.id}`, err)
-    })
+    // Enqueue OCR — worker picks up async with 3 retries on failure
+    await this.ocrQueue.add('process', { documentId: document.id, companyId: user.companyId })
 
     // Notify uploader
     this.notifyUpload(document.id, user, 'staff').catch(() => undefined)
@@ -297,10 +300,7 @@ export class DocumentsService {
 
   async reprocess(id: string, companyId: string) {
     const doc = await this.findOne(id, companyId)
-    // Fire-and-forget
-    this.processOcr(doc.id, companyId).catch((err: unknown) => {
-      this.logger.error(`Reprocess OCR failed for ${id}`, err)
-    })
+    await this.ocrQueue.add('process', { documentId: doc.id, companyId })
     return { message: 'Reprocessing started', documentId: id }
   }
 

@@ -1,6 +1,10 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { InjectQueue } from '@nestjs/bullmq'
+import { Queue } from 'bullmq'
 import { PrismaService } from '../../prisma/prisma.service'
 import { AiService } from '../ai/ai.service'
+import { QUEUE_REPORTS } from '../../common/queue/queue.constants'
+import type { ReportJobData } from './report.processor'
 import type { CreateReportDto } from './dto/create-report.dto'
 import type { AuthenticatedUser, TenantConfig } from '@opsc/types'
 import type { ReportType } from '@opsc/database'
@@ -12,6 +16,7 @@ export class ReportsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AiService,
+    @InjectQueue(QUEUE_REPORTS) private readonly reportQueue: Queue<ReportJobData>,
   ) {}
 
   async create(dto: CreateReportDto, user: AuthenticatedUser) {
@@ -26,10 +31,8 @@ export class ReportsService {
       },
     })
 
-    // Fire-and-forget generation
-    this.generate(report.id, user.companyId).catch((err: unknown) => {
-      this.logger.error(`Report generation failed for ${report.id}`, err)
-    })
+    // Enqueue generation — worker picks up async with 3 retries on failure
+    await this.reportQueue.add('generate', { reportId: report.id, companyId: user.companyId })
 
     return report
   }
