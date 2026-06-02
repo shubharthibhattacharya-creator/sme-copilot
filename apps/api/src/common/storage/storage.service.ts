@@ -51,6 +51,9 @@ export class StorageService {
       })
       this.logger.log(`StorageService: S3/R2 bucket "${this.bucket}" endpoint="${endpoint ?? 'default'}"`)
     } else {
+      if (process.env['NODE_ENV'] === 'production') {
+        throw new Error('S3_BUCKET must be set in production — local disk storage is not supported')
+      }
       this.uploadDir = process.env['UPLOAD_DIR'] ?? path.join(process.cwd(), 'uploads')
       if (!fs.existsSync(this.uploadDir)) {
         fs.mkdirSync(this.uploadDir, { recursive: true })
