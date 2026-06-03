@@ -61,4 +61,7 @@ export {
   ReconStatus,
   Gstr2bFileFormat,
   ReconProcessingStatus,
+  DocumentOwner,
+  DocumentPurpose,
+  SourceChannel,
 } from '@prisma/client';
