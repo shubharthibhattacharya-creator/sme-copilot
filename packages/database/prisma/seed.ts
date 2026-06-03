@@ -9,7 +9,7 @@ interface SystemConfigRow {
   key: string
   value: string
   dataType: 'NUMBER' | 'BOOLEAN' | 'STRING' | 'JSON'
-  category: 'COLLECTIONS' | 'AI_INSIGHTS' | 'GST_COMPLIANCE' | 'DOCUMENTS' | 'REPORTS' | 'WHATSAPP'
+  category: 'COLLECTIONS' | 'AI_INSIGHTS' | 'GST_COMPLIANCE' | 'DOCUMENTS' | 'REPORTS' | 'WHATSAPP' | 'RECONCILIATION'
   label: string
   description: string
   unit?: string
@@ -55,6 +55,10 @@ const SYSTEM_CONFIG_ROWS: SystemConfigRow[] = [
   { key: 'auto_report_enabled', value: 'false', dataType: 'BOOLEAN', category: 'REPORTS', label: 'Auto-generate reports', description: 'Automatically generate a collections aging report at the start of each month.' },
   { key: 'auto_report_day_of_month', value: '1', dataType: 'NUMBER', category: 'REPORTS', label: 'Auto-report day of month', description: 'Day of month on which auto-reports are generated (only applies when auto-generate is enabled).', unit: 'day', minValue: '1', maxValue: '28' },
   { key: 'auto_report_recipients', value: '[]', dataType: 'JSON', category: 'REPORTS', label: 'Auto-report recipients', description: 'Email addresses that receive auto-generated reports. Leave empty to disable email delivery.' },
+  // ── Reconciliation ────────────────────────────────────────────────────────────
+  { key: 'recon_tolerance_type',  value: '"PERCENTAGE"', dataType: 'STRING', category: 'RECONCILIATION', label: 'Tolerance type', description: 'How to measure amount tolerance when fuzzy-matching GSTR-2B lines to purchase invoices. PERCENTAGE = % of invoice value; FIXED = absolute ₹ amount.' },
+  { key: 'recon_tolerance_value', value: '5',            dataType: 'NUMBER', category: 'RECONCILIATION', label: 'Tolerance value', description: 'Maximum acceptable difference when matching invoice amounts. Interpreted as % if tolerance type is PERCENTAGE, else ₹.', unit: '% or ₹', minValue: '0', maxValue: '100' },
+  { key: 'recon_auto_match',      value: 'true',         dataType: 'BOOLEAN',category: 'RECONCILIATION', label: 'Auto-match on upload', description: 'Automatically run reconciliation matching when a GSTR-2B file is uploaded.' },
   // ── WhatsApp ──────────────────────────────────────────────────────────────────
   { key: 'whatsapp_max_per_minute', value: '10', dataType: 'NUMBER', category: 'WHATSAPP', label: 'Max messages per minute', description: 'Rate limit: maximum WhatsApp messages sent per minute to avoid Twilio throttling.', unit: 'messages/min', minValue: '1', maxValue: '60' },
   { key: 'whatsapp_nudge_window_days', value: '7', dataType: 'NUMBER', category: 'WHATSAPP', label: 'Deadline nudge window (days)', description: 'Days before filing deadline within which bulk nudge messages are sent to clients.', unit: 'days', minValue: '1', maxValue: '30' },
@@ -261,6 +265,11 @@ async function main() {
   await prisma.whatsAppTemplate.deleteMany()
   await prisma.report.deleteMany()
   await prisma.documentRequest.deleteMany()
+  // Reconciliation tables (FK to document / purchaseInvoice)
+  await prisma.reconciliationResult.deleteMany()
+  await prisma.gstr2bLineItem.deleteMany()
+  await prisma.gstr2bUpload.deleteMany()
+  await prisma.purchaseInvoice.deleteMany()
   await prisma.document.deleteMany()
   await prisma.auditLog.deleteMany()
   await prisma.aIInsight.deleteMany()
@@ -303,48 +312,198 @@ async function main() {
       })
     }
 
-    // 3. Invoices — 20 per company, 4 per customer
-    const statusPool: InvoiceStatus[] = [
-      'PAID', 'PAID',
-      'PENDING', 'PENDING', 'PENDING',
-      'OVERDUE', 'OVERDUE', 'OVERDUE',
-      'PARTIAL',
-    ]
-
+    // 3. Invoices
     const now = new Date()
     const invoices: Awaited<ReturnType<typeof prisma.invoice.create>>[] = []
 
-    for (let c = 0; c < def.customers.length; c++) {
-      const customerName = def.customers[c]!
-      for (let j = 0; j < 4; j++) {
-        const status = statusPool[(c * 4 + j) % statusPool.length] as InvoiceStatus
-        const agingDays = status === 'OVERDUE' ? rand(5, 120) : status === 'PARTIAL' ? rand(10, 60) : 0
-        const dueDate = new Date(now)
-        dueDate.setDate(dueDate.getDate() - agingDays - rand(0, 15))
+    if (def.industry === Industry.CA_FIRM) {
+      // ── CA firm: 6-month dated history for dashboard KPI trends ──────────────
+      //
+      // Month layout (today: ~Jun 2026)
+      // Jan 2026: 8 invoices — 5 PAID, 2 OVERDUE, 1 PENDING  (baseline, quiet month)
+      // Feb 2026: 9 invoices — 5 PAID, 3 OVERDUE, 1 PENDING  (slight uptick)
+      // Mar 2026: 13 invoices — 9 PAID, 3 OVERDUE, 1 PENDING (ITR season peak)
+      // Apr 2026: 11 invoices — 7 PAID, 3 OVERDUE, 1 PENDING (post-ITR healthy)
+      // May 2026: 10 invoices — 5 PAID, 4 OVERDUE, 1 PENDING (slowdown)
+      // Jun 2026 (current): 8 invoices — 3 PAID (last 14d for WoW), 3 OVERDUE, 2 PENDING
 
-        const paidAt =
-          status === 'PAID'
-            ? (() => {
-                const d = new Date(dueDate)
-                d.setDate(d.getDate() + rand(-10, 5))
-                return d
-              })()
+      interface MonthDef {
+        year: number
+        month: number  // 0-indexed
+        invoices: Array<{ customerIdx: number; status: InvoiceStatus; amount: number; daysOverdue?: number; paidDaysAgo?: number }>
+      }
+
+      const MONTHLY_DATA: MonthDef[] = [
+        // ── January 2026 ──
+        { year: 2026, month: 0, invoices: [
+          { customerIdx: 0, status: 'PAID',    amount: 85000,  paidDaysAgo: 155 },
+          { customerIdx: 1, status: 'PAID',    amount: 120000, paidDaysAgo: 148 },
+          { customerIdx: 2, status: 'PAID',    amount: 65000,  paidDaysAgo: 162 },
+          { customerIdx: 3, status: 'PAID',    amount: 95000,  paidDaysAgo: 151 },
+          { customerIdx: 4, status: 'PAID',    amount: 55000,  paidDaysAgo: 158 },
+          { customerIdx: 0, status: 'OVERDUE', amount: 75000,  daysOverdue: 140 },
+          { customerIdx: 1, status: 'OVERDUE', amount: 130000, daysOverdue: 135 },
+          { customerIdx: 2, status: 'PENDING', amount: 48000 },
+        ]},
+        // ── February 2026 ──
+        { year: 2026, month: 1, invoices: [
+          { customerIdx: 0, status: 'PAID',    amount: 95000,  paidDaysAgo: 120 },
+          { customerIdx: 1, status: 'PAID',    amount: 145000, paidDaysAgo: 113 },
+          { customerIdx: 2, status: 'PAID',    amount: 78000,  paidDaysAgo: 118 },
+          { customerIdx: 3, status: 'PAID',    amount: 110000, paidDaysAgo: 125 },
+          { customerIdx: 4, status: 'PAID',    amount: 62000,  paidDaysAgo: 116 },
+          { customerIdx: 0, status: 'OVERDUE', amount: 88000,  daysOverdue: 108 },
+          { customerIdx: 1, status: 'OVERDUE', amount: 155000, daysOverdue: 103 },
+          { customerIdx: 2, status: 'OVERDUE', amount: 42000,  daysOverdue: 110 },
+          { customerIdx: 3, status: 'PENDING', amount: 66000 },
+        ]},
+        // ── March 2026 — ITR / year-end peak ──
+        { year: 2026, month: 2, invoices: [
+          { customerIdx: 0, status: 'PAID',    amount: 185000, paidDaysAgo: 88 },
+          { customerIdx: 1, status: 'PAID',    amount: 220000, paidDaysAgo: 82 },
+          { customerIdx: 2, status: 'PAID',    amount: 145000, paidDaysAgo: 91 },
+          { customerIdx: 3, status: 'PAID',    amount: 175000, paidDaysAgo: 79 },
+          { customerIdx: 4, status: 'PAID',    amount: 98000,  paidDaysAgo: 85 },
+          { customerIdx: 0, status: 'PAID',    amount: 135000, paidDaysAgo: 75 },
+          { customerIdx: 1, status: 'PAID',    amount: 165000, paidDaysAgo: 93 },
+          { customerIdx: 2, status: 'PAID',    amount: 115000, paidDaysAgo: 80 },
+          { customerIdx: 3, status: 'PAID',    amount: 88000,  paidDaysAgo: 87 },
+          { customerIdx: 0, status: 'OVERDUE', amount: 145000, daysOverdue: 72 },
+          { customerIdx: 1, status: 'OVERDUE', amount: 190000, daysOverdue: 68 },
+          { customerIdx: 2, status: 'OVERDUE', amount: 78000,  daysOverdue: 75 },
+          { customerIdx: 4, status: 'PENDING', amount: 105000 },
+        ]},
+        // ── April 2026 — post-ITR ──
+        { year: 2026, month: 3, invoices: [
+          { customerIdx: 0, status: 'PAID',    amount: 125000, paidDaysAgo: 55 },
+          { customerIdx: 1, status: 'PAID',    amount: 185000, paidDaysAgo: 49 },
+          { customerIdx: 2, status: 'PAID',    amount: 95000,  paidDaysAgo: 58 },
+          { customerIdx: 3, status: 'PAID',    amount: 145000, paidDaysAgo: 46 },
+          { customerIdx: 4, status: 'PAID',    amount: 75000,  paidDaysAgo: 52 },
+          { customerIdx: 0, status: 'PAID',    amount: 115000, paidDaysAgo: 43 },
+          { customerIdx: 1, status: 'PAID',    amount: 165000, paidDaysAgo: 60 },
+          { customerIdx: 2, status: 'OVERDUE', amount: 98000,  daysOverdue: 40 },
+          { customerIdx: 3, status: 'OVERDUE', amount: 225000, daysOverdue: 38 },
+          { customerIdx: 4, status: 'OVERDUE', amount: 65000,  daysOverdue: 42 },
+          { customerIdx: 0, status: 'PENDING', amount: 88000 },
+        ]},
+        // ── May 2026 — slowdown ──
+        { year: 2026, month: 4, invoices: [
+          { customerIdx: 0, status: 'PAID',    amount: 88000,  paidDaysAgo: 25 },
+          { customerIdx: 1, status: 'PAID',    amount: 135000, paidDaysAgo: 19 },
+          { customerIdx: 2, status: 'PAID',    amount: 72000,  paidDaysAgo: 28 },
+          { customerIdx: 3, status: 'PAID',    amount: 98000,  paidDaysAgo: 22 },
+          { customerIdx: 4, status: 'PAID',    amount: 55000,  paidDaysAgo: 16 },
+          { customerIdx: 0, status: 'OVERDUE', amount: 175000, daysOverdue: 18 },
+          { customerIdx: 1, status: 'OVERDUE', amount: 240000, daysOverdue: 14 },
+          { customerIdx: 2, status: 'OVERDUE', amount: 88000,  daysOverdue: 21 },
+          { customerIdx: 3, status: 'OVERDUE', amount: 52000,  daysOverdue: 12 },
+          { customerIdx: 4, status: 'PENDING', amount: 115000 },
+        ]},
+        // ── June 2026 — current month, early ──
+        { year: 2026, month: 5, invoices: [
+          // Current week payments (last 7 days) → drives positive WoW trend
+          { customerIdx: 0, status: 'PAID', amount: 125000, paidDaysAgo: 2 },
+          { customerIdx: 1, status: 'PAID', amount: 185000, paidDaysAgo: 4 },
+          { customerIdx: 2, status: 'PAID', amount: 95000,  paidDaysAgo: 1 },
+          // Last week payments (7-14 days ago)
+          { customerIdx: 3, status: 'PAID', amount: 88000,  paidDaysAgo: 8 },
+          { customerIdx: 4, status: 'PAID', amount: 112000, paidDaysAgo: 11 },
+          // Active overdue
+          { customerIdx: 1, status: 'OVERDUE', amount: 420000, daysOverdue: 6  },
+          { customerIdx: 3, status: 'OVERDUE', amount: 185000, daysOverdue: 3  },
+          { customerIdx: 2, status: 'PENDING', amount: 145000 },
+          { customerIdx: 4, status: 'PENDING', amount: 78000  },
+        ]},
+      ]
+
+      for (const monthDef of MONTHLY_DATA) {
+        const monthStart = new Date(monthDef.year, monthDef.month, 1)
+
+        for (const inv of monthDef.invoices) {
+          const customerName = def.customers[inv.customerIdx]!
+          const invoiceDay = rand(1, 25)
+          const createdDate = new Date(monthDef.year, monthDef.month, invoiceDay)
+
+          const dueDate = new Date(createdDate)
+          dueDate.setDate(dueDate.getDate() + 30)
+
+          const agingDays = inv.status === 'OVERDUE'
+            ? (inv.daysOverdue ?? rand(5, 30))
+            : inv.status === 'PARTIAL' ? rand(5, 20) : 0
+
+          const paidAt = inv.status === 'PAID' && inv.paidDaysAgo !== undefined
+            ? new Date(now.getTime() - inv.paidDaysAgo * 86400000)
             : null
 
-        const inv = await prisma.invoice.create({
-          data: {
-            companyId: company.id,
-            customerName,
-            customerPhone: `+919${rand(100000000, 999999999)}`,
-            amount: randomAmount(10000, 500000),
-            currency: 'INR',
-            dueDate,
-            paidAt,
-            status,
-            agingDays,
-          },
-        })
-        invoices.push(inv)
+          const invoiceRecord = await prisma.invoice.create({
+            data: {
+              companyId: company.id,
+              customerName,
+              customerPhone: `+919${rand(100000000, 999999999)}`,
+              amount: new Decimal(inv.amount),
+              currency: 'INR',
+              dueDate,
+              paidAt,
+              status: inv.status,
+              agingDays,
+            },
+          })
+          invoices.push(invoiceRecord)
+
+          // Backdate createdAt and updatedAt via raw SQL so monthly sparklines show real history
+          const updatedAtForSparkline = inv.status === 'OVERDUE'
+            ? new Date(now.getTime() - agingDays * 86400000)
+            : monthStart
+          await prisma.$executeRaw`
+            UPDATE invoices
+            SET "createdAt" = ${createdDate}::timestamptz,
+                "updatedAt" = ${updatedAtForSparkline}::timestamptz
+            WHERE id = ${invoiceRecord.id}
+          `
+        }
+      }
+    } else {
+      // ── Distributor / Manufacturer: simple 20-invoice spread ──────────────────
+      const statusPool: InvoiceStatus[] = [
+        'PAID', 'PAID',
+        'PENDING', 'PENDING', 'PENDING',
+        'OVERDUE', 'OVERDUE', 'OVERDUE',
+        'PARTIAL',
+      ]
+
+      for (let c = 0; c < def.customers.length; c++) {
+        const customerName = def.customers[c]!
+        for (let j = 0; j < 4; j++) {
+          const status = statusPool[(c * 4 + j) % statusPool.length] as InvoiceStatus
+          const agingDays = status === 'OVERDUE' ? rand(5, 120) : status === 'PARTIAL' ? rand(10, 60) : 0
+          const dueDate = new Date(now)
+          dueDate.setDate(dueDate.getDate() - agingDays - rand(0, 15))
+
+          const paidAt =
+            status === 'PAID'
+              ? (() => {
+                  const d = new Date(dueDate)
+                  d.setDate(d.getDate() + rand(-10, 5))
+                  return d
+                })()
+              : null
+
+          const inv = await prisma.invoice.create({
+            data: {
+              companyId: company.id,
+              customerName,
+              customerPhone: `+919${rand(100000000, 999999999)}`,
+              amount: randomAmount(10000, 500000),
+              currency: 'INR',
+              dueDate,
+              paidAt,
+              status,
+              agingDays,
+            },
+          })
+          invoices.push(inv)
+        }
       }
     }
 
@@ -415,34 +574,194 @@ async function main() {
       update: bizCfg,
     })
 
-    // 8. Seed documents (2 per company)
+    // 8. Seed documents
     const adminUser = await prisma.user.findFirst({ where: { companyId: company.id, role: 'ADMIN' } })
     if (adminUser) {
-      const docData: Array<{ documentType: DocumentType; status: DocumentStatus; originalName: string; storageKey: string; fileSizeBytes: number; mimeType: string; extractedData?: object; notes?: string }> = [
+      type DocSeed = { documentType: DocumentType; status: DocumentStatus; originalName: string; storageKey: string; fileSizeBytes: number; mimeType: string; extractedData?: object; notes?: string; documentOwner?: 'FIRM' | 'CLIENT'; documentPurpose?: 'RECEIVABLE' | 'TAX_PREPARATION' | 'UNKNOWN'; classificationSource?: string; filingPeriod?: string }
+
+      const baseDocData: DocSeed[] = [
         {
           documentType: 'INVOICE',
           status: 'PROCESSED',
-          originalName: 'invoice_Q3_2024.pdf',
-          storageKey: `${company.id}/2024/09/seed-invoice-q3.pdf`,
+          originalName: 'invoice_May2026.pdf',
+          storageKey: `${company.id}/2026/05/seed-invoice-may.pdf`,
           fileSizeBytes: 45312,
           mimeType: 'application/pdf',
-          extractedData: { invoiceNumber: 'INV-2024-0892', invoiceDate: '2024-09-15', clientName: def.customers[0], totalAmount: 84000, gstAmount: 12712, confidence: 0.94 },
+          documentOwner: 'FIRM',
+          documentPurpose: 'RECEIVABLE',
+          classificationSource: 'USER_EXPLICIT',
+          extractedData: { invoiceNumber: 'INV-2026-0128', invoiceDate: '2026-05-15', clientName: def.customers[0], totalAmount: 120000, gstAmount: 18305, confidence: 0.94 },
+        },
+        {
+          documentType: 'INVOICE',
+          status: 'PROCESSED',
+          originalName: 'invoice_Apr2026.pdf',
+          storageKey: `${company.id}/2026/04/seed-invoice-apr.pdf`,
+          fileSizeBytes: 42500,
+          mimeType: 'application/pdf',
+          documentOwner: 'FIRM',
+          documentPurpose: 'RECEIVABLE',
+          classificationSource: 'USER_EXPLICIT',
+          extractedData: { invoiceNumber: 'INV-2026-0112', invoiceDate: '2026-04-08', clientName: def.customers[1], totalAmount: 185000, gstAmount: 28220, confidence: 0.97 },
+        },
+        {
+          documentType: 'GST_RETURN',
+          status: 'PROCESSED',
+          originalName: 'GSTR1_May2026.pdf',
+          storageKey: `${company.id}/2026/05/seed-gstr1-may.pdf`,
+          fileSizeBytes: 128640,
+          mimeType: 'application/pdf',
+          documentOwner: 'CLIENT',
+          documentPurpose: 'TAX_PREPARATION',
+          classificationSource: 'TYPE_INFERRED',
+          filingPeriod: 'May 2026',
+          extractedData: { gstNumber: '07AAACA1234A1Z5', filingPeriod: 'May 2026', totalTaxableValue: 850000, totalCGST: 76500, totalSGST: 76500, confidence: 0.91 },
         },
         {
           documentType: 'GST_RETURN',
           status: 'NEEDS_REVIEW',
-          originalName: 'GSTR1_Sep2024.pdf',
-          storageKey: `${company.id}/2024/09/seed-gstr1-sep.pdf`,
-          fileSizeBytes: 128640,
+          originalName: 'GSTR3B_Apr2026.pdf',
+          storageKey: `${company.id}/2026/04/seed-gstr3b-apr.pdf`,
+          fileSizeBytes: 95200,
           mimeType: 'application/pdf',
-          notes: 'Q2 filing — needs review before submission',
-          extractedData: { gstNumber: `${company.id.slice(0, 10).toUpperCase()}Z`, filingPeriod: 'Sep 2024', totalTaxableValue: 450000, totalCGST: 40500, totalSGST: 40500, confidence: 0.78 },
+          notes: 'Apr filing — ITC reconciliation needed',
+          documentOwner: 'CLIENT',
+          documentPurpose: 'TAX_PREPARATION',
+          filingPeriod: 'Apr 2026',
+          extractedData: { gstNumber: '27AABCP5678B1Z3', filingPeriod: 'Apr 2026', totalTaxableValue: 620000, totalCGST: 55800, totalSGST: 55800, confidence: 0.76 },
+        },
+        {
+          documentType: 'TDS_CERTIFICATE',
+          status: 'PROCESSED',
+          originalName: 'Form16A_Q4FY26.pdf',
+          storageKey: `${company.id}/2026/06/seed-tds-q4fy26.pdf`,
+          fileSizeBytes: 38400,
+          mimeType: 'application/pdf',
+          documentOwner: 'CLIENT',
+          documentPurpose: 'TAX_PREPARATION',
+          classificationSource: 'TYPE_INFERRED',
+          extractedData: { deductorName: 'Agarwal Textiles Ltd', deducteeName: def.name, assessmentYear: '2026-27', totalAmountPaid: 480000, totalTaxDeducted: 48000, confidence: 0.96 },
+        },
+        {
+          documentType: 'BANK_STATEMENT',
+          status: 'PROCESSED',
+          originalName: 'BankStatement_May2026.pdf',
+          storageKey: `${company.id}/2026/05/seed-bank-may.pdf`,
+          fileSizeBytes: 215000,
+          mimeType: 'application/pdf',
+          documentOwner: 'CLIENT',
+          documentPurpose: 'TAX_PREPARATION',
+          filingPeriod: 'May 2026',
+          extractedData: { confidence: 0.88 },
         },
       ]
 
-      for (const doc of docData) {
-        await prisma.document.create({
+      // CA-firm-specific: add CLIENT_SALES_INVOICE + CLIENT_PURCHASE_INVOICE for reconciliation demo
+      const caDocData: DocSeed[] = def.industry === Industry.CA_FIRM ? [
+        {
+          documentType: 'CLIENT_SALES_INVOICE',
+          status: 'PROCESSED',
+          originalName: 'sales_inv_agarwal_may2026.pdf',
+          storageKey: `${company.id}/2026/05/seed-sales-inv-agarwal.pdf`,
+          fileSizeBytes: 52100,
+          mimeType: 'application/pdf',
+          documentOwner: 'CLIENT',
+          documentPurpose: 'TAX_PREPARATION',
+          classificationSource: 'TYPE_INFERRED',
+          filingPeriod: 'May 2026',
+          extractedData: { invoiceNumber: 'SI-AGR-2026-0455', invoiceDate: '2026-05-12', sellerName: 'Agarwal Textiles Ltd', sellerGstin: '07AAACA1234A1Z5', buyerName: 'BuyerCorp Pvt Ltd', buyerGstin: '19AABCB9999A1Z1', amount: 380000, gstAmount: 68400, totalAmount: 448400, igst: 68400, cgst: null, sgst: null, confidence: 0.93 },
+        },
+        {
+          documentType: 'CLIENT_SALES_INVOICE',
+          status: 'PROCESSED',
+          originalName: 'sales_inv_patel_may2026.pdf',
+          storageKey: `${company.id}/2026/05/seed-sales-inv-patel.pdf`,
+          fileSizeBytes: 48700,
+          mimeType: 'application/pdf',
+          documentOwner: 'CLIENT',
+          documentPurpose: 'TAX_PREPARATION',
+          classificationSource: 'TYPE_INFERRED',
+          filingPeriod: 'May 2026',
+          extractedData: { invoiceNumber: 'PP-INV-2026-1182', invoiceDate: '2026-05-20', sellerName: 'Patel Pharma Pvt Ltd', sellerGstin: '27AABCP5678B1Z3', buyerName: 'MediRetail Pvt Ltd', buyerGstin: '06AABCM7777A1Z4', amount: 575000, gstAmount: 103500, totalAmount: 678500, igst: 103500, cgst: null, sgst: null, confidence: 0.95 },
+        },
+        {
+          documentType: 'CLIENT_PURCHASE_INVOICE',
+          status: 'PROCESSED',
+          originalName: 'purchase_inv_singh_may2026.pdf',
+          storageKey: `${company.id}/2026/05/seed-pur-inv-singh.pdf`,
+          fileSizeBytes: 39800,
+          mimeType: 'application/pdf',
+          documentOwner: 'CLIENT',
+          documentPurpose: 'TAX_PREPARATION',
+          classificationSource: 'TYPE_INFERRED',
+          filingPeriod: 'May 2026',
+          extractedData: { invoiceNumber: 'VND-2026-7821', invoiceDate: '2026-05-08', vendorName: 'SupplierOne Ltd', vendorGstin: '09AABCS5555A1Z7', buyerName: 'Singh Electronics', buyerGstin: '06AAHCS9012C1Z1', amount: 145000, gstAmount: 26100, totalAmount: 171100, igst: null, cgst: 13050, sgst: 13050, confidence: 0.91 },
+        },
+        {
+          documentType: 'CLIENT_PURCHASE_INVOICE',
+          status: 'PROCESSED',
+          originalName: 'purchase_inv_jain_may2026.pdf',
+          storageKey: `${company.id}/2026/05/seed-pur-inv-jain.pdf`,
+          fileSizeBytes: 44200,
+          mimeType: 'application/pdf',
+          documentOwner: 'CLIENT',
+          documentPurpose: 'TAX_PREPARATION',
+          classificationSource: 'TYPE_INFERRED',
+          filingPeriod: 'May 2026',
+          extractedData: { invoiceNumber: 'MAT-2026-3341', invoiceDate: '2026-05-18', vendorName: 'BuildMat Suppliers', vendorGstin: '08AABCB4444A1Z2', buyerName: 'Jain Constructions', buyerGstin: '08AAECJ3456D1Z7', amount: 285000, gstAmount: 51300, totalAmount: 336300, igst: null, cgst: 25650, sgst: 25650, confidence: 0.89 },
+        },
+        {
+          documentType: 'CLIENT_PURCHASE_INVOICE',
+          status: 'PROCESSED',
+          originalName: 'purchase_inv_gupta_apr2026.pdf',
+          storageKey: `${company.id}/2026/04/seed-pur-inv-gupta.pdf`,
+          fileSizeBytes: 41600,
+          mimeType: 'application/pdf',
+          documentOwner: 'CLIENT',
+          documentPurpose: 'TAX_PREPARATION',
+          classificationSource: 'TYPE_INFERRED',
+          filingPeriod: 'Apr 2026',
+          extractedData: { invoiceNumber: 'RAW-2026-0921', invoiceDate: '2026-04-22', vendorName: 'FoodRaw Pvt Ltd', vendorGstin: '09AABCF3333A1Z8', buyerName: 'Gupta Food Industries', buyerGstin: '09AACFG7890E1Z9', amount: 195000, gstAmount: 11700, totalAmount: 206700, igst: null, cgst: 5850, sgst: 5850, confidence: 0.88 },
+        },
+      ] : []
+
+      const allDocs = [...baseDocData, ...caDocData]
+      const createdDocs: { id: string; documentType: DocumentType; documentPurpose: string; extractedData: object | null }[] = []
+
+      for (const doc of allDocs) {
+        const created = await prisma.document.create({
           data: { companyId: company.id, uploadedById: adminUser.id, ...doc },
+        })
+        createdDocs.push({ id: created.id, documentType: created.documentType, documentPurpose: created.documentPurpose, extractedData: created.extractedData as object | null })
+      }
+
+      // Create PurchaseInvoice records for CLIENT_PURCHASE_INVOICE documents
+      for (const doc of createdDocs) {
+        if (doc.documentType !== 'CLIENT_PURCHASE_INVOICE') continue
+        const raw = doc.extractedData as Record<string, unknown> | null
+        const parseDecimal = (v: unknown) => {
+          const n = parseFloat(String(v ?? '').replace(/[^\d.]/g, ''))
+          return isNaN(n) ? null : n
+        }
+        const parseDate = (v: unknown) => {
+          if (!v || typeof v !== 'string') return null
+          const d = new Date(v); return isNaN(d.getTime()) ? null : d
+        }
+        await prisma.purchaseInvoice.create({
+          data: {
+            companyId: company.id,
+            documentId: doc.id,
+            vendorName: (raw?.['vendorName'] as string | undefined) ?? null,
+            vendorGstin: (raw?.['vendorGstin'] as string | undefined) ?? null,
+            invoiceNumber: (raw?.['invoiceNumber'] as string | undefined) ?? null,
+            invoiceDate: parseDate(raw?.['invoiceDate']),
+            taxableAmount: parseDecimal(raw?.['amount']),
+            igst: parseDecimal(raw?.['igst']),
+            cgst: parseDecimal(raw?.['cgst']),
+            sgst: parseDecimal(raw?.['sgst']),
+            totalAmount: parseDecimal(raw?.['totalAmount']),
+            filingPeriod: (raw?.['filingPeriod'] as string | undefined) ?? (doc.documentType === 'CLIENT_PURCHASE_INVOICE' ? 'May 2026' : null),
+          },
         })
       }
     }
@@ -684,12 +1003,13 @@ TDS is applicable under various sections of Income Tax Act. Key sections:
       }
     }
 
+    const docCount = def.industry === Industry.CA_FIRM ? 11 : 6
     console.log(
       `  ✓ ${def.users.length} users, ${invoices.length} invoices, ` +
       `${riskable.length} risk scores, ${def.inventory.length} inventory items, ` +
-      `${def.insights.length} insights, BusinessConfig, 2 docs, 2 reports, ` +
+      `${def.insights.length} insights, BusinessConfig, ${docCount} docs, 2 reports, ` +
       `${WA_TEMPLATES.length} WA templates` +
-      (def.industry === Industry.CA_FIRM ? ', WA messages, 3 knowledge docs' : ''),
+      (def.industry === Industry.CA_FIRM ? ', WA messages, 3 knowledge docs, purchase invoice records' : ''),
     )
   }
 
