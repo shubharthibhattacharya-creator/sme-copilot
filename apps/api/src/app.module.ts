@@ -26,6 +26,7 @@ import { IntegrationsModule } from './modules/integrations/integrations.module'
 import { EncryptionModule } from './common/encryption/encryption.module'
 import { SchedulerModule } from './modules/scheduler/scheduler.module'
 import { ComplianceModule } from './modules/compliance/compliance.module'
+import { ReconciliationModule } from './modules/reconciliation/reconciliation.module'
 import { QueueModule } from './common/queue/queue.module'
 
 @Module({
@@ -61,6 +62,7 @@ import { QueueModule } from './common/queue/queue.module'
     IntegrationsModule,
     SchedulerModule,
     ComplianceModule,
+    ReconciliationModule,
   ],
 })
 export class AppModule {}

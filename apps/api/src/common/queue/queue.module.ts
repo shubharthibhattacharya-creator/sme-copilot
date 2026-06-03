@@ -2,7 +2,7 @@ import { Global, Module, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/c
 import { BullModule } from '@nestjs/bullmq'
 import * as Sentry from '@sentry/nestjs'
 import { QueueEvents } from 'bullmq'
-import { QUEUE_OCR, QUEUE_REPORTS, QUEUE_INSIGHTS } from './queue.constants'
+import { QUEUE_OCR, QUEUE_REPORTS, QUEUE_INSIGHTS, QUEUE_RECON } from './queue.constants'
 
 @Global()
 @Module({
@@ -27,6 +27,7 @@ import { QUEUE_OCR, QUEUE_REPORTS, QUEUE_INSIGHTS } from './queue.constants'
       { name: QUEUE_OCR },
       { name: QUEUE_REPORTS },
       { name: QUEUE_INSIGHTS },
+      { name: QUEUE_RECON },
     ),
   ],
   exports: [BullModule],
@@ -45,7 +46,7 @@ export class QueueModule implements OnModuleInit, OnModuleDestroy {
       maxRetriesPerRequest: null as unknown as number,
     }
 
-    for (const name of [QUEUE_OCR, QUEUE_REPORTS, QUEUE_INSIGHTS]) {
+    for (const name of [QUEUE_OCR, QUEUE_REPORTS, QUEUE_INSIGHTS, QUEUE_RECON]) {
       const qe = new QueueEvents(name, { connection })
       qe.on('failed', ({ jobId, failedReason }) => {
         this.logger.error(`Job ${jobId} in queue "${name}" failed: ${failedReason}`)

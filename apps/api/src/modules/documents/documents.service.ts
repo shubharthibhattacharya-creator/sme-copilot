@@ -19,6 +19,7 @@ import { EmailService } from '../email/email.service'
 import { IntegrationsService } from '../integrations/integrations.service'
 import { DocumentClassificationService } from './document-classification.service'
 import { DocumentToInvoiceService } from './document-to-invoice.service'
+import { PurchaseInvoiceBridgeService } from '../reconciliation/purchase-invoice-bridge.service'
 import { ReadinessService } from '../compliance/readiness.service'
 import { QUEUE_OCR } from '../../common/queue/queue.constants'
 import type { OcrJobData } from './ocr.processor'
@@ -50,6 +51,7 @@ export class DocumentsService {
     private readonly integrations: IntegrationsService,
     private readonly classificationService: DocumentClassificationService,
     private readonly bridgeService: DocumentToInvoiceService,
+    private readonly purchaseInvoiceBridge: PurchaseInvoiceBridgeService,
     private readonly readinessService: ReadinessService,
     @InjectQueue(QUEUE_OCR) private readonly ocrQueue: Queue<OcrJobData>,
   ) {}
@@ -184,11 +186,16 @@ export class DocumentsService {
         },
       })
 
-      // Classify and bridge to Invoice if applicable
+      // Classify and bridge to Invoice / PurchaseInvoice if applicable
       try {
         const classification = await this.classificationService.classify(documentId, companyId)
         if (classification.documentPurpose === 'RECEIVABLE') {
           await this.bridgeService.bridge(documentId, companyId)
+        }
+        // CLIENT_PURCHASE_INVOICE → create PurchaseInvoice for GSTR-2B reconciliation
+        const refreshedDoc = await this.prisma.document.findUnique({ where: { id: documentId } })
+        if (refreshedDoc?.documentType === 'CLIENT_PURCHASE_INVOICE') {
+          await this.purchaseInvoiceBridge.bridge(documentId, companyId)
         }
       } catch (classErr) {
         this.logger.error(`Classification failed for ${documentId}`, classErr)

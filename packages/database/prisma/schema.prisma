@@ -51,6 +51,7 @@ enum ConfigCategory {
   DOCUMENTS
   REPORTS
   WHATSAPP
+  RECONCILIATION
 }
 
 enum Industry {
@@ -224,6 +225,10 @@ model Company {
   filingTemplates        FilingTypeTemplate[]
   checklists             ComplianceChecklist[]
   notifications          Notification[]
+  purchaseInvoices       PurchaseInvoice[]
+  gstr2bUploads          Gstr2bUpload[]
+  gstr2bLineItems        Gstr2bLineItem[]
+  reconResults           ReconciliationResult[]
 
   @@map("companies")
 }
@@ -251,6 +256,8 @@ model User {
   clientConfigs          ClientConfig[]
   assignedChecklists     ComplianceChecklist[]
   notifications          Notification[]
+  gstr2bUploads          Gstr2bUpload[]         @relation("UploadedGstr2b")
+  resolvedReconResults   ReconciliationResult[] @relation("ResolvedResults")
 
   @@index([companyId])
   @@index([clerkId])
@@ -449,6 +456,7 @@ model Client {
   whatsappMessages WhatsAppMessage[]
   uploadTokens     UploadToken[]
   checklists       ComplianceChecklist[]
+  purchaseInvoices PurchaseInvoice[]
 
   @@unique([companyId, gstin])
   @@index([companyId])
@@ -535,6 +543,7 @@ model Document {
   client           Client?           @relation(fields: [clientId], references: [id])
   taxSyncLogs      TaxSyncLog[]
   checklist        ComplianceChecklist? @relation(fields: [checklistId], references: [id])
+  purchaseInvoice  PurchaseInvoice?
 
   @@index([companyId])
   @@index([companyId, documentType])
@@ -896,6 +905,138 @@ model Notification {
   @@index([companyId, isRead])
   @@index([companyId, createdAt])
   @@map("notifications")
+}
+
+// ─── GSTR-2B Reconciliation ───────────────────────────────────────────────────
+
+enum ReconStatus {
+  MATCHED
+  POSSIBLE_MATCH
+  NOT_IN_VAULT    // present in GSTR-2B but no matching purchase invoice in vault
+  NOT_IN_GSTR2B   // purchase invoice in vault but not in GSTR-2B
+}
+
+enum Gstr2bFileFormat {
+  PDF
+  EXCEL
+}
+
+enum ReconProcessingStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+/// Structured purchase invoice extracted from CLIENT_PURCHASE_INVOICE OCR
+model PurchaseInvoice {
+  id            String    @id @default(cuid())
+  companyId     String
+  documentId    String    @unique
+  clientId      String?
+  vendorName    String?
+  vendorGstin   String?
+  invoiceNumber String?
+  invoiceDate   DateTime?
+  taxableAmount Decimal?  @db.Decimal(14, 2)
+  igst          Decimal?  @db.Decimal(14, 2)
+  cgst          Decimal?  @db.Decimal(14, 2)
+  sgst          Decimal?  @db.Decimal(14, 2)
+  totalAmount   Decimal?  @db.Decimal(14, 2)
+  filingPeriod  String?
+  createdAt     DateTime  @default(now())
+
+  company      Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  document     Document               @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  client       Client?                @relation(fields: [clientId], references: [id])
+  reconResults ReconciliationResult[]
+
+  @@index([companyId])
+  @@index([companyId, vendorGstin])
+  @@index([companyId, filingPeriod])
+  @@map("purchase_invoices")
+}
+
+model Gstr2bUpload {
+  id               String                @id @default(cuid())
+  companyId        String
+  uploadedById     String
+  filingPeriod     String
+  fileFormat       Gstr2bFileFormat
+  fileKey          String
+  originalName     String
+  status           ReconProcessingStatus @default(PENDING)
+  totalLineItems   Int                   @default(0)
+  matchedCount     Int                   @default(0)
+  possibleCount    Int                   @default(0)
+  notInVaultCount  Int                   @default(0)
+  notInGstr2bCount Int                   @default(0)
+  processedAt      DateTime?
+  errorMessage     String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  company    Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  uploadedBy User                   @relation("UploadedGstr2b", fields: [uploadedById], references: [id])
+  lineItems  Gstr2bLineItem[]
+  results    ReconciliationResult[]
+
+  @@index([companyId, filingPeriod])
+  @@index([companyId, createdAt])
+  @@map("gstr2b_uploads")
+}
+
+/// One vendor invoice line extracted from GSTR-2B file
+model Gstr2bLineItem {
+  id            String    @id @default(cuid())
+  uploadId      String
+  companyId     String
+  vendorGstin   String?
+  vendorName    String?
+  invoiceNumber String?
+  invoiceDate   DateTime?
+  taxableAmount Decimal?  @db.Decimal(14, 2)
+  igst          Decimal?  @db.Decimal(14, 2)
+  cgst          Decimal?  @db.Decimal(14, 2)
+  sgst          Decimal?  @db.Decimal(14, 2)
+  totalAmount   Decimal?  @db.Decimal(14, 2)
+  createdAt     DateTime  @default(now())
+
+  upload   Gstr2bUpload          @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  company  Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  result   ReconciliationResult?
+
+  @@index([uploadId])
+  @@index([companyId, vendorGstin])
+  @@map("gstr2b_line_items")
+}
+
+model ReconciliationResult {
+  id                String      @id @default(cuid())
+  uploadId          String
+  companyId         String
+  lineItemId        String?     @unique
+  purchaseInvoiceId String?
+  status            ReconStatus
+  matchScore        Float       @default(0)
+  /// { matchedOn: string[], amountDiff: number, remarks: string }
+  remarks           Json        @default("{}")
+  resolvedById      String?
+  resolvedAt        DateTime?
+  /// ACCEPT_MATCH | REJECT_MATCH | MANUAL_LINK
+  userAction        String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  upload          Gstr2bUpload     @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lineItem        Gstr2bLineItem?  @relation(fields: [lineItemId], references: [id])
+  purchaseInvoice PurchaseInvoice? @relation(fields: [purchaseInvoiceId], references: [id])
+  resolvedBy      User?            @relation("ResolvedResults", fields: [resolvedById], references: [id])
+
+  @@index([uploadId])
+  @@index([companyId, status])
+  @@map("reconciliation_results")
 }
 
 // ─── Admin impersonation tokens ───────────────────────────────────────────────

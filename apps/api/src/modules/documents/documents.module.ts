@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common'
+import { Module, forwardRef } from '@nestjs/common'
 import { BullModule } from '@nestjs/bullmq'
 import { DocumentsController } from './documents.controller'
 import { DocumentsService } from './documents.service'
@@ -8,6 +8,7 @@ import { OcrProcessor } from './ocr.processor'
 import { AiModule } from '../ai/ai.module'
 import { IntegrationsModule } from '../integrations/integrations.module'
 import { ComplianceModule } from '../compliance/compliance.module'
+import { ReconciliationModule } from '../reconciliation/reconciliation.module'
 import { QUEUE_OCR } from '../../common/queue/queue.constants'
 
 @Module({
@@ -16,6 +17,7 @@ import { QUEUE_OCR } from '../../common/queue/queue.constants'
     AiModule,
     IntegrationsModule,
     ComplianceModule,
+    forwardRef(() => ReconciliationModule),
   ],
   controllers: [DocumentsController],
   providers: [DocumentsService, DocumentClassificationService, DocumentToInvoiceService, OcrProcessor],

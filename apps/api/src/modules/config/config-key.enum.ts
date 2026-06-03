@@ -50,6 +50,11 @@ export enum ConfigKey {
   AUTO_REPORT_RECIPIENTS = 'auto_report_recipients',
   REPORT_RETENTION_DAYS = 'report_retention_days',
 
+  // Reconciliation
+  RECON_TOLERANCE_TYPE = 'recon_tolerance_type',    // PERCENTAGE | FIXED
+  RECON_TOLERANCE_VALUE = 'recon_tolerance_value',  // number
+  RECON_AUTO_MATCH = 'recon_auto_match',            // boolean
+
   // WhatsApp
   WHATSAPP_MAX_PER_MINUTE = 'whatsapp_max_per_minute',
   WHATSAPP_NUDGE_WINDOW_DAYS = 'whatsapp_nudge_window_days',

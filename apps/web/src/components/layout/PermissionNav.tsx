@@ -10,6 +10,7 @@ import {
   MessageSquare,
   Bot,
   Settings,
+  GitMerge,
 } from 'lucide-react'
 import { usePermissions, type AppModule } from '@/contexts/permissions.context'
 
@@ -17,7 +18,8 @@ const NAV_ITEMS: { href: string; label: string; module: AppModule | null; icon: 
   { href: '/dashboard',    label: 'Dashboard',    module: 'dashboard',   icon: LayoutDashboard },
   { href: '/filings',      label: 'GST Filings',  module: 'compliance',  icon: FileCheck2 },
   { href: '/collections',  label: 'Collections',  module: 'collections', icon: CreditCard },
-  { href: '/documents',    label: 'Documents',    module: 'documents',   icon: FolderOpen },
+  { href: '/documents',       label: 'Documents',    module: 'documents',   icon: FolderOpen },
+  { href: '/reconciliation',  label: 'GSTR-2B Recon',module: 'documents',   icon: GitMerge },
   { href: '/reporting',    label: 'Reports',      module: 'reports',     icon: BarChart2 },
   { href: '/whatsapp',     label: 'WhatsApp',     module: 'whatsapp',    icon: MessageSquare },
   { href: '/assistant',    label: 'AI Assistant', module: 'assistant',   icon: Bot },

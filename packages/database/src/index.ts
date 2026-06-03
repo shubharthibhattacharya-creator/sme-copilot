@@ -25,6 +25,10 @@ export type {
   FilingTypeTemplate,
   ComplianceChecklist,
   Notification,
+  PurchaseInvoice,
+  Gstr2bUpload,
+  Gstr2bLineItem,
+  ReconciliationResult,
 } from '@prisma/client';
 
 // Enums must be exported as values (not `export type`) so @IsEnum() decorators work at runtime
@@ -54,4 +58,7 @@ export {
   ChecklistStatus,
   NotificationType,
   GstinVerificationStatus,
+  ReconStatus,
+  Gstr2bFileFormat,
+  ReconProcessingStatus,
 } from '@prisma/client';
