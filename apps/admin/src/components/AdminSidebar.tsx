@@ -7,6 +7,7 @@ const NAV = [
   { href: '/tenants', label: 'Tenants', icon: '🏢' },
   { href: '/tenants/new', label: 'Create tenant', icon: '+' },
   { href: '/system-config', label: 'System config', icon: '⚙' },
+  { href: '/job-queues', label: 'Job queues', icon: '⚡' },
 ]
 
 export function AdminSidebar() {
