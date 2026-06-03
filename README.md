@@ -1,6 +1,6 @@
 # OpsCopilot
 
-AI-powered operations copilot for Indian SMEs — CA firms, distributors, and manufacturers. Handles collections intelligence, GST/TDS compliance tracking, document OCR, WhatsApp reminders, inventory management, a RAG-powered AI assistant, GST filing calendar, client magic-link uploads, email notifications, and a full internal admin panel — all in a multi-tenant SaaS architecture.
+AI-powered operations copilot for Indian SMEs — CA firms, distributors, and manufacturers. Handles collections intelligence, GST/TDS compliance tracking, document OCR & classification, GSTR-2B reconciliation, WhatsApp reminders, inventory management, a RAG-powered AI assistant, GST filing calendar, client magic-link uploads, email notifications, and a full internal admin panel — all in a multi-tenant SaaS architecture deployed on Railway.
 
 ---
 
@@ -1708,6 +1708,10 @@ DATABASE_URL="postgresql://<user>:<password>@<host>.neon.tech/<dbname>?sslmode=r
 | **Phase 7B** | Admin impersonation — 30-min token, single-use, orange impersonation banner | ✅ Complete |
 | **Phase 7C** | System-wide config editor, platform stats, audit log in admin panel | ✅ Complete |
 | **Phase 8A** | Production DB — migrated to Neon managed Postgres; 7-day point-in-time recovery, automated backups | ✅ Complete |
+| **Phase 8B** | Production deployment — Railway (API Service + Web Service); auto-deploy on push to `main`; Sentry error monitoring | ✅ Complete |
+| **Phase 8C** | Documents module v2 — `CLIENT_SALES_INVOICE` / `CLIENT_PURCHASE_INVOICE` types; `documentOwner`, `documentPurpose`, `gstinConflict` classification; Client column + filter controls (Type / Status / Purpose) in document list | ✅ Complete |
+| **Phase 8D** | GST Reconciliation — GSTR-2B upload, line-item matching against purchase register, `ReconStatus` per line, reconciliation result summary | ✅ Complete |
+| **Phase 8E** | Dashboard KPI trends — month-over-month % change with directional badges; sparkline data endpoint for 6-month receivables trend | ✅ Complete |
 
 ---
 
@@ -1719,7 +1723,7 @@ Phases 1–7 are complete. What follows is the honest gap analysis.
 
 | Item | Current state | What's needed |
 |------|--------------|---------------|
-| **Production deployment** | Runs on `localhost` | Domain + SSL + reverse proxy (Nginx/Caddy) + prod env vars |
+| **Production deployment** | ✅ **Done** — Deployed on Railway (API Service + Web Service); auto-deploy on `git push main` | — |
 | **Billing integration** | No billing | Stripe subscription plans (STARTER/GROWTH/ENTERPRISE); enforce plan limits |
 | **S3 file storage** | Local `/tmp` disk — wiped on restart | AWS S3 or Cloudflare R2; update `StorageModule` |
 | **WhatsApp production** | Twilio sandbox only | Twilio paid account OR Meta Business verification |
@@ -1855,6 +1859,10 @@ These are the remaining items between the current codebase and a production-read
 - ✅ Admin panel + impersonation — complete
 - ✅ Inbound WhatsApp → documents — complete
 - ✅ Database backups — Neon managed Postgres with 7-day point-in-time recovery
+- ✅ Production deployment — Railway, auto-deploy on push to `main`
+- ✅ Documents v2 — `CLIENT_SALES_INVOICE`, `CLIENT_PURCHASE_INVOICE`, document classification, client column + filter controls
+- ✅ GSTR-2B reconciliation — line-item matching against purchase register
+- ✅ Dashboard KPI trends — month-over-month % change badges
 - ✅ Job queue (BullMQ) — removed from P0; not needed at current scale. Revisit when bulk WhatsApp sending is built.
 
 ---

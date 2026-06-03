@@ -1,5 +1,5 @@
 # OpsCopilot — Product & Technical Document
-> Version 1.0 · May 2026 · Confidential
+> Version 1.1 · June 2026 · Confidential
 
 ---
 
@@ -125,13 +125,18 @@ Each persona gets a **tailored UI, tailored AI insights, and tailored WhatsApp t
 **What it does:** Real-time command center with AI-generated actionable intelligence.
 
 **Key Metrics Shown:**
-- Total Receivables (Pending + Overdue)
-- Overdue Amount + Count
-- Collections Trend (week-over-week %)
+- Total Receivables (Pending + Overdue) — with month-over-month % trend badge
+- Overdue Amount + Count — with directional UP/DOWN/FLAT indicator
+- Collections Trend (month-over-month %) — colour-coded: green UP / red DOWN / grey FLAT
 - Average Aging Days
 - Inventory Alerts (items at/below reorder)
 - Documents Pending Review
 - Critical Customers (top 3 by overdue amount)
+
+**KPI Trend Logic:**
+- Each KPI compares the current calendar month total against the previous calendar month total
+- If previous month = 0, shown as FLAT (not a spurious +∞)
+- Sparkline data endpoint returns 6-month receivables trend for the chart
 
 **AI Insights Engine:**
 - Claude generates 3–5 insights per refresh (triggered manually or on schedule)
@@ -172,7 +177,31 @@ All thresholds are **configurable per tenant** — a distributor dealing in high
 **What it does:** AI-powered document pipeline — upload, extract, classify, link to filings.
 
 **Supported Document Types:**
-Invoice · Purchase Order · Delivery Note · GST Return · TDS Certificate · Bank Statement · Form 16 · Other
+
+| Type | Description | Who owns it |
+|---|---|---|
+| `INVOICE` | Sales invoice issued by the firm | FIRM |
+| `CLIENT_SALES_INVOICE` | Sales invoice issued by the client | CLIENT |
+| `CLIENT_PURCHASE_INVOICE` | Purchase invoice received by the client | CLIENT |
+| `PURCHASE_ORDER` | Purchase order | CLIENT |
+| `DELIVERY_NOTE` | Delivery/consignment note | CLIENT |
+| `GST_RETURN` | GSTR-1 / GSTR-3B / GSTR-9 | CLIENT |
+| `TDS_CERTIFICATE` | Form 16 / 16A / 26AS TDS certificate | CLIENT |
+| `BANK_STATEMENT` | Bank account statement | CLIENT |
+| `FORM_16` | Form 16 salary TDS certificate | CLIENT |
+| `OTHER` | Miscellaneous documents | FIRM or CLIENT |
+
+**Document Classification (auto-assigned by AI):**
+
+| Purpose | Meaning | Example |
+|---|---|---|
+| `RECEIVABLE` | Fee invoice from firm to client | Firm's own billing |
+| `TAX_PREPARATION` | Client document needed for filings | GSTR, bank statement |
+| `FIRM_RECORD` | Internal firm document | Firm's own invoices |
+| `UNKNOWN` | Could not classify — needs manual review | Ambiguous uploads |
+
+**GSTIN Conflict Detection:**
+If a document's extracted GSTIN does not match the client's registered GSTIN, the document is flagged `gstinConflict = true` with an explanatory note. The purpose cell shows "Needs confirmation" in amber until the CA resolves it.
 
 **OCR Pipeline:**
 1. File uploaded (PDF/JPEG/PNG/WebP, max 10 MB)
@@ -193,6 +222,14 @@ Invoice · Purchase Order · Delivery Note · GST Return · TDS Certificate · B
 | Purchase Order | PO number, date, vendor, items, total |
 | Bank Statement | Account number, period, opening/closing balance, transaction count |
 | TDS Certificate | Certificate number, deductor, deductee, PAN, period, TDS amount |
+
+**Document List UI:**
+The document list table shows: File name · Type · **Client name** · Purpose badge · Upload status · OCR status · Sync status · File size · Date · Uploaded by.
+
+Filter controls above the table allow narrowing by any combination of:
+- **Type** — e.g. show only GSTR returns or only client purchase invoices
+- **Status** — e.g. show only NEEDS_REVIEW documents
+- **Purpose** — e.g. show only TAX_PREPARATION documents
 
 **Client Magic-Link Upload:**
 - CA firm generates a shareable upload link per client
@@ -363,6 +400,36 @@ All parameters have system defaults, can be overridden per tenant, and reset to 
 - **Impersonation:** Login as any tenant for support/debugging (30-min, single-use token)
 - CSV client import on behalf of tenants
 - Platform stats: tenants, documents, messages, AI calls
+
+---
+
+### Module 11: GST Reconciliation
+
+**What it does:** Automated matching of GSTR-2B (auto-populated ITC statement) against the firm's purchase register to identify ITC discrepancies before filing.
+
+**Why it matters:**
+- ITC claimed in GSTR-3B must match what suppliers have reported in GSTR-1 (reflected in GSTR-2B)
+- Mismatch = disallowed ITC + potential GST notice
+- CA firms currently do this manually in Excel every month for every client
+
+**How it works:**
+1. Download GSTR-2B JSON from the GST portal for a client + period
+2. Upload to OpsCopilot via the Reconciliation page
+3. System parses each line item (supplier GSTIN, invoice number, taxable value, IGST/CGST/SGST)
+4. Each line is matched against purchase invoices already in the system
+5. Match result per line: `MATCHED` / `UNMATCHED` / `PARTIAL` / `DUPLICATE`
+6. Summary: total ITC available, total ITC in books, net difference
+
+**Reconciliation Status per Line:**
+
+| Status | Meaning | Action |
+|---|---|---|
+| `MATCHED` | Invoice found in books, amounts agree | No action needed |
+| `UNMATCHED` | Invoice in GSTR-2B but not in books | Client may have missed booking |
+| `PARTIAL` | Invoice found but amounts differ (usually rounding) | Review and adjust |
+| `DUPLICATE` | Same invoice appears more than once | Flag to supplier |
+
+**Next step on the roadmap:** GSTR-3B vs Books reconciliation — compare what was declared in 3B against what is in the purchase register for the same period.
 
 ---
 
