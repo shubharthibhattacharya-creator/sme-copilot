@@ -242,6 +242,7 @@ export class DocumentsService {
       companyId,
       ...(dto.documentType ? { documentType: dto.documentType } : {}),
       ...(dto.status ? { status: dto.status } : {}),
+      ...(dto.documentPurpose ? { documentPurpose: dto.documentPurpose } : {}),
     }
 
     const [items, total] = await Promise.all([

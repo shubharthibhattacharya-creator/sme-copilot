@@ -31,6 +31,8 @@ export function DocumentsClient({ initialDocuments, initialRequests }: Props) {
   const [selectedDocument, setSelectedDocument] = useState<DocumentItem | null>(null)
   const [showRequestModal, setShowRequestModal] = useState(false)
   const [showRequests, setShowRequests] = useState(false)
+  const [filters, setFilters] = useState<{ documentType?: string; status?: string; documentPurpose?: string }>({})
+  const [isFiltering, setIsFiltering] = useState(false)
   const { canDo } = usePermissions()
 
   function handleUploaded(doc: DocumentItem) {
@@ -43,6 +45,27 @@ export function DocumentsClient({ initialDocuments, initialRequests }: Props) {
       items: prev.items.filter(d => d.id !== id),
       meta: { ...prev.meta, total: prev.meta.total - 1 },
     }))
+  }
+
+  async function handleFilterChange(newFilters: { documentType?: string; status?: string; documentPurpose?: string }) {
+    setFilters(newFilters)
+    setIsFiltering(true)
+
+    try {
+      const params = new URLSearchParams()
+      if (newFilters.documentType) params.append('documentType', newFilters.documentType)
+      if (newFilters.status) params.append('status', newFilters.status)
+      if (newFilters.documentPurpose) params.append('documentPurpose', newFilters.documentPurpose)
+      params.append('limit', '100')
+
+      const res = await fetch(`/api/v1/documents?${params.toString()}`)
+      if (res.ok) {
+        const data = await res.json()
+        setDocuments(data)
+      }
+    } finally {
+      setIsFiltering(false)
+    }
   }
 
   const pendingRequests = requests.filter(r => r.status === 'PENDING')
@@ -101,7 +124,12 @@ export function DocumentsClient({ initialDocuments, initialRequests }: Props) {
         </div>
       )}
 
-      <DocumentList documents={documents.items} onSelect={setSelectedDocument} />
+      <DocumentList
+        documents={documents.items}
+        onSelect={setSelectedDocument}
+        filters={filters}
+        onFilterChange={handleFilterChange}
+      />
 
       <DocumentDrawer
         document={selectedDocument}

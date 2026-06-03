@@ -36,9 +36,15 @@ function formatDate(iso: string): string {
 interface Props {
   documents: DocumentItem[]
   onSelect: (doc: DocumentItem) => void
+  filters?: {
+    documentType?: string
+    status?: string
+    documentPurpose?: string
+  }
+  onFilterChange?: (filters: { documentType?: string; status?: string; documentPurpose?: string }) => void
 }
 
-export function DocumentList({ documents, onSelect }: Props) {
+export function DocumentList({ documents, onSelect, filters = {}, onFilterChange }: Props) {
   if (documents.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
@@ -47,14 +53,75 @@ export function DocumentList({ documents, onSelect }: Props) {
     )
   }
 
+  const documentTypes = Array.from(new Set(documents.map(d => d.documentType))).sort()
+  const statuses = Array.from(new Set(documents.map(d => d.status))).sort()
+  const purposes = Array.from(new Set(documents.map(d => d.documentPurpose).filter(Boolean)))
+
   return (
-    <Card padding="0" style={{ overflow: 'hidden' }}>
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50 border-b border-gray-200">
-          <tr>
-            <th className="text-left px-4 py-3 font-medium text-gray-600">File</th>
-            <th className="text-left px-4 py-3 font-medium text-gray-600">Type</th>
-            <th className="text-left px-4 py-3 font-medium text-gray-600">Purpose</th>
+    <>
+      {/* Filters */}
+      <div className="flex gap-3 items-center flex-wrap mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-gray-600">Type:</label>
+          <select
+            value={filters.documentType ?? ''}
+            onChange={(e) => onFilterChange?.({ ...filters, documentType: e.target.value || undefined })}
+            className="text-sm border border-gray-300 rounded px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">All types</option>
+            {documentTypes.map(t => (
+              <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-gray-600">Status:</label>
+          <select
+            value={filters.status ?? ''}
+            onChange={(e) => onFilterChange?.({ ...filters, status: e.target.value || undefined })}
+            className="text-sm border border-gray-300 rounded px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">All statuses</option>
+            {statuses.map(s => (
+              <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-gray-600">Purpose:</label>
+          <select
+            value={filters.documentPurpose ?? ''}
+            onChange={(e) => onFilterChange?.({ ...filters, documentPurpose: e.target.value || undefined })}
+            className="text-sm border border-gray-300 rounded px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">All purposes</option>
+            {purposes.map(p => (
+              <option key={p} value={p}>{PURPOSE_BADGE[p as keyof typeof PURPOSE_BADGE]?.label ?? p}</option>
+            ))}
+          </select>
+        </div>
+
+        {(filters.documentType || filters.status || filters.documentPurpose) && (
+          <button
+            onClick={() => onFilterChange?.({ documentType: undefined, status: undefined, documentPurpose: undefined })}
+            className="ml-auto text-sm text-blue-600 hover:text-blue-800 font-medium"
+          >
+            Clear filters
+          </button>
+        )}
+      </div>
+
+      {/* Table */}
+      <Card padding="0" style={{ overflow: 'hidden' }}>
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="text-left px-4 py-3 font-medium text-gray-600">File</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600">Type</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600">Client</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600">Purpose</th>
             <th className="text-left px-4 py-3 font-medium text-gray-600">Upload</th>
             <th className="text-left px-4 py-3 font-medium text-gray-600">OCR</th>
             <th className="text-left px-4 py-3 font-medium text-gray-600">Sync</th>
@@ -73,6 +140,7 @@ export function DocumentList({ documents, onSelect }: Props) {
               >
                 <td className="px-4 py-3 font-medium text-gray-900 max-w-48 truncate">{doc.originalName}</td>
                 <td className="px-4 py-3 text-gray-600">{doc.documentType.replace(/_/g, ' ')}</td>
+                <td className="px-4 py-3 text-gray-600 text-sm">{doc.client?.name ?? '—'}</td>
 
                 {/* Purpose / classification badge */}
                 <td className="px-4 py-3">
