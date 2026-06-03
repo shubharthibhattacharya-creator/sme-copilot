@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { DocumentList } from './DocumentList'
 import { DocumentUploadButton } from './DocumentUploadButton'
 import { DocumentDrawer } from './DocumentDrawer'
@@ -34,6 +35,7 @@ export function DocumentsClient({ initialDocuments, initialRequests }: Props) {
   const [filters, setFilters] = useState<{ documentType?: string; status?: string; documentPurpose?: string }>({})
   const [isFiltering, setIsFiltering] = useState(false)
   const { canDo } = usePermissions()
+  const { getToken } = useAuth()
 
   function handleUploaded(doc: DocumentItem) {
     setDocuments(prev => ({ ...prev, items: [doc, ...prev.items] }))
@@ -52,13 +54,17 @@ export function DocumentsClient({ initialDocuments, initialRequests }: Props) {
     setIsFiltering(true)
 
     try {
+      const token = await getToken()
+      const apiUrl = process.env['NEXT_PUBLIC_API_URL'] ?? ''
       const params = new URLSearchParams()
       if (newFilters.documentType) params.append('documentType', newFilters.documentType)
       if (newFilters.status) params.append('status', newFilters.status)
       if (newFilters.documentPurpose) params.append('documentPurpose', newFilters.documentPurpose)
       params.append('limit', '100')
 
-      const res = await fetch(`/api/v1/documents?${params.toString()}`)
+      const res = await fetch(`${apiUrl}/api/v1/documents?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       if (res.ok) {
         const data = await res.json()
         setDocuments(data)
