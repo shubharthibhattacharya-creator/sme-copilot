@@ -40,8 +40,9 @@ interface Props {
     documentType?: string
     status?: string
     documentPurpose?: string
+    clientId?: string
   }
-  onFilterChange?: (filters: { documentType?: string; status?: string; documentPurpose?: string }) => void
+  onFilterChange?: (filters: { documentType?: string; status?: string; documentPurpose?: string; clientId?: string }) => void
 }
 
 export function DocumentList({ documents, onSelect, filters = {}, onFilterChange }: Props) {
@@ -56,9 +57,12 @@ export function DocumentList({ documents, onSelect, filters = {}, onFilterChange
   const documentTypes = Array.from(new Set(documents.map(d => d.documentType))).sort()
   const statuses = Array.from(new Set(documents.map(d => d.status))).sort()
   const purposes = Array.from(new Set(documents.map(d => d.documentPurpose).filter(Boolean)))
+  const clients = Array.from(
+    new Map(documents.map(d => d.client).filter(Boolean).map(c => [c!.id, c!])).values()
+  ).sort((a, b) => a.name.localeCompare(b.name))
 
-  function applyFilter(key: 'documentType' | 'status' | 'documentPurpose', value: string) {
-    const next: { documentType?: string; status?: string; documentPurpose?: string } = { ...filters }
+  function applyFilter(key: 'documentType' | 'status' | 'documentPurpose' | 'clientId', value: string) {
+    const next: { documentType?: string; status?: string; documentPurpose?: string; clientId?: string } = { ...filters }
     if (value) { next[key] = value } else { delete next[key] }
     onFilterChange?.(next)
   }
@@ -109,7 +113,23 @@ export function DocumentList({ documents, onSelect, filters = {}, onFilterChange
           </select>
         </div>
 
-        {(filters.documentType || filters.status || filters.documentPurpose) && (
+        {clients.length > 0 && (
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-600">Client:</label>
+            <select
+              value={filters.clientId ?? ''}
+              onChange={(e) => applyFilter('clientId', e.target.value)}
+              className="text-sm border border-gray-300 rounded px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All clients</option>
+              {clients.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {(filters.documentType || filters.status || filters.documentPurpose || filters.clientId) && (
           <button
             onClick={() => onFilterChange?.({})}
             className="ml-auto text-sm text-blue-600 hover:text-blue-800 font-medium"

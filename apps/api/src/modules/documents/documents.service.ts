@@ -235,7 +235,7 @@ export class DocumentsService {
 
   async list(companyId: string, dto: ListDocumentsDto) {
     const page = dto.page ?? 1
-    const limit = Math.min(dto.limit ?? 20, 50)
+    const limit = Math.min(dto.limit ?? 20, 100)
     const skip = (page - 1) * limit
 
     const where = {
@@ -243,6 +243,7 @@ export class DocumentsService {
       ...(dto.documentType ? { documentType: dto.documentType } : {}),
       ...(dto.status ? { status: dto.status } : {}),
       ...(dto.documentPurpose ? { documentPurpose: dto.documentPurpose } : {}),
+      ...(dto.clientId ? { clientId: dto.clientId } : {}),
     }
 
     const [items, total] = await Promise.all([

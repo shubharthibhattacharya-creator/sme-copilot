@@ -32,7 +32,7 @@ export function DocumentsClient({ initialDocuments, initialRequests }: Props) {
   const [selectedDocument, setSelectedDocument] = useState<DocumentItem | null>(null)
   const [showRequestModal, setShowRequestModal] = useState(false)
   const [showRequests, setShowRequests] = useState(false)
-  const [filters, setFilters] = useState<{ documentType?: string; status?: string; documentPurpose?: string }>({})
+  const [filters, setFilters] = useState<{ documentType?: string; status?: string; documentPurpose?: string; clientId?: string }>({})
   const [isFiltering, setIsFiltering] = useState(false)
   const { canDo } = usePermissions()
   const { getToken } = useAuth()
@@ -49,7 +49,7 @@ export function DocumentsClient({ initialDocuments, initialRequests }: Props) {
     }))
   }
 
-  async function handleFilterChange(newFilters: { documentType?: string; status?: string; documentPurpose?: string }) {
+  async function handleFilterChange(newFilters: { documentType?: string; status?: string; documentPurpose?: string; clientId?: string }) {
     setFilters(newFilters)
     setIsFiltering(true)
 
@@ -60,6 +60,7 @@ export function DocumentsClient({ initialDocuments, initialRequests }: Props) {
       if (newFilters.documentType) params.append('documentType', newFilters.documentType)
       if (newFilters.status) params.append('status', newFilters.status)
       if (newFilters.documentPurpose) params.append('documentPurpose', newFilters.documentPurpose)
+      if (newFilters.clientId) params.append('clientId', newFilters.clientId)
       params.append('limit', '100')
 
       const res = await fetch(`${apiUrl}/api/v1/documents?${params.toString()}`, {
