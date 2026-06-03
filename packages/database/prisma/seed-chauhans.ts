@@ -27,6 +27,7 @@ import { Prisma, PrismaClient,
   DocumentOwner,
   DocumentPurpose,
   SourceChannel,
+  Gstr2bFileFormat,
 } from '@prisma/client'
 import { Decimal } from '@prisma/client/runtime/library'
 
@@ -421,13 +422,42 @@ async function main() {
   console.log('Companies in DB:', companies.map((c) => `"${c.name}"`).join(', '))
 
   const targetName = process.env['SEED_COMPANY_NAME']
-  const company = targetName
+  let company = targetName
     ? companies.find((c) => c.name.toLowerCase() === targetName.toLowerCase())
     : companies.find((c) => c.name.toLowerCase().includes('chauhan'))
+
   if (!company) {
-    console.error(`\n❌ No company found matching "${targetName ?? 'chauhan'}"`)
-    console.error('   Available:', companies.map((c) => `"${c.name}"`).join(', '))
-    return
+    const createName = targetName ?? 'Chauhans Tax Consultants'
+    console.log(`  ⚙️  Company "${createName}" not found — creating it now...`)
+    const created = await prisma.company.create({
+      data: {
+        name: createName,
+        industry: 'CA_FIRM',
+        subscriptionPlan: 'GROWTH',
+        tenantConfig: {
+          industryType: 'CA_FIRM',
+          modulesEnabled: ['dashboard', 'collections', 'documents', 'reports', 'whatsapp', 'assistant', 'compliance', 'settings'],
+          aiPersona: 'compliance-focused',
+          whatsappEnabled: true,
+          documentTypes: ['invoice', 'gst_return', 'tds_certificate', 'bank_statement', 'form_16'],
+          defaultCurrency: 'INR',
+          onboardingCompleted: true,
+        },
+      },
+    })
+    // Create a seed admin user
+    await prisma.user.create({
+      data: {
+        clerkId: 'clerk_chauhans_admin_1',
+        companyId: created.id,
+        role: 'ADMIN',
+        name: 'Ravi Chauhan',
+        email: 'ravi@chauhanstax.in',
+        moduleAccess: ['dashboard', 'collections', 'documents', 'reports', 'whatsapp', 'assistant', 'compliance', 'settings'],
+      },
+    })
+    company = created
+    console.log(`  ✓ Created company + admin user`)
   }
   console.log(`\n✓ Found company: "${company.name}" (${company.id})\n`)
 
@@ -579,6 +609,126 @@ async function main() {
     invoiceMap.set(cl.name, ids)
   }
   console.log(`✓ ${totalInvoices} invoices seeded, ${totalRisks} risk scores`)
+
+  // ── 6b. Monthly trend invoices (Jan–Jun 2026) — backdated for sparklines + WoW ──
+  {
+    interface MonthlyInv {
+      customerIdx: number
+      status: InvoiceStatus
+      amount: number
+      daysOverdue?: number
+      paidDaysAgo?: number
+    }
+    interface MonthDef { year: number; month: number; invoices: MonthlyInv[] }
+
+    const now = new Date()
+    const MONTHLY_DATA: MonthDef[] = [
+      // ── January 2026 ──
+      { year: 2026, month: 0, invoices: [
+        { customerIdx: 0, status: 'PAID',    amount: 55000,  paidDaysAgo: 155 },
+        { customerIdx: 1, status: 'PAID',    amount: 42000,  paidDaysAgo: 148 },
+        { customerIdx: 2, status: 'PAID',    amount: 85000,  paidDaysAgo: 162 },
+        { customerIdx: 3, status: 'PAID',    amount: 48000,  paidDaysAgo: 151 },
+        { customerIdx: 5, status: 'OVERDUE', amount: 75000,  daysOverdue: 140 },
+      ]},
+      // ── February 2026 ──
+      { year: 2026, month: 1, invoices: [
+        { customerIdx: 0, status: 'PAID',    amount: 62000,  paidDaysAgo: 118 },
+        { customerIdx: 2, status: 'PAID',    amount: 95000,  paidDaysAgo: 110 },
+        { customerIdx: 4, status: 'PAID',    amount: 32000,  paidDaysAgo: 115 },
+        { customerIdx: 6, status: 'PAID',    amount: 45000,  paidDaysAgo: 120 },
+        { customerIdx: 5, status: 'OVERDUE', amount: 185000, daysOverdue: 108 },
+      ]},
+      // ── March 2026 — ITR season peak ──
+      { year: 2026, month: 2, invoices: [
+        { customerIdx: 0, status: 'PAID',    amount: 85000,  paidDaysAgo: 85 },
+        { customerIdx: 1, status: 'PAID',    amount: 68000,  paidDaysAgo: 82 },
+        { customerIdx: 2, status: 'PAID',    amount: 145000, paidDaysAgo: 91 },
+        { customerIdx: 3, status: 'PAID',    amount: 78000,  paidDaysAgo: 88 },
+        { customerIdx: 4, status: 'PAID',    amount: 45000,  paidDaysAgo: 79 },
+        { customerIdx: 6, status: 'PAID',    amount: 55000,  paidDaysAgo: 85 },
+        { customerIdx: 7, status: 'PAID',    amount: 28000,  paidDaysAgo: 92 },
+        { customerIdx: 5, status: 'OVERDUE', amount: 210000, daysOverdue: 75 },
+      ]},
+      // ── April 2026 ──
+      { year: 2026, month: 3, invoices: [
+        { customerIdx: 0, status: 'PAID',    amount: 75000,  paidDaysAgo: 50 },
+        { customerIdx: 1, status: 'PAID',    amount: 58000,  paidDaysAgo: 43 },
+        { customerIdx: 3, status: 'PAID',    amount: 88000,  paidDaysAgo: 55 },
+        { customerIdx: 7, status: 'PAID',    amount: 32000,  paidDaysAgo: 47 },
+        { customerIdx: 2, status: 'OVERDUE', amount: 280000, daysOverdue: 38 },
+        { customerIdx: 5, status: 'OVERDUE', amount: 160000, daysOverdue: 42 },
+      ]},
+      // ── May 2026 ──
+      { year: 2026, month: 4, invoices: [
+        { customerIdx: 1, status: 'PAID',    amount: 65000,  paidDaysAgo: 22 },
+        { customerIdx: 4, status: 'PAID',    amount: 38000,  paidDaysAgo: 18 },
+        { customerIdx: 6, status: 'PAID',    amount: 52000,  paidDaysAgo: 25 },
+        { customerIdx: 0, status: 'OVERDUE', amount: 95000,  daysOverdue: 18 },
+        { customerIdx: 3, status: 'PENDING', amount: 88000 },
+      ]},
+      // ── June 2026 — current month ──
+      { year: 2026, month: 5, invoices: [
+        // Current week payments → positive WoW trend
+        { customerIdx: 1, status: 'PAID', amount: 68000,  paidDaysAgo: 2 },
+        { customerIdx: 3, status: 'PAID', amount: 88000,  paidDaysAgo: 4 },
+        // Last week payments
+        { customerIdx: 0, status: 'PAID', amount: 75000,  paidDaysAgo: 9 },
+        { customerIdx: 6, status: 'PAID', amount: 52000,  paidDaysAgo: 11 },
+        // Active overdue / pending
+        { customerIdx: 5, status: 'OVERDUE', amount: 320000, daysOverdue: 5 },
+        { customerIdx: 2, status: 'PENDING', amount: 145000 },
+      ]},
+    ]
+
+    let monthlyCount = 0
+    for (const monthDef of MONTHLY_DATA) {
+      const monthStart = new Date(monthDef.year, monthDef.month, 1)
+      for (const inv of monthDef.invoices) {
+        const cl = CLIENTS[inv.customerIdx]!
+        const clientId = clientMap.get(cl.name)!
+        const invoiceDay = rand(1, 25)
+        const createdDate = new Date(monthDef.year, monthDef.month, invoiceDay)
+        const dueDate = new Date(createdDate)
+        dueDate.setDate(dueDate.getDate() + 30)
+
+        const agingDays = inv.status === 'OVERDUE' ? (inv.daysOverdue ?? rand(5, 30)) : 0
+        const paidAt = inv.status === 'PAID' && inv.paidDaysAgo !== undefined
+          ? new Date(now.getTime() - inv.paidDaysAgo * 86400000)
+          : null
+
+        const invoiceRecord = await prisma.invoice.create({
+          data: {
+            companyId: company.id,
+            clientId,
+            customerName: cl.name,
+            customerPhone: cl.phone,
+            amount: new Decimal(inv.amount),
+            currency: 'INR',
+            dueDate,
+            paidAt,
+            status: inv.status,
+            agingDays,
+            invoiceDate: createdDate,
+            invoiceNumber: `CHAU-${monthDef.year}-T${String(rand(1000, 9999))}`,
+            description: `Professional services — ${cl.serviceScope[0]}`,
+          },
+        })
+        monthlyCount++
+
+        const updatedAtForSparkline = inv.status === 'OVERDUE'
+          ? new Date(now.getTime() - agingDays * 86400000)
+          : monthStart
+        await prisma.$executeRaw`
+          UPDATE invoices
+          SET "createdAt" = ${createdDate}::timestamptz,
+              "updatedAt" = ${updatedAtForSparkline}::timestamptz
+          WHERE id = ${invoiceRecord.id}
+        `
+      }
+    }
+    console.log(`✓ ${monthlyCount} monthly trend invoices seeded (Jan–Jun 2026)`)
+  }
 
   // ── 7. WhatsApp templates ────────────────────────────────────────────────────
   for (const tmpl of WA_TEMPLATES) {
@@ -773,11 +923,79 @@ async function main() {
       extractedData: { employeeName: 'Prakash Bhardwaj', pan: 'AABPB8901H', employer: 'Bharat Organic Farms', grossSalary: 840000, tdsDeducted: 25200, filingYear: 'AY 2026-27', confidence: 0.98 },
       createdDaysAgo: 10,
     },
+    // ── Client-side invoices (for reconciliation demo) ──────────────────────────
+    {
+      clientName: 'Raj Exports Pvt Ltd',
+      documentType: DocumentType.CLIENT_SALES_INVOICE,
+      status: DocumentStatus.PROCESSED,
+      originalName: 'raj_exports_sales_inv_may2026.pdf',
+      filingPeriod: 'May 2026',
+      documentOwner: DocumentOwner.CLIENT,
+      documentPurpose: DocumentPurpose.TAX_PREPARATION,
+      sourceChannel: SourceChannel.MANUAL_UPLOAD,
+      syncStatus: SyncStatus.PENDING,
+      extractedData: { invoiceNumber: 'RE-INV-2026-0812', invoiceDate: '2026-05-14', sellerName: 'Raj Exports Pvt Ltd', sellerGstin: '07AABCR1234A1Z5', buyerName: 'Global Traders Ltd', buyerGstin: '27AABCG7777A1Z2', amount: 580000, gstAmount: 104400, totalAmount: 684400, igst: 104400, cgst: null, sgst: null, confidence: 0.94 },
+      createdDaysAgo: 18,
+    },
+    {
+      clientName: 'Sharma Retail Pvt Ltd',
+      documentType: DocumentType.CLIENT_SALES_INVOICE,
+      status: DocumentStatus.PROCESSED,
+      originalName: 'sharma_retail_sales_inv_may2026.pdf',
+      filingPeriod: 'May 2026',
+      documentOwner: DocumentOwner.CLIENT,
+      documentPurpose: DocumentPurpose.TAX_PREPARATION,
+      sourceChannel: SourceChannel.WHATSAPP_INBOUND,
+      syncStatus: SyncStatus.PENDING,
+      extractedData: { invoiceNumber: 'SR-2026-1145', invoiceDate: '2026-05-22', sellerName: 'Sharma Retail Pvt Ltd', sellerGstin: '27AAHCS5678B1Z3', buyerName: 'Metro Supermart', buyerGstin: '27AABCM4444A1Z6', amount: 245000, gstAmount: 44100, totalAmount: 289100, igst: null, cgst: 22050, sgst: 22050, confidence: 0.91 },
+      createdDaysAgo: 10,
+    },
+    {
+      clientName: 'Kapoor & Sons Construction',
+      documentType: DocumentType.CLIENT_PURCHASE_INVOICE,
+      status: DocumentStatus.PROCESSED,
+      originalName: 'kapoor_purchase_cement_may2026.pdf',
+      filingPeriod: 'May 2026',
+      documentOwner: DocumentOwner.CLIENT,
+      documentPurpose: DocumentPurpose.TAX_PREPARATION,
+      sourceChannel: SourceChannel.MANUAL_UPLOAD,
+      syncStatus: SyncStatus.PENDING,
+      extractedData: { invoiceNumber: 'CEM-2026-4401', invoiceDate: '2026-05-05', vendorName: 'UltraTech Cement Ltd', vendorGstin: '08AABCU3456A1Z9', buyerName: 'Kapoor & Sons Construction', buyerGstin: '08AAECK3456C1Z7', amount: 320000, gstAmount: 57600, totalAmount: 377600, igst: null, cgst: 28800, sgst: 28800, confidence: 0.93 },
+      createdDaysAgo: 25,
+    },
+    {
+      clientName: 'Verma IT Solutions',
+      documentType: DocumentType.CLIENT_PURCHASE_INVOICE,
+      status: DocumentStatus.PROCESSED,
+      originalName: 'verma_purchase_cloud_may2026.pdf',
+      filingPeriod: 'May 2026',
+      documentOwner: DocumentOwner.CLIENT,
+      documentPurpose: DocumentPurpose.TAX_PREPARATION,
+      sourceChannel: SourceChannel.MANUAL_UPLOAD,
+      syncStatus: SyncStatus.PENDING,
+      extractedData: { invoiceNumber: 'AWS-IN-2026-7823', invoiceDate: '2026-05-31', vendorName: 'Amazon Web Services India', vendorGstin: '29AABCA4268A1ZE', buyerName: 'Verma IT Solutions', buyerGstin: '29AABPV7890D1Z1', amount: 185000, gstAmount: 33300, totalAmount: 218300, igst: 33300, cgst: null, sgst: null, confidence: 0.97 },
+      createdDaysAgo: 3,
+    },
+    {
+      clientName: 'Delhi Auto Components',
+      documentType: DocumentType.CLIENT_PURCHASE_INVOICE,
+      status: DocumentStatus.PROCESSED,
+      originalName: 'delhi_auto_purchase_steel_apr2026.pdf',
+      filingPeriod: 'Apr 2026',
+      documentOwner: DocumentOwner.CLIENT,
+      documentPurpose: DocumentPurpose.TAX_PREPARATION,
+      sourceChannel: SourceChannel.MANUAL_UPLOAD,
+      syncStatus: SyncStatus.PENDING,
+      extractedData: { invoiceNumber: 'STL-2026-2209', invoiceDate: '2026-04-18', vendorName: 'SAIL Steel Distributors', vendorGstin: '07AABCS6789A1Z4', buyerName: 'Delhi Auto Components', buyerGstin: '07AABCD4567G1Z3', amount: 420000, gstAmount: 75600, totalAmount: 495600, igst: null, cgst: 37800, sgst: 37800, confidence: 0.90 },
+      createdDaysAgo: 42,
+    },
   ]
+
+  const createdDocs: { id: string; documentType: DocumentType; extractedData: object | null }[] = []
 
   for (const doc of docScenarios) {
     const clientId = clientMap.get(doc.clientName)
-    await prisma.document.create({
+    const created = await prisma.document.create({
       data: {
         companyId: company.id,
         uploadedById: userId,
@@ -800,8 +1018,44 @@ async function main() {
         updatedAt: daysAgo(Math.max(0, doc.createdDaysAgo - rand(1, 5))),
       },
     })
+    createdDocs.push({ id: created.id, documentType: created.documentType, extractedData: created.extractedData as object | null })
   }
   console.log(`✓ ${docScenarios.length} documents seeded`)
+
+  // Create PurchaseInvoice records for CLIENT_PURCHASE_INVOICE documents
+  const parseDecimal = (v: unknown) => {
+    const n = parseFloat(String(v ?? '').replace(/[^\d.]/g, ''))
+    return isNaN(n) ? null : n
+  }
+  const parseIsoDate = (v: unknown) => {
+    if (!v || typeof v !== 'string') return null
+    const d = new Date(v); return isNaN(d.getTime()) ? null : d
+  }
+  let purchaseInvoiceCount = 0
+  for (const doc of createdDocs) {
+    if (doc.documentType !== DocumentType.CLIENT_PURCHASE_INVOICE) continue
+    const raw = doc.extractedData as Record<string, unknown> | null
+    await prisma.purchaseInvoice.create({
+      data: {
+        companyId: company.id,
+        documentId: doc.id,
+        vendorName: (raw?.['vendorName'] as string | undefined) ?? null,
+        vendorGstin: (raw?.['vendorGstin'] as string | undefined) ?? null,
+        invoiceNumber: (raw?.['invoiceNumber'] as string | undefined) ?? null,
+        invoiceDate: parseIsoDate(raw?.['invoiceDate']),
+        taxableAmount: parseDecimal(raw?.['amount']),
+        igst: parseDecimal(raw?.['igst']),
+        cgst: parseDecimal(raw?.['cgst']),
+        sgst: parseDecimal(raw?.['sgst']),
+        totalAmount: parseDecimal(raw?.['totalAmount']),
+        filingPeriod: (raw?.['filingPeriod'] as string | undefined) ?? null,
+      },
+    })
+    purchaseInvoiceCount++
+  }
+  if (purchaseInvoiceCount > 0) {
+    console.log(`✓ ${purchaseInvoiceCount} purchase invoice records seeded`)
+  }
 
   // ── 10. Filing Type Templates ────────────────────────────────────────────────
   const FILING_TEMPLATES = [
