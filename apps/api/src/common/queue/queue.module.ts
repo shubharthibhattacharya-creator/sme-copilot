@@ -1,5 +1,7 @@
-import { Global, Module } from '@nestjs/common'
+import { Global, Module, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common'
 import { BullModule } from '@nestjs/bullmq'
+import * as Sentry from '@sentry/nestjs'
+import { QueueEvents } from 'bullmq'
 import { QUEUE_OCR, QUEUE_REPORTS, QUEUE_INSIGHTS } from './queue.constants'
 
 @Global()
@@ -29,4 +31,33 @@ import { QUEUE_OCR, QUEUE_REPORTS, QUEUE_INSIGHTS } from './queue.constants'
   ],
   exports: [BullModule],
 })
-export class QueueModule {}
+export class QueueModule implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(QueueModule.name)
+  private readonly queueEvents: QueueEvents[] = []
+
+  onModuleInit() {
+    const redisUrl = process.env['REDIS_URL']
+    if (!redisUrl) return
+
+    const connection = {
+      url: redisUrl,
+      tls: redisUrl.startsWith('rediss://') ? {} : undefined,
+      maxRetriesPerRequest: null as unknown as number,
+    }
+
+    for (const name of [QUEUE_OCR, QUEUE_REPORTS, QUEUE_INSIGHTS]) {
+      const qe = new QueueEvents(name, { connection })
+      qe.on('failed', ({ jobId, failedReason }) => {
+        this.logger.error(`Job ${jobId} in queue "${name}" failed: ${failedReason}`)
+        Sentry.captureException(new Error(failedReason), {
+          extra: { queue: name, jobId },
+        })
+      })
+      this.queueEvents.push(qe)
+    }
+  }
+
+  async onModuleDestroy() {
+    await Promise.all(this.queueEvents.map((qe) => qe.close()))
+  }
+}

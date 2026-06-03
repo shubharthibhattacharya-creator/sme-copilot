@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import * as Sentry from '@sentry/nextjs'
 
 /**
  * Next.js root error boundary (error.tsx).
@@ -17,6 +18,7 @@ export default function GlobalError({
   useEffect(() => {
     // Log full detail for engineers — never display to users
     console.error('[GlobalError]', error)
+    Sentry.captureException(error)
   }, [error])
 
   const isProd = process.env['NODE_ENV'] === 'production'

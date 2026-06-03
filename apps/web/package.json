@@ -13,6 +13,7 @@
     "@clerk/nextjs": "^6.0.0",
     "@opsc/config": "workspace:*",
     "@opsc/types": "workspace:*",
+    "@sentry/nextjs": "^10.56.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.400.0",

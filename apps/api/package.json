@@ -26,6 +26,7 @@
     "@opsc/config": "workspace:*",
     "@opsc/database": "workspace:*",
     "@opsc/types": "workspace:*",
+    "@sentry/nestjs": "^10.56.0",
     "bullmq": "^5.78.0",
     "cache-manager": "^5.4.0",
     "cache-manager-ioredis-yet": "^2.1.0",

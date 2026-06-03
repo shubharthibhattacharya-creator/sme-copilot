@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next'
+import { withSentryConfig } from '@sentry/nextjs'
 
 const nextConfig: NextConfig = {
   transpilePackages: ['@opsc/types', '@opsc/config'],
@@ -6,4 +7,10 @@ const nextConfig: NextConfig = {
   output: 'standalone',
 }
 
-export default nextConfig
+export default withSentryConfig(nextConfig, {
+  silent: true,
+  disableLogger: true,
+  // Source map upload requires SENTRY_AUTH_TOKEN — disabled until configured
+  sourcemaps: { disable: !process.env['SENTRY_AUTH_TOKEN'] },
+  telemetry: false,
+})

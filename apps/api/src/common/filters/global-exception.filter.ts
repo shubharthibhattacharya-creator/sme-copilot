@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common'
+import * as Sentry from '@sentry/nestjs'
 import { Prisma } from '@opsc/database'
 import type { Request, Response } from 'express'
 import { AppException } from '../exceptions'
@@ -119,6 +120,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         `[${errorCode}] ${method} ${path} | company:${companyIdStr} user:${userIdStr}`,
         technicalDetail || (exception instanceof Error ? exception.stack : String(exception)),
       )
+      Sentry.captureException(exception, {
+        extra: { errorCode, companyId: companyIdStr, userId: userIdStr, path, method },
+      })
     } else {
       this.logger.warn(
         `[${errorCode}] ${method} ${path} | company:${companyIdStr} user:${userIdStr} | ${technicalDetail}`,
