@@ -57,6 +57,12 @@ export function DocumentList({ documents, onSelect, filters = {}, onFilterChange
   const statuses = Array.from(new Set(documents.map(d => d.status))).sort()
   const purposes = Array.from(new Set(documents.map(d => d.documentPurpose).filter(Boolean)))
 
+  function applyFilter(key: 'documentType' | 'status' | 'documentPurpose', value: string) {
+    const next: { documentType?: string; status?: string; documentPurpose?: string } = { ...filters }
+    if (value) { next[key] = value } else { delete next[key] }
+    onFilterChange?.(next)
+  }
+
   return (
     <>
       {/* Filters */}
@@ -65,7 +71,7 @@ export function DocumentList({ documents, onSelect, filters = {}, onFilterChange
           <label className="text-sm font-medium text-gray-600">Type:</label>
           <select
             value={filters.documentType ?? ''}
-            onChange={(e) => onFilterChange?.({ ...filters, documentType: e.target.value || undefined })}
+            onChange={(e) => applyFilter('documentType', e.target.value)}
             className="text-sm border border-gray-300 rounded px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All types</option>
@@ -79,7 +85,7 @@ export function DocumentList({ documents, onSelect, filters = {}, onFilterChange
           <label className="text-sm font-medium text-gray-600">Status:</label>
           <select
             value={filters.status ?? ''}
-            onChange={(e) => onFilterChange?.({ ...filters, status: e.target.value || undefined })}
+            onChange={(e) => applyFilter('status', e.target.value)}
             className="text-sm border border-gray-300 rounded px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All statuses</option>
@@ -93,7 +99,7 @@ export function DocumentList({ documents, onSelect, filters = {}, onFilterChange
           <label className="text-sm font-medium text-gray-600">Purpose:</label>
           <select
             value={filters.documentPurpose ?? ''}
-            onChange={(e) => onFilterChange?.({ ...filters, documentPurpose: e.target.value || undefined })}
+            onChange={(e) => applyFilter('documentPurpose', e.target.value)}
             className="text-sm border border-gray-300 rounded px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All purposes</option>
@@ -105,7 +111,7 @@ export function DocumentList({ documents, onSelect, filters = {}, onFilterChange
 
         {(filters.documentType || filters.status || filters.documentPurpose) && (
           <button
-            onClick={() => onFilterChange?.({ documentType: undefined, status: undefined, documentPurpose: undefined })}
+            onClick={() => onFilterChange?.({})}
             className="ml-auto text-sm text-blue-600 hover:text-blue-800 font-medium"
           >
             Clear filters

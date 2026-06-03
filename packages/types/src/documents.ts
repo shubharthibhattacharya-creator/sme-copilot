@@ -42,6 +42,7 @@ export interface DocumentItem {
   createdAt: string
   updatedAt: string
   uploadedBy: { id: string; name: string }
+  client?: { id: string; name: string } | null
   documentOwner?: 'FIRM' | 'CLIENT'
   documentPurpose?: 'RECEIVABLE' | 'TAX_PREPARATION' | 'FIRM_RECORD' | 'UNKNOWN'
   classificationSource?: string | null
