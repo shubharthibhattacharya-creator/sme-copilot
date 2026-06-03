@@ -7,7 +7,9 @@ import { useApiError } from '@/hooks/useApiError'
 import { validators } from '@/lib/validators'
 
 const DOCUMENT_TYPES: { value: DocumentType; label: string }[] = [
-  { value: 'INVOICE', label: 'Invoice' },
+  { value: 'INVOICE', label: 'Invoice (Firm fee invoice)' },
+  { value: 'CLIENT_SALES_INVOICE', label: "Client's Sales Invoice" },
+  { value: 'CLIENT_PURCHASE_INVOICE', label: "Client's Purchase Invoice" },
   { value: 'GST_RETURN', label: 'GST Return' },
   { value: 'TDS_CERTIFICATE', label: 'TDS Certificate' },
   { value: 'BANK_STATEMENT', label: 'Bank Statement' },

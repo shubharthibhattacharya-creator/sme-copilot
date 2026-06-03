@@ -93,7 +93,9 @@ enum InsightSeverity {
 }
 
 enum DocumentType {
-  INVOICE
+  INVOICE                  // CA firm's own fee invoice to their client
+  CLIENT_SALES_INVOICE     // Client's sales invoice issued to their customer
+  CLIENT_PURCHASE_INVOICE  // Client's purchase invoice received from a vendor
   PURCHASE_ORDER
   DELIVERY_NOTE
   GST_RETURN

@@ -23,6 +23,22 @@ export class DocumentClassificationService {
     const doc = await this.prisma.document.findUniqueOrThrow({ where: { id: documentId } })
     const company = await this.prisma.company.findUniqueOrThrow({ where: { id: companyId } })
 
+    // Rule 0: New explicit invoice types are self-classifying — no ambiguity possible
+    if (doc.documentType === 'CLIENT_SALES_INVOICE') {
+      await this.prisma.document.update({
+        where: { id: documentId },
+        data: { documentOwner: 'CLIENT', documentPurpose: 'TAX_PREPARATION', classificationSource: 'TYPE_INFERRED' },
+      })
+      return { action: 'ALREADY_CLASSIFIED', documentPurpose: 'TAX_PREPARATION' }
+    }
+    if (doc.documentType === 'CLIENT_PURCHASE_INVOICE') {
+      await this.prisma.document.update({
+        where: { id: documentId },
+        data: { documentOwner: 'CLIENT', documentPurpose: 'TAX_PREPARATION', classificationSource: 'TYPE_INFERRED' },
+      })
+      return { action: 'ALREADY_CLASSIFIED', documentPurpose: 'TAX_PREPARATION' }
+    }
+
     // Rule 1: Auto channels
     if (AUTO_CHANNELS.includes(doc.sourceChannel as string)) {
       return { action: 'ALREADY_CLASSIFIED', documentPurpose: doc.documentPurpose as string }

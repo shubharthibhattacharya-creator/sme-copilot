@@ -4,12 +4,14 @@ import { useState, useRef, useEffect } from 'react'
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001'
 
 const DOC_TYPES = [
-  { value: 'GST_RETURN',       label: 'GST Return' },
-  { value: 'TDS_CERTIFICATE',  label: 'TDS Certificate' },
-  { value: 'BANK_STATEMENT',   label: 'Bank Statement' },
-  { value: 'INVOICE',          label: 'Invoice' },
-  { value: 'FORM_16',          label: 'Form 16' },
-  { value: 'OTHER',            label: 'Other' },
+  { value: 'GST_RETURN',               label: 'GST Return' },
+  { value: 'TDS_CERTIFICATE',          label: 'TDS Certificate' },
+  { value: 'BANK_STATEMENT',           label: 'Bank Statement' },
+  { value: 'CLIENT_SALES_INVOICE',     label: "Sales Invoice (your sales to customers)" },
+  { value: 'CLIENT_PURCHASE_INVOICE',  label: "Purchase Invoice (bills from vendors)" },
+  { value: 'INVOICE',                  label: 'Fee Invoice (CA firm invoice)' },
+  { value: 'FORM_16',                  label: 'Form 16' },
+  { value: 'OTHER',                    label: 'Other' },
 ]
 
 type UploadState = 'idle' | 'loading_token' | 'ready' | 'uploading' | 'success' | 'error'

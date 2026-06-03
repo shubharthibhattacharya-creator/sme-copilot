@@ -1,5 +1,7 @@
 export type DocumentType =
   | 'INVOICE'
+  | 'CLIENT_SALES_INVOICE'
+  | 'CLIENT_PURCHASE_INVOICE'
   | 'PURCHASE_ORDER'
   | 'DELIVERY_NOTE'
   | 'GST_RETURN'
