@@ -195,5 +195,6 @@ export function DocumentList({ documents, onSelect, filters = {}, onFilterChange
         </tbody>
       </table>
     </Card>
+    </>
   )
 }
