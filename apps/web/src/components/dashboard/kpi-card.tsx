@@ -139,9 +139,9 @@ export function KpiCard({
       >
         <div
           style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: 'var(--radius-md)',
+            width: '40px',
+            height: '40px',
+            borderRadius: '10px',
             background: iconBg,
             display: 'flex',
             alignItems: 'center',
@@ -178,16 +178,16 @@ export function KpiCard({
         <span
           style={{
             fontFamily: 'var(--font-family)',
-            fontSize: '26px',
+            fontSize: '36px',
             fontWeight: 700,
             color: 'var(--color-text-primary)',
             lineHeight: '1',
-            letterSpacing: '-0.5px',
+            letterSpacing: '-1px',
           }}
         >
           {value}
         </span>
-        <MiniSparkline data={sparkline} color={lineColor} label={label} />
+        <MiniSparkline data={sparkline} color={lineColor} label={label} width={80} height={40} />
       </div>
 
       {/* Row 3: trend indicator */}

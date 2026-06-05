@@ -2,6 +2,44 @@
 
 import { useState } from 'react'
 import { Mail, Phone } from 'lucide-react'
+
+const AVATAR_PALETTE = [
+  { bg: '#EFF6FF', color: '#1D4ED8' },
+  { bg: '#F0FDF4', color: '#15803D' },
+  { bg: '#FFF7ED', color: '#C2410C' },
+  { bg: '#FAF5FF', color: '#7E22CE' },
+  { bg: '#ECFDF5', color: '#065F46' },
+]
+
+function CustomerAvatar({ name, index }: { name: string; index: number }) {
+  const initials = name
+    .split(' ')
+    .slice(0, 2)
+    .map((w) => w[0] ?? '')
+    .join('')
+    .toUpperCase()
+  const palette = AVATAR_PALETTE[index % AVATAR_PALETTE.length]!
+  return (
+    <div
+      style={{
+        width: 32,
+        height: 32,
+        borderRadius: '50%',
+        background: palette.bg,
+        color: palette.color,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: 11,
+        fontWeight: 700,
+        flexShrink: 0,
+        letterSpacing: '0.02em',
+      }}
+    >
+      {initials}
+    </div>
+  )
+}
 import { WhatsAppIcon } from '@/components/ui/action-icon-button'
 import { formatCurrency } from '@/lib/utils'
 import { Card, CardHeader } from '@/components/ui'
@@ -114,10 +152,15 @@ export function CriticalCustomersTable({ customers }: CriticalCustomersTableProp
               </tr>
             </thead>
             <tbody>
-              {sorted.map((c) => (
+              {sorted.map((c, i) => (
                 <tr key={c.name} className="border-b border-slate-50 last:border-0">
-                  <td className="py-3 pr-4 font-medium text-slate-800 truncate max-w-[140px]">
-                    {c.name}
+                  <td className="py-3 pr-4">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <CustomerAvatar name={c.name} index={i} />
+                      <span className="font-medium text-slate-800 truncate max-w-[110px]" style={{ fontSize: 13 }}>
+                        {c.name}
+                      </span>
+                    </div>
                   </td>
                   <td className="py-3 pr-4 text-right font-mono text-red-600 font-semibold">
                     {formatCurrency(c.overdueAmount)}

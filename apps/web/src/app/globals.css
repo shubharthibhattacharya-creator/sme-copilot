@@ -93,6 +93,13 @@ input:focus, textarea:focus, select:focus {
   }
 }
 
+/* ── Spin (refresh button) ───────────────────── */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.spin { animation: spin 1s linear infinite; }
+
 /* ── KPI skeleton shimmer ────────────────────── */
 @keyframes shimmer {
   0%   { opacity: 1; }

@@ -14,16 +14,24 @@ import {
 } from 'lucide-react'
 import { usePermissions, type AppModule } from '@/contexts/permissions.context'
 
-const NAV_ITEMS: { href: string; label: string; module: AppModule | null; icon: React.ElementType }[] = [
-  { href: '/dashboard',    label: 'Dashboard',    module: 'dashboard',   icon: LayoutDashboard },
-  { href: '/filings',      label: 'GST Filings',  module: 'compliance',  icon: FileCheck2 },
-  { href: '/collections',  label: 'Collections',  module: 'collections', icon: CreditCard },
-  { href: '/documents',       label: 'Documents',    module: 'documents',   icon: FolderOpen },
-  { href: '/reconciliation',  label: 'GSTR-2B Recon',module: 'documents',   icon: GitMerge },
-  { href: '/reporting',    label: 'Reports',      module: 'reports',     icon: BarChart2 },
-  { href: '/whatsapp',     label: 'WhatsApp',     module: 'whatsapp',    icon: MessageSquare },
-  { href: '/assistant',    label: 'AI Assistant', module: 'assistant',   icon: Bot },
-  { href: '/settings',     label: 'Settings',     module: 'settings',    icon: Settings },
+interface NavItem {
+  href: string
+  label: string
+  module: AppModule | null
+  icon: React.ElementType
+  iconColor: string
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { href: '/dashboard',      label: 'Dashboard',     module: 'dashboard',   icon: LayoutDashboard, iconColor: '#2563EB' },
+  { href: '/filings',        label: 'GST Filings',   module: 'compliance',  icon: FileCheck2,      iconColor: '#16A34A' },
+  { href: '/collections',    label: 'Collections',   module: 'collections', icon: CreditCard,      iconColor: '#D97706' },
+  { href: '/documents',      label: 'Documents',     module: 'documents',   icon: FolderOpen,      iconColor: '#7C3AED' },
+  { href: '/reconciliation', label: 'GSTR-2B Recon', module: 'documents',   icon: GitMerge,        iconColor: '#0891B2' },
+  { href: '/reporting',      label: 'Reports',       module: 'reports',     icon: BarChart2,       iconColor: '#4F46E5' },
+  { href: '/whatsapp',       label: 'WhatsApp',      module: 'whatsapp',    icon: MessageSquare,   iconColor: '#16A34A' },
+  { href: '/assistant',      label: 'AI Assistant',  module: 'assistant',   icon: Bot,             iconColor: '#8B5CF6' },
+  { href: '/settings',       label: 'Settings',      module: 'settings',    icon: Settings,        iconColor: '#64748B' },
 ]
 
 export function PermissionNav() {
@@ -33,20 +41,45 @@ export function PermissionNav() {
   const visible = NAV_ITEMS.filter(({ module }) => !module || !loaded || hasModule(module))
 
   return (
-    <nav className="space-y-1 flex-1">
-      {visible.map(({ href, label, icon: Icon }) => {
-        const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
+    <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+      {visible.map(({ href, label, icon: Icon, iconColor }) => {
+        const active =
+          pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
+
         return (
           <Link
             key={href}
             href={href}
-            className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
-              active
-                ? 'bg-blue-50 text-blue-700 font-medium'
-                : 'text-slate-700 hover:bg-slate-100'
-            }`}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '8px 12px',
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: active ? 600 : 400,
+              color: active ? '#FFFFFF' : '#374151',
+              background: active
+                ? 'linear-gradient(135deg, #4F46E5 0%, #6366F1 100%)'
+                : 'transparent',
+              textDecoration: 'none',
+              transition: 'background 150ms, color 150ms',
+              boxShadow: active ? '0 1px 4px rgba(79,70,229,0.25)' : 'none',
+            }}
+            onMouseEnter={(e) => {
+              if (!active) (e.currentTarget as HTMLAnchorElement).style.background = '#F1F5F9'
+            }}
+            onMouseLeave={(e) => {
+              if (!active)
+                (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'
+            }}
           >
-            <Icon size={16} strokeWidth={1.75} />
+            <Icon
+              size={16}
+              strokeWidth={active ? 2.25 : 1.75}
+              color={active ? '#FFFFFF' : iconColor}
+              style={{ flexShrink: 0 }}
+            />
             {label}
           </Link>
         )

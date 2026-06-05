@@ -1,9 +1,10 @@
 import { Suspense } from 'react'
+import { currentUser } from '@clerk/nextjs/server'
 import { IndianRupee, AlertCircle, FileText, Clock } from 'lucide-react'
 import { apiClient } from '@/lib/api-client'
-import { H1 } from '@/components/ui'
-import { MetricCard, MetricCardSkeleton } from '@/components/dashboard/MetricCard'
+import { MetricCard } from '@/components/dashboard/MetricCard'
 import { KpiCard, KpiCardSkeleton } from '@/components/dashboard/kpi-card'
+import { DashboardHeader } from '@/components/dashboard/DashboardHeader'
 import { InsightFeed } from '@/components/dashboard/InsightFeed'
 import { CriticalCustomersTable } from '@/components/dashboard/CriticalCustomersTable'
 import { LowStockWidget } from '@/components/dashboard/LowStockWidget'
@@ -83,27 +84,21 @@ async function DashboardContent() {
 
   const collectionsEnabled = has('collections')
   const inventoryEnabled = has('inventory')
-  const whatsappEnabled = has('whatsapp')
   const assistantEnabled = has('assistant')
-
   const hasRightPanel = collectionsEnabled || assistantEnabled
 
   return (
     <div className="space-y-6">
-      {/* Collections KPI cards — 4 cards with trend + sparkline */}
+      {/* KPI cards */}
       {collectionsEnabled && (
         <div
           className="kpi-grid"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '16px',
-          }}
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}
         >
           <KpiCard
-            label="Total receivables"
+            label="Total Receivables"
             value={formatINR(summary.totalReceivables.current)}
-            icon={<IndianRupee size={16} strokeWidth={2} />}
+            icon={<IndianRupee size={20} strokeWidth={2} />}
             iconColor="#2563EB"
             iconBg="#EFF6FF"
             trendPct={summary.totalReceivables.trendPct}
@@ -113,9 +108,9 @@ async function DashboardContent() {
             sparkline={summary.totalReceivables.sparkline}
           />
           <KpiCard
-            label="Overdue amount"
+            label="Overdue Amount"
             value={formatINR(summary.overdueAmount.current)}
-            icon={<AlertCircle size={16} strokeWidth={2} />}
+            icon={<AlertCircle size={20} strokeWidth={2} />}
             iconColor="#DC2626"
             iconBg="#FEF2F2"
             trendPct={summary.overdueAmount.trendPct}
@@ -125,9 +120,9 @@ async function DashboardContent() {
             sparkline={summary.overdueAmount.sparkline}
           />
           <KpiCard
-            label="Overdue invoices"
+            label="Overdue Invoices"
             value={String(summary.overdueCount.current)}
-            icon={<FileText size={16} strokeWidth={2} />}
+            icon={<FileText size={20} strokeWidth={2} />}
             iconColor="#D97706"
             iconBg="#FFFBEB"
             trendPct={summary.overdueCount.trendPct}
@@ -137,9 +132,9 @@ async function DashboardContent() {
             sparkline={summary.overdueCount.sparkline}
           />
           <KpiCard
-            label="Avg days overdue"
+            label="Avg Days Overdue"
             value={`${summary.avgDaysOverdue.current} days`}
-            icon={<Clock size={16} strokeWidth={2} />}
+            icon={<Clock size={20} strokeWidth={2} />}
             iconColor="#7C3AED"
             iconBg="#F5F3FF"
             trendPct={summary.avgDaysOverdue.trendPct}
@@ -169,11 +164,7 @@ async function DashboardContent() {
           className={`grid grid-cols-1 ${assistantEnabled && collectionsEnabled ? 'lg:grid-cols-2' : ''} gap-4 min-h-[360px]`}
         >
           {assistantEnabled && <InsightFeed insights={insights} />}
-          {collectionsEnabled && (
-            <CriticalCustomersTable
-              customers={summary.criticalCustomers}
-            />
-          )}
+          {collectionsEnabled && <CriticalCustomersTable customers={summary.criticalCustomers} />}
         </div>
       )}
 
@@ -183,40 +174,30 @@ async function DashboardContent() {
       {/* Compliance at risk */}
       <ComplianceAtRiskWidget atRisk={complianceSummary.atRisk} />
 
-      {metricCards_empty_check(collectionsEnabled, inventoryEnabled, hasRightPanel)}
+      {!collectionsEnabled && !inventoryEnabled && !hasRightPanel && (
+        <div className="text-center py-16 text-slate-400 text-sm">
+          No dashboard widgets are configured for your plan.
+        </div>
+      )}
     </div>
   )
 }
 
-// Helper to avoid inline logic in JSX
-function metricCards_empty_check(
-  collectionsEnabled: boolean,
-  inventoryEnabled: boolean,
-  hasRightPanel: boolean,
-) {
-  if (!collectionsEnabled && !inventoryEnabled && !hasRightPanel) {
-    return (
-      <div className="text-center py-16 text-slate-400 text-sm">
-        No dashboard widgets are configured for your plan.
-      </div>
-    )
-  }
-  return null
-}
+export default async function DashboardPage() {
+  const user = await currentUser()
+  const firstName = user?.firstName ?? null
 
-export default function DashboardPage() {
   return (
     <div>
-      <div className="flex items-center justify-between mb-1">
-        <H1>Dashboard</H1>
-        <p className="text-xs text-slate-400">Live data · refreshes on page load</p>
-      </div>
-      <p className="text-sm text-slate-500 mb-6">Welcome back! Here's what's happening with your operations.</p>
+      <DashboardHeader firstName={firstName} />
 
       <Suspense
         fallback={
           <div className="space-y-6">
-            <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+            <div
+              className="kpi-grid"
+              style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}
+            >
               {[0, 1, 2, 3].map((i) => (
                 <KpiCardSkeleton key={i} />
               ))}

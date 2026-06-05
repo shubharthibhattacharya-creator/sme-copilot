@@ -32,15 +32,21 @@ function relativeTime(iso: string): string {
 const SEVERITY_ORDER: Record<string, number> = { CRITICAL: 0, WARNING: 1, INFO: 2 }
 
 const SEVERITY_STYLES: Record<string, string> = {
-  CRITICAL: 'border-l-red-500 bg-red-50',
-  WARNING: 'border-l-amber-400 bg-amber-50',
-  INFO: 'border-l-blue-400 bg-blue-50',
+  CRITICAL: 'border-l-red-500 bg-red-50/70',
+  WARNING:  'border-l-orange-400 bg-orange-50/70',
+  INFO:     'border-l-teal-400 bg-teal-50/70',
 }
 
 const BADGE_STYLES: Record<string, string> = {
   CRITICAL: 'bg-red-100 text-red-700',
-  WARNING: 'bg-amber-100 text-amber-700',
-  INFO: 'bg-blue-100 text-blue-700',
+  WARNING:  'bg-orange-100 text-orange-700',
+  INFO:     'bg-teal-100 text-teal-700',
+}
+
+const BADGE_LABEL: Record<string, string> = {
+  CRITICAL: 'CRITICAL',
+  WARNING:  'IMPORTANT',
+  INFO:     'INFO',
 }
 
 const PREVIEW_COUNT = 5
@@ -113,24 +119,29 @@ export function InsightFeed({ insights: initial }: InsightFeedProps) {
               <li
                 key={insight.id}
                 className={cn(
-                  'border-l-4 rounded-r-lg px-4 py-3',
+                  'border-l-4 rounded-r-lg px-4 py-3 flex items-start justify-between gap-2',
                   SEVERITY_STYLES[insight.severity] ?? SEVERITY_STYLES['INFO'],
                 )}
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <span
-                    className={cn(
-                      'text-[10px] font-bold uppercase px-1.5 py-0.5 rounded',
-                      BADGE_STYLES[insight.severity] ?? BADGE_STYLES['INFO'],
-                    )}
-                  >
-                    {insight.severity}
-                  </span>
-                  <span className="text-[10px] text-slate-400" suppressHydrationWarning>
-                    {relativeTime(insight.createdAt)}
-                  </span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span
+                      className={cn(
+                        'text-[10px] font-bold uppercase px-2 py-0.5 rounded-full',
+                        BADGE_STYLES[insight.severity] ?? BADGE_STYLES['INFO'],
+                      )}
+                    >
+                      {BADGE_LABEL[insight.severity] ?? insight.severity}
+                    </span>
+                    <span className="text-[10px] text-slate-400" suppressHydrationWarning>
+                      {relativeTime(insight.createdAt)}
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-700 leading-snug">{insight.summary}</p>
                 </div>
-                <p className="text-sm text-slate-700 leading-snug">{insight.summary}</p>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0 mt-0.5 text-slate-400">
+                  <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
               </li>
             ))}
           </ul>
