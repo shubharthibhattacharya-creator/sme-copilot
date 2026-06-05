@@ -158,6 +158,9 @@ async function DashboardContent() {
         </div>
       )}
 
+      {/* Compliance at risk */}
+      <ComplianceAtRiskWidget atRisk={complianceSummary.atRisk} />
+
       {/* AI Insights + Critical Customers */}
       {hasRightPanel && (
         <div
@@ -170,9 +173,6 @@ async function DashboardContent() {
 
       {/* Low Stock */}
       {inventoryEnabled && <LowStockWidget items={summary.lowStockItems} />}
-
-      {/* Compliance at risk */}
-      <ComplianceAtRiskWidget atRisk={complianceSummary.atRisk} />
 
       {!collectionsEnabled && !inventoryEnabled && !hasRightPanel && (
         <div className="text-center py-16 text-slate-400 text-sm">
