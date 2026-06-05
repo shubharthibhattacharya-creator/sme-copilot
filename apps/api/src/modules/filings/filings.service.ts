@@ -235,6 +235,7 @@ export class FilingsService {
         row.checklistId = cl.id
         row.readinessScore = cl.readinessScore
         row.missingItems = Array.isArray(cl.missingItems) ? (cl.missingItems as unknown as MissingItem[]) : []
+        if (cl.status === 'FILED') row.status = 'FILED'
       }
     }
 
