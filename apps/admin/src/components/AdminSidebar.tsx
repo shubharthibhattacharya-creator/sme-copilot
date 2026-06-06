@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 
 const NAV = [
@@ -23,13 +24,15 @@ export function AdminSidebar() {
   return (
     <aside className="w-56 bg-gray-900 border-r border-gray-800 flex flex-col min-h-screen">
       <div className="p-4 border-b border-gray-800">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-indigo-600 rounded-md flex items-center justify-center text-white text-xs font-bold">O</div>
-          <div>
-            <div className="text-sm font-semibold text-white">Admin Panel</div>
-            <div className="text-xs text-gray-500">OpsCopilot</div>
-          </div>
-        </div>
+        <Image
+          src="/practora-logo.png"
+          alt="Practora"
+          width={140}
+          height={49}
+          style={{ objectFit: 'contain', objectPosition: 'left', filter: 'brightness(0) invert(1)' }}
+          priority
+        />
+        <div className="text-xs text-gray-500 mt-1">Admin Portal</div>
       </div>
 
       <nav className="flex-1 p-3 space-y-0.5">
