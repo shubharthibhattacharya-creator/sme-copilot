@@ -23,7 +23,7 @@ export class DashboardController {
 
   @Get('summary')
   getSummary(@CurrentUser() user: AuthenticatedUser) {
-    return this.dashboardService.getSummary(user.companyId)
+    return this.dashboardService.getSummary(user)
   }
 
   @Get('insights')

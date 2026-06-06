@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpsCopilot — Client Pitch Guide</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: #fff;
+    color: #1a1a2e;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  /* ── Cover ── */
+  .cover {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 60px 40px;
+    page-break-after: always;
+  }
+  .cover-logo {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: #818cf8;
+    margin-bottom: 32px;
+  }
+  .cover h1 {
+    font-size: 42px;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.15;
+    margin-bottom: 16px;
+    max-width: 600px;
+  }
+  .cover h1 span { color: #818cf8; }
+  .cover .sub {
+    font-size: 18px;
+    color: #94a3b8;
+    max-width: 480px;
+    margin-bottom: 48px;
+  }
+  .cover-divider {
+    width: 60px;
+    height: 3px;
+    background: #6366f1;
+    border-radius: 2px;
+    margin: 0 auto 48px;
+  }
+  .cover-meta {
+    font-size: 12px;
+    color: #475569;
+    letter-spacing: .08em;
+  }
+
+  /* ── Page layout ── */
+  .page {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 56px 48px;
+    page-break-after: always;
+  }
+  .page:last-child { page-break-after: auto; }
+
+  /* ── Section header ── */
+  .section-label {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: #6366f1;
+    margin-bottom: 8px;
+  }
+  h2 {
+    font-size: 26px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.2;
+    margin-bottom: 24px;
+  }
+  h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 28px 0 10px;
+  }
+  h3.accent { color: #4f46e5; }
+
+  p { margin-bottom: 14px; color: #374151; }
+
+  /* ── Opening hook ── */
+  .hook-box {
+    background: #f0f4ff;
+    border-left: 4px solid #6366f1;
+    border-radius: 0 10px 10px 0;
+    padding: 20px 24px;
+    margin: 24px 0;
+    font-size: 16px;
+    font-style: italic;
+    color: #1e293b;
+    line-height: 1.6;
+  }
+
+  /* ── Feature cards ── */
+  .features-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 20px 0;
+  }
+  .feature-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 16px 18px;
+    background: #fafafa;
+  }
+  .feature-card.winner {
+    border-color: #6366f1;
+    background: #f5f3ff;
+  }
+  .feature-number {
+    font-size: 10px;
+    font-weight: 800;
+    color: #94a3b8;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .feature-card.winner .feature-number { color: #6366f1; }
+  .feature-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .star { color: #f59e0b; font-size: 14px; }
+  .feature-desc {
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.6;
+  }
+
+  /* ── ROI table ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 13px;
+  }
+  th {
+    background: #0f172a;
+    color: #fff;
+    text-align: left;
+    padding: 11px 16px;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: .04em;
+  }
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #374151;
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: #f8fafc; }
+  tr.total td {
+    font-weight: 700;
+    color: #0f172a;
+    background: #f0fdf4;
+    border-top: 2px solid #22c55e;
+    border-bottom: none;
+  }
+
+  /* ── Objection cards ── */
+  .objection {
+    border: 1px solid #fee2e2;
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+    background: #fff;
+  }
+  .objection-q {
+    font-size: 13px;
+    font-weight: 700;
+    color: #dc2626;
+    margin-bottom: 8px;
+  }
+  .objection-a {
+    font-size: 13px;
+    color: #374151;
+    line-height: 1.6;
+  }
+
+  /* ── Story box ── */
+  .story-box {
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin: 20px 0;
+    font-style: italic;
+    color: #1c1917;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .story-label {
+    font-style: normal;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: #92400e;
+    margin-bottom: 10px;
+  }
+
+  /* ── Highlight pills ── */
+  .pill-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 16px 0;
+  }
+  .pill {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .pill-green  { background: #dcfce7; color: #15803d; }
+  .pill-blue   { background: #dbeafe; color: #1d4ed8; }
+  .pill-purple { background: #ede9fe; color: #6d28d9; }
+  .pill-amber  { background: #fef3c7; color: #92400e; }
+  .pill-red    { background: #fee2e2; color: #b91c1c; }
+
+  /* ── Close box ── */
+  .close-box {
+    background: linear-gradient(135deg, #0f172a, #1e1b4b);
+    border-radius: 14px;
+    padding: 32px 36px;
+    color: #fff;
+    margin: 24px 0;
+  }
+  .close-box h3 { color: #a5b4fc; margin-top: 0; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; }
+  .close-box p { color: #cbd5e1; font-size: 14px; }
+  .close-box .close-line {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    font-style: italic;
+    border-top: 1px solid #334155;
+    padding-top: 20px;
+    margin-top: 20px;
+    line-height: 1.5;
+  }
+
+  /* ── Numbered list ── */
+  .num-list { list-style: none; margin: 16px 0; }
+  .num-list li {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 14px;
+    align-items: flex-start;
+  }
+  .num-badge {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #6366f1;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .num-content { flex: 1; }
+  .num-content strong { color: #0f172a; display: block; margin-bottom: 2px; }
+  .num-content span { font-size: 13px; color: #64748b; }
+
+  /* ── Warning box ── */
+  .warn-box {
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 16px 0;
+    font-size: 13px;
+    color: #7c2d12;
+  }
+  .warn-box strong { display: block; margin-bottom: 6px; color: #9a3412; }
+
+  /* ── Footer ── */
+  .footer {
+    text-align: center;
+    padding: 32px;
+    font-size: 11px;
+    color: #94a3b8;
+    border-top: 1px solid #f1f5f9;
+  }
+
+  @media print {
+    .cover { min-height: auto; padding: 80px 40px; }
+    .page { padding: 40px 48px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════ COVER ═══════ -->
+<div class="cover">
+  <div class="cover-logo">OpsCopilot</div>
+  <h1>First Client<br><span>Pitch Guide</span></h1>
+  <p class="sub">Everything you need to walk into a CA firm and walk out with a signed deal</p>
+  <div class="cover-divider"></div>
+  <div class="cover-meta">FOR CA FIRMS &amp; TAX PRACTICES &nbsp;·&nbsp; CONFIDENTIAL &nbsp;·&nbsp; JUNE 2026</div>
+</div>
+
+<!-- ═══════ SECTION 1: THE APPROACH ═══════ -->
+<div class="page">
+  <div class="section-label">Section 01</div>
+  <h2>How to Open the Conversation</h2>
+
+  <p>Do not open with features. Open with a problem they feel every single month.</p>
+
+  <div class="hook-box">
+    "How much time does your team spend every month chasing clients for documents, manually checking who has filed and who hasn't, and sending WhatsApp reminders one by one?"
+  </div>
+
+  <p>Most CA principals will say <strong>30–40% of staff time</strong>. Some will laugh and say more. That moment — when they admit the number out loud — is your opening. Everything after that is showing them the solution to a problem they just confirmed they have.</p>
+
+  <h3>What You Show Them — In This Order</h3>
+
+  <ul class="num-list">
+    <li>
+      <div class="num-badge">1</div>
+      <div class="num-content">
+        <strong>The GST Filing Calendar</strong>
+        <span>One screen. All clients. Colour-coded. Green = filed. Red = overdue. Amber = documents missing. No spreadsheet, no calling around, no "let me check."</span>
+      </div>
+    </li>
+    <li>
+      <div class="num-badge">2</div>
+      <div class="num-content">
+        <strong>Bulk Document Request via WhatsApp</strong>
+        <span>Select 10 overdue clients. Click Request Documents. They each get a WhatsApp with a link. They upload from their phone. Files appear in your dashboard, tagged to that client and period.</span>
+      </div>
+    </li>
+    <li>
+      <div class="num-badge">3</div>
+      <div class="num-content">
+        <strong>Collections — One-Click Reminders</strong>
+        <span>Every client who owes fees is ranked by risk. One click sends a payment reminder over WhatsApp. The system enforces a gap — clients are followed up consistently, not spammed.</span>
+      </div>
+    </li>
+    <li>
+      <div class="num-badge">4</div>
+      <div class="num-content">
+        <strong>AI Compliance Assistant</strong>
+        <span>Ask it "what documents does a composition dealer need for annual return?" It answers in 10 seconds from your firm's own SOPs. New staff stop making mistakes. Senior staff stop answering the same questions.</span>
+      </div>
+    </li>
+    <li>
+      <div class="num-badge">5</div>
+      <div class="num-content">
+        <strong>GSTIN Validation</strong>
+        <span>Add a client — we check their GSTIN with the GST portal in real time. Cancelled registration? Red alert immediately, before you waste time preparing the return.</span>
+      </div>
+    </li>
+  </ul>
+
+  <div class="warn-box">
+    <strong>Demo Rule: Show Only 3 Things</strong>
+    A demo that takes 45 minutes loses deals. Show the filings screen, the document request flow, and the GSTIN validation. Three things. Let them ask about the rest.
+  </div>
+</div>
+
+<!-- ═══════ SECTION 2: FEATURES ═══════ -->
+<div class="page">
+  <div class="section-label">Section 02</div>
+  <h2>10 Features Worth Highlighting</h2>
+
+  <p style="margin-bottom:20px">The first four are table stakes — they show the product is complete. The last six are where you win.</p>
+
+  <div class="features-grid">
+
+    <div class="feature-card">
+      <div class="feature-number">Feature 01</div>
+      <div class="feature-title">GST Filing Calendar</div>
+      <div class="feature-desc">Every client's filing status for the current period. Filed, Pending, Overdue — colour coded. No spreadsheet needed.</div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-number">Feature 02</div>
+      <div class="feature-title">Document Collection via WhatsApp</div>
+      <div class="feature-desc">Send document requests to 50 clients in two clicks. They upload from their phone. Files land tagged to the right client and period.</div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-number">Feature 03</div>
+      <div class="feature-title">Collections &amp; Payment Follow-up</div>
+      <div class="feature-desc">All outstanding fees ranked by risk. One-click reminders with enforced intervals — consistent follow-up, no client gets spammed or forgotten.</div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-number">Feature 04</div>
+      <div class="feature-title">Auto-Generated Reports</div>
+      <div class="feature-desc">MIS Monthly, GST Filing Status, Client Health, Overdue Analysis — generated in 30 seconds with an AI executive summary. Download as PDF.</div>
+    </div>
+
+    <div class="feature-card winner">
+      <div class="feature-number">Feature 05 — Winning</div>
+      <div class="feature-title"><span class="star">★</span> Real-Time GSTIN Verification</div>
+      <div class="feature-desc">Add a client and we check their GSTIN with the GST portal instantly. Cancelled or suspended? Red alert before you waste a single hour on their return. Nothing else does this at client creation.</div>
+    </div>
+
+    <div class="feature-card winner">
+      <div class="feature-number">Feature 06 — Winning</div>
+      <div class="feature-title"><span class="star">★</span> Filing Readiness Score</div>
+      <div class="feature-desc">Every client gets a 0–100% score showing documents received vs. needed. Know at 9am on the 18th who is a problem — not at 11pm on the 20th.</div>
+    </div>
+
+    <div class="feature-card winner">
+      <div class="feature-number">Feature 07 — Winning</div>
+      <div class="feature-title"><span class="star">★</span> Consecutive Missed Months Alert</div>
+      <div class="feature-desc">Any client who has missed 2+ filing cycles gets a flame alert. These are your highest-risk clients, surfaced automatically. No other tool tracks this pattern.</div>
+    </div>
+
+    <div class="feature-card winner">
+      <div class="feature-number">Feature 08 — Winning</div>
+      <div class="feature-title"><span class="star">★</span> AI Assistant on Your SOPs</div>
+      <div class="feature-desc">Upload your firm's procedures. Junior staff get your firm's exact answers — not a generic search result. Reduces mistakes, reduces time senior staff spend on repetitive queries.</div>
+    </div>
+
+    <div class="feature-card winner">
+      <div class="feature-number">Feature 09 — Winning</div>
+      <div class="feature-title"><span class="star">★</span> Late Fee Exposure in ₹</div>
+      <div class="feature-desc">For every overdue client, see the late fee accumulating per day. Telling a client "you are accruing ₹200/day" gets documents submitted faster than any reminder message.</div>
+    </div>
+
+    <div class="feature-card winner">
+      <div class="feature-number">Feature 10 — Winning</div>
+      <div class="feature-title"><span class="star">★</span> Bulk Actions with Audit Trail</div>
+      <div class="feature-desc">Request documents, send nudges, or mark 30 clients as filed in one action. Every action is logged — who did what, when. Accountability built in.</div>
+    </div>
+
+  </div>
+
+  <p style="margin-top:8px;font-size:12px;color:#6366f1;font-weight:600">The three that make a CA principal lean forward: #05 (GSTIN validation), #07 (missed months pattern), #09 (late fee in rupees).</p>
+</div>
+
+<!-- ═══════ SECTION 3: ROI ═══════ -->
+<div class="page">
+  <div class="section-label">Section 03</div>
+  <h2>The ROI — Put Numbers to It</h2>
+
+  <p>For a firm with <strong>50 clients and 3 staff</strong> — calculate this live in front of them:</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>What Changes</th>
+        <th>Time Saved / Month</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>No more manual follow-up calls for documents</td>
+        <td>~15 hours</td>
+      </tr>
+      <tr>
+        <td>No more spreadsheet tracking of who filed and who hasn't</td>
+        <td>~8 hours</td>
+      </tr>
+      <tr>
+        <td>Fewer back-and-forth WhatsApps per client</td>
+        <td>~6 hours</td>
+      </tr>
+      <tr>
+        <td>Junior staff self-serve answers from AI assistant</td>
+        <td>~5 hours</td>
+      </tr>
+      <tr class="total">
+        <td>Total saved every month</td>
+        <td>~34 hours</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="pill-row">
+    <span class="pill pill-green">34 hrs × ₹300/hr = ₹10,200 saved</span>
+    <span class="pill pill-blue">1 missed filing caught = ₹5,000–10,000 late fee avoided</span>
+    <span class="pill pill-purple">1 retained client = ₹30,000+/yr</span>
+  </div>
+
+  <h3>The Cost of Doing Nothing</h3>
+  <p>Most CA firms lose 1–2 clients a year because of a missed deadline or a follow-up that slipped. One lost client at a ₹30,000/year retainer costs more than the annual subscription. Frame OpsCopilot as <strong>retention insurance</strong>, not software.</p>
+
+  <h3>The WhatsApp Story — Tell This Verbatim</h3>
+
+  <div class="story-box">
+    <div class="story-label">Tell This Story</div>
+    "Your client Ramesh sends you a document at 11pm on a Sunday. Right now it sits in your WhatsApp until Monday morning when someone remembers to save it and tag it. With OpsCopilot, that document is automatically received, named, tagged to Ramesh's account, and shows up in your filing checklist — before your office opens."
+  </div>
+
+  <h3>The Live Calculation — Do This in the Room</h3>
+  <p>Before the meeting, find out how many clients they have. Then do this calculation out loud, on paper or on your phone:</p>
+
+  <div class="hook-box" style="font-style:normal;font-size:13px">
+    <strong>[Their client count] × 20 minutes of follow-up per client per month</strong><br>
+    = X hours/month<br><br>
+    <strong>X hours × ₹300/hour staff cost</strong><br>
+    = ₹Y per month being spent on manual coordination<br><br>
+    <strong>OpsCopilot subscription = fraction of ₹Y</strong>
+  </div>
+
+  <p style="font-size:12px;color:#6366f1;font-weight:600">People believe numbers they watched you calculate more than numbers on a slide.</p>
+</div>
+
+<!-- ═══════ SECTION 4: OBJECTIONS ═══════ -->
+<div class="page">
+  <div class="section-label">Section 04</div>
+  <h2>Objections — Handle These Before They Come Up</h2>
+
+  <div class="objection">
+    <div class="objection-q">❝ We already use ClearTax / Tally / spreadsheets ❞</div>
+    <div class="objection-a">OpsCopilot does not replace those. It sits on top. ClearTax files the return — OpsCopilot tracks whether the client sent you the documents to file it in the first place. They work together, not against each other.</div>
+  </div>
+
+  <div class="objection">
+    <div class="objection-q">❝ Our clients are not tech-savvy, they won't use a link ❞</div>
+    <div class="objection-a">They already use WhatsApp all day. The upload link opens in a browser — no login, no app install. If a 60-year-old business owner can forward a PDF on WhatsApp, they can use this.</div>
+  </div>
+
+  <div class="objection">
+    <div class="objection-q">❝ What happens to our client data? ❞</div>
+    <div class="objection-a">Answer this before they ask. Data is stored in encrypted servers. Each firm's data is completely isolated — no data is shared with third parties. We are not ClearTax — we do not use your client data to build competing products.</div>
+  </div>
+
+  <div class="objection">
+    <div class="objection-q">❝ We are a small firm, we can manage manually ❞</div>
+    <div class="objection-a">The problem is not whether you can manage manually today. It is that manual does not scale. When you go from 50 clients to 80, the same team either drowns or you hire. OpsCopilot lets the same 3 people handle 80 clients.</div>
+  </div>
+
+  <div class="objection">
+    <div class="objection-q">❝ We don't have time to set up a new system ❞</div>
+    <div class="objection-a">You do not set it up — we do. I will sit with your team for 2 hours in Week 1. We add all your clients, configure templates, and run through one document request together. Your team runs it independently after that.</div>
+  </div>
+</div>
+
+<!-- ═══════ SECTION 5: CLOSE ═══════ -->
+<div class="page">
+  <div class="section-label">Section 05</div>
+  <h2>How to Close the Deal</h2>
+
+  <h3>The Commitment That Closes</h3>
+  <p>Do not ask them to buy software. Offer them a guided trial with a safety net:</p>
+
+  <div class="story-box" style="background:#f0fdf4;border-color:#bbf7d0;color:#14532d">
+    <div class="story-label" style="color:#166534">The Trial Offer</div>
+    "I will personally sit with your team for 2 hours in Week 1. We add all your clients, set up the filing templates, and run through one document request together. After that your team runs it independently. If after 60 days it is not saving you time, I will refund the first month — no questions."
+  </div>
+
+  <h3>Three Things to Add to Win</h3>
+
+  <ul class="num-list">
+    <li>
+      <div class="num-badge">1</div>
+      <div class="num-content">
+        <strong>Show the cost of doing nothing</strong>
+        <span>One lost client at ₹30,000/year retainer costs more than the annual subscription. Frame it as retention insurance.</span>
+      </div>
+    </li>
+    <li>
+      <div class="num-badge">2</div>
+      <div class="num-content">
+        <strong>Tell the Ramesh story</strong>
+        <span>Documents received at 11pm on Sunday, tagged and ready before Monday morning. That story is more powerful than any feature list.</span>
+      </div>
+    </li>
+    <li>
+      <div class="num-badge">3</div>
+      <div class="num-content">
+        <strong>Calculate their number live, in the room</strong>
+        <span>[Client count] × 20 mins × ₹300/hr = their monthly coordination cost. Do it on paper in front of them.</span>
+      </div>
+    </li>
+  </ul>
+
+  <h3>What NOT to Do</h3>
+  <div class="warn-box">
+    <strong>Do not show them everything</strong>
+    The AI assistant, reports, collections module — park those for now. Show three things. Let them ask about the rest. A 45-minute demo loses deals. A 15-minute demo that leaves them asking questions wins them.
+  </div>
+
+  <h3>The Real Reason First Deals Are Won</h3>
+  <p>They are not buying features. They are buying the belief that <strong>you will be there if something breaks</strong>. First client pricing should include your personal WhatsApp number and a commitment to respond within 2 hours during business days.</p>
+  <p>That is something no incumbent can offer. ClearTax does not give the principal's phone number. You do.</p>
+
+  <div class="close-box">
+    <h3>The One-Line Close</h3>
+    <p>When everything has been said and they are still thinking, end with this:</p>
+    <div class="close-line">"Right now your team is doing the job of a system. We give you the system, so your team can do the job of a CA."</div>
+  </div>
+
+  <div class="pill-row" style="justify-content:center;margin-top:32px">
+    <span class="pill pill-purple">60-Day Trial</span>
+    <span class="pill pill-green">First Month Refund Guarantee</span>
+    <span class="pill pill-blue">2-Hour Onboarding Included</span>
+    <span class="pill pill-amber">Personal WhatsApp Support</span>
+  </div>
+</div>
+
+<div class="footer">
+  OpsCopilot &nbsp;·&nbsp; Client Pitch Guide &nbsp;·&nbsp; Confidential &nbsp;·&nbsp; June 2026<br>
+  For internal use only — do not distribute to prospects
+</div>
+
+</body>
+</html>

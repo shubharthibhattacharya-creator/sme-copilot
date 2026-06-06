@@ -17,7 +17,7 @@ export class ComplianceService {
   ) {}
 
   async listChecklists(
-    companyId: string,
+    user: { companyId: string; role: string; userId: string },
     query: {
       clientId?: string
       filingType?: string
@@ -28,13 +28,29 @@ export class ComplianceService {
       limit?: number
     },
   ) {
+    const companyId = user.companyId
     const page = query.page ?? 1
     const limit = Math.min(query.limit ?? 20, 50)
     const skip = (page - 1) * limit
 
+    // For STAFF: scope to owned clients only
+    let clientIdFilter: { clientId?: string | { in: string[] } } = {}
+    if (user.role === 'STAFF') {
+      const ownedClients = await this.prisma.client.findMany({
+        where: { companyId, ownerId: user.userId },
+        select: { id: true },
+      })
+      const ids = ownedClients.map((c) => c.id)
+      clientIdFilter = query.clientId
+        ? { clientId: query.clientId }
+        : { clientId: { in: ids } }
+    } else if (query.clientId) {
+      clientIdFilter = { clientId: query.clientId }
+    }
+
     const where = {
       companyId,
-      ...(query.clientId ? { clientId: query.clientId } : {}),
+      ...clientIdFilter,
       ...(query.filingType ? { filingType: query.filingType as FilingType } : {}),
       ...(query.period ? { filingPeriod: query.period } : {}),
       ...(query.status ? { status: query.status as ChecklistStatus } : {}),

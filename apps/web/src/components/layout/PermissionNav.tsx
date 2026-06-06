@@ -11,6 +11,8 @@ import {
   Bot,
   Settings,
   GitMerge,
+  ClipboardList,
+  Users,
 } from 'lucide-react'
 import { usePermissions, type AppModule } from '@/contexts/permissions.context'
 
@@ -20,9 +22,11 @@ interface NavItem {
   module: AppModule | null
   icon: React.ElementType
   iconColor: string
+  adminOnly?: boolean
 }
 
 const NAV_ITEMS: NavItem[] = [
+  { href: '/my-work',        label: 'My Work',       module: null,          icon: ClipboardList,   iconColor: '#E11D48' },
   { href: '/dashboard',      label: 'Dashboard',     module: 'dashboard',   icon: LayoutDashboard, iconColor: '#2563EB' },
   { href: '/filings',        label: 'GST Filings',   module: 'compliance',  icon: FileCheck2,      iconColor: '#16A34A' },
   { href: '/collections',    label: 'Collections',   module: 'collections', icon: CreditCard,      iconColor: '#D97706' },
@@ -31,14 +35,20 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/reporting',      label: 'Reports',       module: 'reports',     icon: BarChart2,       iconColor: '#4F46E5' },
   { href: '/whatsapp',       label: 'WhatsApp',      module: 'whatsapp',    icon: MessageSquare,   iconColor: '#16A34A' },
   { href: '/assistant',      label: 'AI Assistant',  module: 'assistant',   icon: Bot,             iconColor: '#8B5CF6' },
+  { href: '/admin/workload', label: 'Team Workload', module: null,          icon: Users,           iconColor: '#0369A1', adminOnly: true },
   { href: '/settings',       label: 'Settings',      module: 'settings',    icon: Settings,        iconColor: '#64748B' },
 ]
 
 export function PermissionNav() {
-  const { hasModule, loaded } = usePermissions()
+  const { hasModule, loaded, isAdmin, role } = usePermissions()
   const pathname = usePathname()
 
-  const visible = NAV_ITEMS.filter(({ module }) => !module || !loaded || hasModule(module))
+  const canSeeAdminOnly = isAdmin || role === 'OPERATIONS_MANAGER'
+
+  const visible = NAV_ITEMS.filter(({ module, adminOnly }) => {
+    if (adminOnly && !canSeeAdminOnly) return false
+    return !module || !loaded || hasModule(module)
+  })
 
   return (
     <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>

@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>OpsCopilot — User Manual</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <link rel="stylesheet" href="/dev/stdin" />
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">OpsCopilot — User Manual</h1>
+</header>
+<h1 id="opscopilot-user-manual">OpsCopilot — User Manual</h1>
+<h3 id="for-ca-firms-and-tax-practices">For CA Firms and Tax
+Practices</h3>
+<p><strong>Version 1.0 | Last updated: May 2026</strong></p>
+<hr />
+<h2 id="contents">Contents</h2>
+<ol type="1">
+<li><a href="#1-what-is-opscopilot">What is OpsCopilot?</a></li>
+<li><a href="#2-getting-started--first-time-setup">Getting Started —
+First-Time Setup</a></li>
+<li><a href="#3-dashboard">Dashboard</a></li>
+<li><a href="#4-gst-filings">GST Filings</a></li>
+<li><a href="#5-collections">Collections</a></li>
+<li><a href="#6-documents">Documents</a></li>
+<li><a href="#7-reports">Reports</a></li>
+<li><a href="#8-ai-assistant">AI Assistant</a></li>
+<li><a href="#9-whatsapp-integration">WhatsApp Integration</a></li>
+<li><a href="#10-settings">Settings</a></li>
+<li><a href="#11-team-management">Team Management</a></li>
+<li><a href="#12-roles-and-permissions">Roles and Permissions</a></li>
+<li><a href="#13-frequently-asked-questions">Frequently Asked
+Questions</a></li>
+</ol>
+<hr />
+<h2 id="what-is-opscopilot">1. What is OpsCopilot?</h2>
+<p>OpsCopilot is a practice management platform built specifically for
+CA firms and tax practices in India. It brings together client filing
+tracking, receivables management, document collection, WhatsApp
+communication, and AI-assisted compliance queries into one place.</p>
+<p><strong>Who uses it:</strong> - <strong>Principal / Partner</strong>
+— Reviews firm health, approves actions, generates reports -
+<strong>Senior Accountant / Manager</strong> — Manages filings calendar,
+follows up on documents - <strong>Junior Staff / Articled
+Assistant</strong> — Handles day-to-day document uploads, client
+reminders</p>
+<p><strong>What it does not replace:</strong> OpsCopilot is a management
+and coordination layer — it does not replace your existing GST filing
+software (ClearTax, Zoho, Tally). It tracks what needs to be done and
+helps your team execute faster.</p>
+<hr />
+<h2 id="getting-started-first-time-setup">2. Getting Started —
+First-Time Setup</h2>
+<h3 id="step-1-accept-your-invitation">Step 1 — Accept Your
+Invitation</h3>
+<p>Your firm’s admin will send you an email invitation. Click the link
+in the email, set your password, and you will be redirected to the
+onboarding wizard.</p>
+<p>If you are the principal setting up your firm for the first time, you
+will receive setup credentials from OpsCopilot support.</p>
+<hr />
+<h3 id="step-2-onboarding-wizard">Step 2 — Onboarding Wizard</h3>
+<p>The wizard has 5 steps. You can pause at any step and come back later
+— your progress is saved.</p>
+<p><strong>Step 1 — Firm Details</strong></p>
+<p>Fill in your firm’s information:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Firm Name</td>
+<td>Yes</td>
+<td>Pre-filled from registration</td>
+</tr>
+<tr>
+<td>GSTIN</td>
+<td>Yes</td>
+<td>15-character GST number, auto-capitalised</td>
+</tr>
+<tr>
+<td>PAN</td>
+<td>Yes</td>
+<td>10-character PAN, auto-capitalised</td>
+</tr>
+<tr>
+<td>Phone</td>
+<td>No</td>
+<td>Used for firm-level contact</td>
+</tr>
+<tr>
+<td>Office Address</td>
+<td>No</td>
+<td>Appears on documents and reports</td>
+</tr>
+</tbody>
+</table>
+<p>Click <strong>Save &amp; Continue</strong> when done.</p>
+<hr />
+<p><strong>Step 2 — Add Clients</strong></p>
+<p>This is where you add the clients whose GST filings and payments your
+firm manages.</p>
+<p><em>To add a client:</em> 1. Enter the client’s firm name 2. Enter
+their GSTIN (optional but recommended — used for filing tracking) 3.
+Select their Filer Type: - <strong>Monthly</strong> — files GSTR-1 and
+GSTR-3B every month - <strong>Quarterly</strong> — QRMP scheme filers -
+<strong>Annual</strong> — only annual returns (typically composition
+dealers) 4. Click <strong>Add Client</strong></p>
+<p>You can add multiple clients before clicking Continue. If you have
+many clients, you can also import them via CSV after setup from Settings
+&gt; Clients.</p>
+<p>Click <strong>Continue</strong> when you have added at least your
+primary clients. You can add more at any time.</p>
+<hr />
+<p><strong>Step 3 — WhatsApp Setup</strong></p>
+<p>This step connects your firm’s WhatsApp number so OpsCopilot can send
+reminders and receive documents from clients automatically.</p>
+<p><em>To set up WhatsApp:</em> 1. Save the Twilio sandbox number shown
+on screen in your phone contacts 2. Send the join code shown (e.g.,
+“join copper-valley”) to that number via WhatsApp 3. Enter your
+WhatsApp-registered phone number in the field provided 4. Click
+<strong>Verify</strong></p>
+<p>If you want to skip WhatsApp for now and set it up later, click
+<strong>Skip</strong>. You can always come back to this from Settings
+&gt; Integrations.</p>
+<hr />
+<p><strong>Step 4 — Tax Software</strong></p>
+<p>This step shows available integrations (ClearTax, Zoho Books, Tally).
+These will be available in a future release. Click
+<strong>Continue</strong> to proceed.</p>
+<hr />
+<p><strong>Step 5 — Review &amp; Go to Dashboard</strong></p>
+<p>Review your setup summary and click <strong>Go to
+Dashboard</strong>.</p>
+<hr />
+<h2 id="dashboard">3. Dashboard</h2>
+<p>The Dashboard is the first screen you see after logging in. It gives
+you a firm-wide health check at a glance.</p>
+<h3 id="kpi-cards-top-row">KPI Cards (top row)</h3>
+<p>There are four metric cards:</p>
+<table>
+<thead>
+<tr>
+<th>Card</th>
+<th>What it shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Total Receivables</td>
+<td>All unpaid invoices (pending + overdue)</td>
+</tr>
+<tr>
+<td>Overdue Amount</td>
+<td>Amount across all overdue invoices</td>
+</tr>
+<tr>
+<td>Overdue Invoices</td>
+<td>Count of overdue invoices</td>
+</tr>
+<tr>
+<td>Avg Days Overdue</td>
+<td>Average age of your overdue invoices</td>
+</tr>
+</tbody>
+</table>
+<p>Each card shows: - <strong>Current value</strong> (large number) -
+<strong>Trend arrow</strong> — up/down/flat vs. the previous month -
+<strong>Sparkline</strong> — 6-month mini chart</p>
+<p>A green arrow is good (receivables going down, collections trending
+up). A red arrow needs attention.</p>
+<hr />
+<h3 id="ai-insights">AI Insights</h3>
+<p>Below the KPI cards is the <strong>AI Insights</strong> panel. This
+shows 2–3 automatically generated observations about your firm’s current
+state. Examples:</p>
+<blockquote>
+<p>“3 clients account for 78% of your overdue amount — prioritise Kapoor
+Exports, Mehta Traders, and Singh &amp; Co.”</p>
+</blockquote>
+<blockquote>
+<p>“GST compliance readiness at 62% — 4 clients have not submitted
+documents for the current period.”</p>
+</blockquote>
+<p>Insights are refreshed automatically when meaningful changes happen
+(payments received, documents uploaded). You can also click
+<strong>Refresh Insights</strong> at any time to get the latest.</p>
+<p>Insights are colour-coded by severity: - <strong>Blue (INFO)</strong>
+— Observation, no urgent action needed - <strong>Amber
+(WARNING)</strong> — Needs attention in the next few days - <strong>Red
+(CRITICAL)</strong> — Immediate action required</p>
+<hr />
+<h3 id="compliance-at-risk">Compliance At Risk</h3>
+<p>This section shows clients whose GST filings for the current period
+are in risk. A client appears here if: - Their readiness score is below
+50% - They have missed 2 or more consecutive months - The deadline is
+within 5 days</p>
+<p>Click any client row to jump directly to their filing details.</p>
+<hr />
+<h3 id="top-overdue-customers">Top Overdue Customers</h3>
+<p>A ranked table of clients with the highest overdue amounts. Clicking
+the phone icon next to a client opens a reminder flow. Clicking the name
+opens their invoice history.</p>
+<hr />
+<h2 id="gst-filings">4. GST Filings</h2>
+<p><strong>Navigation: GST Filings</strong> (second item in the left
+sidebar)</p>
+<p>This is the core workflow for CA firms. It shows every client’s
+filing status for the current GST period (GSTR-1 + GSTR-3B).</p>
+<hr />
+<h3 id="understanding-the-filing-table">Understanding the Filing
+Table</h3>
+<p>Each row represents one client for the current period. Columns:</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Client</td>
+<td>Client name and GSTIN</td>
+</tr>
+<tr>
+<td>Period</td>
+<td>Filing period (e.g., Apr 2026)</td>
+</tr>
+<tr>
+<td>Filer Type</td>
+<td>Monthly / Quarterly</td>
+</tr>
+<tr>
+<td>Deadline</td>
+<td>Last date for filing</td>
+</tr>
+<tr>
+<td>Status</td>
+<td>Current filing status</td>
+</tr>
+<tr>
+<td>Readiness</td>
+<td>Document readiness score (0–100%)</td>
+</tr>
+<tr>
+<td>Last Reminder</td>
+<td>Date of last WhatsApp reminder sent</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Status colours:</strong> - <strong>Green — FILED:</strong>
+Return has been filed. No action needed. - <strong>Amber —
+PENDING:</strong> Period is open and documents are being collected. -
+<strong>Red — OVERDUE:</strong> Deadline has passed without filing. -
+<strong>Red border — AT RISK:</strong> Deadline is within 5 days and
+readiness is below 80%.</p>
+<hr />
+<h3 id="readiness-score">Readiness Score</h3>
+<p>The coloured progress bar next to each client shows their document
+readiness: - <strong>Green (80–100%)</strong> — Almost all required
+documents received - <strong>Amber (50–79%)</strong> — Some documents
+missing - <strong>Red (0–49%)</strong> — Most documents not yet
+received</p>
+<p>Hover over the bar (or click the row) to see exactly which documents
+are missing.</p>
+<hr />
+<h3 id="flame-badge">Flame Badge</h3>
+<p>A flame icon next to a client’s name means they have missed 2 or more
+consecutive filing periods. These clients need proactive follow-up.</p>
+<hr />
+<h3 id="filtering">Filtering</h3>
+<p>Use the tab filters above the table to narrow the view: -
+<strong>All</strong> — Every client - <strong>Filed</strong> — Only
+completed filings - <strong>Pending</strong> — In progress -
+<strong>Overdue</strong> — Past deadline - <strong>At Risk</strong> —
+Approaching deadline with low readiness</p>
+<p>Use the search box to find a specific client by name.</p>
+<hr />
+<h3 id="client-detail-drawer">Client Detail Drawer</h3>
+<p>Click any row to open the detail panel on the right side. This shows:
+- Client’s GSTIN and filer type - Current period and deadline -
+Readiness bar with the specific list of missing documents - Consecutive
+missed periods warning (if applicable) - Date of the last WhatsApp
+reminder sent - Two action buttons: <strong>Mark as Filed</strong> and
+<strong>Request Documents</strong></p>
+<p><strong>Mark as Filed:</strong> Use this when the return has been
+filed in your GST portal. This updates the status to FILED in OpsCopilot
+and records the filing in the audit trail.</p>
+<p><strong>Request Documents:</strong> Sends a WhatsApp message to the
+client listing the specific documents that are still missing. The client
+receives a link where they can upload documents directly.</p>
+<hr />
+<h3 id="bulk-actions">Bulk Actions</h3>
+<p>To take action on multiple clients at once: 1. Check the boxes next
+to the clients you want to act on (or use the header checkbox to select
+all visible) 2. The bulk action toolbar appears at the top of the table
+3. Choose an action:</p>
+<p><strong>Request Documents (blue button)</strong> Opens a modal
+listing selected clients. You can deselect any client you do not want to
+message. Toggle “Send via WhatsApp” to also send the request over
+WhatsApp. Click <strong>Send Requests</strong>.</p>
+<p><strong>Deadline Nudge (amber button)</strong> Sends a deadline
+reminder to selected clients via WhatsApp. The message previews in the
+modal before sending. Use this 2–3 days before the deadline.</p>
+<p><strong>Mark as Filed (green button)</strong> Marks selected clients
+as FILED. An amber warning banner reads: <em>“This cannot be
+undone.”</em> Review the list carefully and click
+<strong>Confirm</strong> to proceed.</p>
+<hr />
+<h3 id="export-to-csv">Export to CSV</h3>
+<p>Click the <strong>Export CSV</strong> button (top right, above the
+table) to download the current view as a spreadsheet. The export
+respects the active filter — if you are viewing “Overdue” clients, only
+those rows are exported. Useful for sharing a status update with your
+team or client.</p>
+<hr />
+<h3 id="filing-heatmap">Filing Heatmap</h3>
+<p>Toggle to the <strong>Heatmap</strong> view to see 6 months of filing
+history across all clients in a grid format. Green cells = filed, amber
+= pending, red = overdue, grey = not applicable. This is useful for
+identifying clients with a persistent pattern of late filing.</p>
+<hr />
+<h2 id="collections">5. Collections</h2>
+<p><strong>Navigation: Collections</strong></p>
+<p>The Collections module tracks all client invoices — fees outstanding,
+overdue dues, and payment follow-up.</p>
+<hr />
+<h3 id="invoice-list">Invoice List</h3>
+<p>The main view shows all active invoices sorted by risk (highest
+overdue first). Each invoice shows: - Client name and phone number -
+Invoice amount - Due date and days overdue - Risk level: HIGH / MEDIUM /
+LOW (based on aging, amount, and payment history)</p>
+<p>Use the filters at the top to narrow by status (Pending, Overdue,
+Paid) or risk level.</p>
+<hr />
+<h3 id="aging-breakdown">Aging Breakdown</h3>
+<p>The chart at the top of the Collections page shows your receivables
+split into aging buckets: - 0–30 days - 31–60 days - 61–90 days - 90+
+days</p>
+<p>A healthy practice should have the bulk of receivables in the 0–30
+bucket. Significant amounts in the 60+ buckets indicate follow-up is
+needed.</p>
+<hr />
+<h3 id="sending-a-reminder">Sending a Reminder</h3>
+<p>Click the <strong>Send Reminder</strong> button on any invoice to: 1.
+Send a WhatsApp payment reminder to the client (if WhatsApp is enabled)
+2. Record the reminder in the audit trail with a timestamp</p>
+<p><strong>Important:</strong> OpsCopilot enforces a minimum interval
+between reminders per invoice (default: 7 days). If you try to send a
+reminder before the interval has passed, you will see a message like:
+<em>“Reminder already sent on 20 May 2026. Next reminder allowed after 7
+days.”</em></p>
+<p>This protects your firm’s reputation — clients who receive daily
+reminders often stop responding entirely. The interval can be adjusted
+in Settings &gt; Rules.</p>
+<hr />
+<h3 id="viewing-invoice-history">Viewing Invoice History</h3>
+<p>Click any invoice row to open the detail view. This shows the full
+audit trail — when the invoice was created, when reminders were sent,
+and any status changes. Useful for checking “did we actually follow up
+with this client last month?”</p>
+<hr />
+<h2 id="documents">6. Documents</h2>
+<p><strong>Navigation: Documents</strong></p>
+<p>The Documents module is where all client-submitted documents are
+tracked and verified.</p>
+<hr />
+<h3 id="how-documents-come-in">How Documents Come In</h3>
+<p>Documents can arrive three ways: 1. <strong>WhatsApp upload</strong>
+— A client clicks a link in a WhatsApp message and uploads directly from
+their phone 2. <strong>Email upload</strong> — Same link sent via email
+3. <strong>Manual upload</strong> — Your staff uploads a document on the
+client’s behalf from this screen</p>
+<hr />
+<h3 id="document-status">Document Status</h3>
+<p>Each document moves through these states:</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Uploaded</td>
+<td>Received, OCR processing in progress</td>
+</tr>
+<tr>
+<td>Verified</td>
+<td>Data extracted, reviewed and confirmed</td>
+</tr>
+<tr>
+<td>Needs Review</td>
+<td>OCR extracted data but confidence is low — staff review
+required</td>
+</tr>
+<tr>
+<td>Rejected</td>
+<td>Document was incorrect (wrong period, wrong client, illegible)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="ocr-and-data-extraction">OCR and Data Extraction</h3>
+<p>When a document is uploaded, OpsCopilot automatically extracts key
+fields using AI: - Invoice number and date - Client and vendor names -
+Total amount, GST amount, IGST/CGST/SGST breakdown - GSTIN and PAN
+numbers</p>
+<p>The extracted data is shown next to the document. A
+<strong>confidence score</strong> (0–100%) shows how certain the AI was.
+Documents with confidence below 70% are flagged for your review.</p>
+<p><strong>To verify a document:</strong> 1. Click the document in the
+list 2. Review the extracted fields against the original document (shown
+side by side) 3. Correct any fields if needed 4. Click
+<strong>Verify</strong></p>
+<hr />
+<h3 id="document-requests">Document Requests</h3>
+<p>When you use <strong>Request Documents</strong> from the GST Filings
+screen, a document request is created here and linked to that client and
+period. The request shows: - Which documents were requested - When the
+request was sent - Whether the client has uploaded anything against the
+request</p>
+<p>Use the <strong>Requests</strong> tab in Documents to see all pending
+requests and follow up.</p>
+<hr />
+<h2 id="reports">7. Reports</h2>
+<p><strong>Navigation: Reports</strong></p>
+<p>The Reports module generates formatted reports for your own review or
+to share with clients.</p>
+<hr />
+<h3 id="available-reports">Available Reports</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Report</th>
+<th>What it covers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MIS Monthly</td>
+<td>Month-end summary of receivables, payments, and overdue
+position</td>
+</tr>
+<tr>
+<td>Client Health</td>
+<td>Per-client scorecard with payment history, aging, and risk
+rating</td>
+</tr>
+<tr>
+<td>GST Filing Status</td>
+<td>Filing completion status across all clients for a period</td>
+</tr>
+<tr>
+<td>Overdue Analysis</td>
+<td>Detailed breakdown of overdue amounts by client and aging
+bucket</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="generating-a-report">Generating a Report</h3>
+<ol type="1">
+<li>Click the report type you want</li>
+<li>Select the period (month/quarter)</li>
+<li>Click <strong>Generate</strong></li>
+</ol>
+<p>Report generation takes 15–30 seconds. Once ready, you can: -
+<strong>View online</strong> — Opens a formatted view in the browser -
+<strong>Download PDF</strong> — Downloads a formatted PDF version -
+<strong>AI Summary</strong> — Adds a 3–5 sentence executive summary
+written by AI at the top of the report, highlighting the key findings
+and one actionable recommendation</p>
+<p>Reports are stored and can be regenerated at any time.</p>
+<hr />
+<h2 id="ai-assistant">8. AI Assistant</h2>
+<p><strong>Navigation: AI Assistant</strong></p>
+<p>The AI Assistant is an internal knowledge tool for your staff. It
+answers questions about your firm’s SOPs, compliance procedures, and
+general GST/TDS/ITR knowledge.</p>
+<hr />
+<h3 id="what-it-can-answer">What It Can Answer</h3>
+<p>The assistant works in two modes:</p>
+<p><strong>From your firm’s knowledge base:</strong> If you have
+uploaded your firm’s SOPs, checklists, and procedure documents (see
+below), the assistant searches these first and answers based on your
+specific procedures. It cites the source document.</p>
+<p><strong>From general knowledge:</strong> For questions not covered by
+your uploaded documents, the assistant draws on general CA/accounting
+knowledge. It will clearly say when it is answering from general
+knowledge rather than your SOPs.</p>
+<hr />
+<h3 id="how-to-use-it">How to Use It</h3>
+<ol type="1">
+<li>Click <strong>AI Assistant</strong> in the sidebar</li>
+<li>Type your question in the chat box</li>
+<li>The assistant responds with an answer and shows which documents it
+referred to (if applicable)</li>
+</ol>
+<p>Example questions: - “What documents do we need from a composition
+dealer for their annual return?” - “What is the late fee structure for
+GSTR-3B for a small taxpayer?” - “What is our procedure for onboarding a
+new GST client?” - “How do we handle a client who has missed 3
+consecutive GSTR-1 filings?”</p>
+<p><strong>Important:</strong> Always verify regulatory details
+independently before filing. The assistant is a reference tool, not a
+substitute for professional judgement.</p>
+<hr />
+<h3 id="starting-a-new-conversation">Starting a New Conversation</h3>
+<p>Each conversation keeps context for up to 6 exchanges. For a new
+topic, click <strong>New Conversation</strong> rather than continuing an
+old thread — this gives the assistant a clean slate and produces better
+answers.</p>
+<hr />
+<h3 id="uploading-your-firms-sops-admin-principal-only">Uploading Your
+Firm’s SOPs (Admin / Principal only)</h3>
+<p>The assistant becomes significantly more useful when you upload your
+firm’s own procedures. To add documents to the knowledge base:</p>
+<ol type="1">
+<li>Go to <strong>Settings &gt; AI Knowledge Base</strong> (or ask your
+OpsCopilot admin to do this from the admin panel)</li>
+<li>Click <strong>Add Document</strong></li>
+<li>Paste or type your procedure content, give it a title, and assign a
+category (e.g., “GST Procedures”, “Client Onboarding”, “TDS”)</li>
+<li>Click <strong>Save</strong></li>
+</ol>
+<p>The document is processed in the background and becomes searchable
+within a few seconds. You can add as many procedure documents as
+needed.</p>
+<hr />
+<h2 id="whatsapp-integration">9. WhatsApp Integration</h2>
+<p><strong>Navigation: Settings &gt; Integrations</strong></p>
+<p>WhatsApp is used for three things in OpsCopilot: 1. Sending payment
+reminders to clients 2. Sending GST deadline nudges and document
+requests 3. Receiving documents sent by clients</p>
+<hr />
+<h3 id="how-clients-receive-messages">How Clients Receive Messages</h3>
+<p>Messages are sent from the Twilio WhatsApp Sandbox number. Clients
+must have joined your sandbox (sent the join code to the sandbox number)
+to receive messages. This is a limitation of the WhatsApp sandbox — in a
+production Twilio account with WhatsApp Business API approval, this step
+is not required.</p>
+<hr />
+<h3 id="how-clients-send-documents">How Clients Send Documents</h3>
+<p>When you send a <strong>Request Documents</strong> message from the
+Filings screen, the client receives a WhatsApp message with a unique
+upload link. The client clicks the link, which opens a simple web page
+where they can upload files from their phone or computer. The uploaded
+files appear immediately in your Documents screen.</p>
+<hr />
+<h3 id="auto-reply">Auto-Reply</h3>
+<p>When a client replies to a WhatsApp message, OpsCopilot reads the
+intent automatically: - If they confirm payment (“paid”, “done”,
+“transfer kiya”) — logged as a payment confirmation - If they promise to
+pay (“kal deta hun”, “by Friday”) — logged with the promise date - If
+they send a document — routed to the Documents screen for processing -
+If they send a general query — replied to with a polite
+acknowledgement</p>
+<hr />
+<h3 id="whatsapp-message-limits">WhatsApp Message Limits</h3>
+<p>To protect your business reputation and comply with WhatsApp
+policies, OpsCopilot enforces: - Maximum messages per hour (configurable
+in Settings &gt; Rules) - Quiet hours (no messages sent outside 9am–7pm
+by default, configurable) - Daily message limit per client</p>
+<hr />
+<h2 id="settings">10. Settings</h2>
+<p><strong>Navigation: Settings (gear icon at bottom of
+sidebar)</strong></p>
+<h3 id="settings-clients">Settings &gt; Clients</h3>
+<p>Add, edit, or deactivate clients. For each client you can set: -
+Client name and GSTIN - Filer type (Monthly / Quarterly / Annual) -
+Contact phone and email (used for reminders) - Active/inactive
+status</p>
+<p>To import clients in bulk, click <strong>Import CSV</strong>.
+Download the template, fill in your client list, and upload.</p>
+<hr />
+<h3 id="settings-filing-templates">Settings &gt; Filing Templates</h3>
+<p>Configure the document checklist for each filer type. These are the
+documents that OpsCopilot will ask clients to submit when you click
+“Request Documents.”</p>
+<p>Default templates are pre-configured: - <strong>Monthly
+filer:</strong> Sales register, Purchase register, Bank statement,
+GSTR-2B reconciliation - <strong>Quarterly filer:</strong> Quarterly
+sales register, ITC register, Bank statement - <strong>Annual
+filer:</strong> Annual P&amp;L, Balance sheet, Capital account</p>
+<p>You can add, remove, or rename items in each template. Changes take
+effect immediately for all future document requests.</p>
+<hr />
+<h3 id="settings-rules">Settings &gt; Rules</h3>
+<p>Configure the business rules that govern how OpsCopilot behaves:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Default</th>
+<th>What it controls</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Reminder interval (days)</td>
+<td>7</td>
+<td>Minimum days between payment reminders per invoice</td>
+</tr>
+<tr>
+<td>Max reminders per invoice</td>
+<td>5</td>
+<td>Total reminder limit before requiring manual approval</td>
+</tr>
+<tr>
+<td>GST deadline day</td>
+<td>20</td>
+<td>The day of month that GSTR-3B is due</td>
+</tr>
+<tr>
+<td>Deadline urgency (days)</td>
+<td>5</td>
+<td>How many days before deadline a filing is flagged as “at risk”</td>
+</tr>
+<tr>
+<td>Late fee rate (per day)</td>
+<td>₹50</td>
+<td>Used to calculate late fee exposure shown in the Filings
+summary</td>
+</tr>
+<tr>
+<td>WhatsApp quiet hours</td>
+<td>9:00–19:00</td>
+<td>No automated messages outside these hours</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="settings-integrations">Settings &gt; Integrations</h3>
+<p>Configure external connections: - <strong>WhatsApp / Twilio</strong>
+— Twilio Account SID, Auth Token, and WhatsApp number - <strong>Tax
+software</strong> — ClearTax, Zoho, Tally (coming soon)</p>
+<hr />
+<h3 id="settings-profile">Settings &gt; Profile</h3>
+<p>Update your own name and profile. Your email address is managed
+through the login provider and cannot be changed from here.</p>
+<hr />
+<h2 id="team-management">11. Team Management</h2>
+<p><strong>Navigation: Settings &gt; Team</strong></p>
+<h3 id="adding-a-team-member">Adding a Team Member</h3>
+<ol type="1">
+<li>Go to Settings &gt; Team</li>
+<li>Click <strong>Invite Member</strong></li>
+<li>Enter their name and email address</li>
+<li>Select their role (see Roles below)</li>
+<li>Click <strong>Send Invite</strong></li>
+</ol>
+<p>The team member will receive an email invitation. Once they accept
+and set their password, they can log in immediately.</p>
+<p><strong>Note:</strong> If you invited someone and they haven’t
+received the email, check the Pending Invitations section. Click
+<strong>Resend</strong> next to their entry. If you entered the wrong
+email, click <strong>Revoke</strong> and send a new invitation.</p>
+<hr />
+<h3 id="removing-a-team-member">Removing a Team Member</h3>
+<p>Click the <strong>Remove</strong> button next to a team member’s
+name. You will be asked to confirm. Removed members can no longer log
+in. Their historical actions and audit records are preserved.</p>
+<p><strong>Note:</strong> You cannot remove the last admin user. The
+system will prevent this to ensure you always have at least one account
+with full access.</p>
+<hr />
+<h3 id="changing-a-role">Changing a Role</h3>
+<p>Click the role dropdown next to a team member’s name and select the
+new role. The change takes effect immediately — the team member will see
+the updated access on their next page load.</p>
+<hr />
+<h2 id="roles-and-permissions">12. Roles and Permissions</h2>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Role</th>
+<th>What they can access</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Admin</strong></td>
+<td>Everything, including Settings, Team Management, and system
+configuration</td>
+</tr>
+<tr>
+<td><strong>Manager</strong></td>
+<td>Dashboard, Filings, Collections, Documents, Reports, AI Assistant —
+cannot change Settings or invite users</td>
+</tr>
+<tr>
+<td><strong>Staff</strong></td>
+<td>Dashboard, Filings (view + basic actions), Documents (upload and
+view), AI Assistant — no bulk actions, no report generation</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="frequently-asked-questions">13. Frequently Asked Questions</h2>
+<p><strong>Q: A client says they sent us documents on WhatsApp but I
+can’t see them.</strong></p>
+<p>Check that the client messaged the Twilio sandbox number directly,
+not your personal number. Also confirm the client has joined the sandbox
+(sent the join code). Documents sent before joining the sandbox are not
+received.</p>
+<hr />
+<p><strong>Q: The AI Insights haven’t refreshed even though we received
+a payment.</strong></p>
+<p>Insights refresh automatically when data changes, but there can be a
+few minutes of delay. Click the <strong>Refresh Insights</strong> button
+on the Dashboard to force an immediate update.</p>
+<hr />
+<p><strong>Q: I marked a client as Filed by mistake. Can I undo
+it?</strong></p>
+<p>Mark as Filed cannot be automatically undone as it records an audit
+entry. Contact your admin or raise a support request — a manual
+correction can be made to the record.</p>
+<hr />
+<p><strong>Q: Why can’t I send a reminder to a client — the button is
+not working?</strong></p>
+<p>If a reminder was sent within the configured interval (default 7
+days), the system blocks the next reminder. You will see a message
+explaining when the next reminder can be sent. If you need to send
+urgently regardless, your admin can adjust the reminder interval in
+Settings &gt; Rules.</p>
+<hr />
+<p><strong>Q: The readiness score says 100% but the client has not sent
+all documents.</strong></p>
+<p>Readiness is calculated based on the filing template assigned to that
+client’s filer type. If a document type is not in the template, it does
+not count against readiness. Check Settings &gt; Filing Templates to
+ensure the template for that filer type matches what you actually
+need.</p>
+<hr />
+<p><strong>Q: Can two staff members work on the same client’s filing at
+the same time?</strong></p>
+<p>Yes. The system does not lock records. If two people mark the same
+client as Filed simultaneously, the second action will succeed but is
+redundant — the status is already Filed. Coordinate via your firm’s
+internal process.</p>
+<hr />
+<p><strong>Q: How do I add a new type of return (e.g., GSTR-9
+annual)?</strong></p>
+<p>Currently the calendar tracks GSTR-1 and GSTR-3B cycles (monthly and
+quarterly). Annual return tracking (GSTR-9) will be added in a future
+release.</p>
+<hr />
+<p><strong>Q: Where is the data stored? Is it secure?</strong></p>
+<p>All data is stored in an encrypted database hosted in India (Railway
+infrastructure). Data is isolated per firm — your clients and financial
+data are completely separate from other firms on the platform. Access is
+secured via email + password login with 2FA available.</p>
+<hr />
+<p><strong>Q: The AI Assistant gave me an answer about GST that doesn’t
+seem right.</strong></p>
+<p>The assistant can make mistakes on regulatory details, especially for
+edge cases. Always verify important compliance answers from official
+GSTN portals or your reference texts before acting. If the assistant is
+consistently wrong about a specific topic, upload a corrected SOP
+document to the knowledge base — it will learn from your firm’s
+procedures.</p>
+<hr />
+<p><em>For technical support, contact your OpsCopilot account manager or
+email support@opscopilot.in</em></p>
+<p><em>This manual covers platform version 1.0. Features marked “coming
+soon” will be released in subsequent updates.</em></p>
+</body>
+</html>

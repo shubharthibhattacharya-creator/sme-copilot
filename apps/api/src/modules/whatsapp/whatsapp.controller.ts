@@ -39,7 +39,7 @@ export class WhatsAppController {
 
   @Get('messages')
   listMessages(@CurrentUser() user: AuthenticatedUser, @Query() query: ListMessagesDto) {
-    return this.whatsapp.listMessages(user.companyId, query)
+    return this.whatsapp.listMessages(user, query)
   }
 
   // ─── Send (dispatcher) ──────────────────────────────────────────────────────

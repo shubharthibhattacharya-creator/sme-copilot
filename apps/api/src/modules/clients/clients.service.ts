@@ -10,6 +10,8 @@ import type { CreateClientDto } from './dto/create-client.dto'
 import type { UpdateClientDto } from './dto/update-client.dto'
 import type { ListClientsDto } from './dto/list-clients.dto'
 import type { GstinService } from './gstin.service'
+import type { AuthenticatedUser } from '@opsc/types'
+import { getClientScope } from '../../common/helpers/client-scope.helper'
 
 const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/
 const PAN_RE   = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/
@@ -46,10 +48,11 @@ export class ClientsService {
     return client
   }
 
-  async list(companyId: string, query: ListClientsDto) {
+  async list(user: AuthenticatedUser, query: ListClientsDto) {
     const { isActive = true, filerType, page = 1, limit = 20 } = query
+    const scope = await getClientScope(user, this.prisma)
     const where = {
-      companyId,
+      ...scope,
       isActive,
       ...(filerType ? { filerType } : {}),
     }
@@ -64,6 +67,7 @@ export class ClientsService {
               documents: true,
             },
           },
+          owner: { select: { id: true, name: true } },
         },
         orderBy: { name: 'asc' },
         skip: (page - 1) * limit,
@@ -78,10 +82,33 @@ export class ClientsService {
       where: { id, companyId },
       include: {
         _count: { select: { invoices: true, documents: true } },
+        owner: { select: { id: true, name: true } },
       },
     })
     if (!client) throw new NotFoundException('Client not found')
     return client
+  }
+
+  async setOwner(companyId: string, clientId: string, ownerId: string | null) {
+    await this.findOne(companyId, clientId)
+    if (ownerId) {
+      const user = await this.prisma.user.findFirst({
+        where: { id: ownerId, companyId },
+      })
+      if (!user) throw new NotFoundException('User not found in this firm')
+    }
+    return this.prisma.client.update({
+      where: { id: clientId },
+      data: { ownerId },
+      include: { owner: { select: { id: true, name: true } } },
+    })
+  }
+
+  async bulkSetOwners(companyId: string, assignments: { clientId: string; ownerId: string | null }[]) {
+    const results = await Promise.all(
+      assignments.map(({ clientId, ownerId }) => this.setOwner(companyId, clientId, ownerId)),
+    )
+    return { updated: results.length }
   }
 
   async update(companyId: string, id: string, dto: UpdateClientDto) {

@@ -9,6 +9,7 @@ import { InsightFeed } from '@/components/dashboard/InsightFeed'
 import { CriticalCustomersTable } from '@/components/dashboard/CriticalCustomersTable'
 import { LowStockWidget } from '@/components/dashboard/LowStockWidget'
 import { ComplianceAtRiskWidget } from '@/components/dashboard/ComplianceAtRiskWidget'
+import { MyWorkWidget } from '@/components/dashboard/MyWorkWidget'
 import type { DashboardSummary, KpiMetric, ModuleKey } from '@opsc/types'
 
 // Compact INR formatter: ₹37.6L, ₹45K, ₹8,500
@@ -39,6 +40,15 @@ interface FirmProfile {
   modulesEnabled?: string[]
 }
 
+interface WorkItem {
+  id: string
+  type: 'DOCUMENT' | 'INVOICE' | 'COMPLIANCE'
+  module: string
+  clientName: string
+  title: string
+  urgency: 'TODAY' | 'THIS_WEEK' | 'NONE'
+}
+
 async function DashboardContent() {
   interface ComplianceSummary {
     atRisk: Array<{
@@ -56,7 +66,7 @@ async function DashboardContent() {
     }>
   }
 
-  const [summary, insights, profile, complianceSummary] = await Promise.all([
+  const [summary, insights, profile, complianceSummary, myWorkItems] = await Promise.all([
     apiClient<DashboardSummary>('/api/v1/dashboard/summary').catch(
       (): DashboardSummary => ({
         totalReceivables: { ...EMPTY_KPI },
@@ -77,6 +87,7 @@ async function DashboardContent() {
     apiClient<ComplianceSummary>('/api/v1/compliance/dashboard-summary').catch(
       (): ComplianceSummary => ({ atRisk: [] }),
     ),
+    apiClient<WorkItem[]>('/api/v1/my-work').catch((): WorkItem[] => []),
   ])
 
   const modules = new Set<string>(profile.modulesEnabled ?? [])
@@ -161,20 +172,17 @@ async function DashboardContent() {
       {/* Compliance at risk */}
       <ComplianceAtRiskWidget atRisk={complianceSummary.atRisk} />
 
-      {/* AI Insights + Critical Customers */}
-      {hasRightPanel && (
-        <div
-          className={`grid grid-cols-1 ${assistantEnabled && collectionsEnabled ? 'lg:grid-cols-2' : ''} gap-4 min-h-[360px]`}
-        >
-          {assistantEnabled && <InsightFeed insights={insights} />}
-          {collectionsEnabled && <CriticalCustomersTable customers={summary.criticalCustomers} />}
-        </div>
-      )}
+      {/* My Work + AI Insights + Critical Customers */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-[360px]">
+        <MyWorkWidget items={myWorkItems} />
+        {assistantEnabled && <InsightFeed insights={insights} />}
+        {collectionsEnabled && <CriticalCustomersTable customers={summary.criticalCustomers} />}
+      </div>
 
       {/* Low Stock */}
       {inventoryEnabled && <LowStockWidget items={summary.lowStockItems} />}
 
-      {!collectionsEnabled && !inventoryEnabled && !hasRightPanel && (
+      {!collectionsEnabled && !inventoryEnabled && !assistantEnabled && (
         <div className="text-center py-16 text-slate-400 text-sm">
           No dashboard widgets are configured for your plan.
         </div>

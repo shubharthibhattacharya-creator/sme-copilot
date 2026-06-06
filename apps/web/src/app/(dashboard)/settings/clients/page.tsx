@@ -8,14 +8,22 @@ export default async function ClientsPage() {
   const token = await getToken()
   if (!token) return <div className="p-4 text-red-500">Authentication required</div>
 
-  const res = await fetch(`${API_URL}/api/v1/clients?limit=50`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: 'no-store',
-  })
+  const [clientsRes, teamRes] = await Promise.all([
+    fetch(`${API_URL}/api/v1/clients?limit=100`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    }),
+    fetch(`${API_URL}/api/v1/settings/team`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    }),
+  ])
 
-  const initialClients = res.ok
-    ? await res.json()
+  const initialClients = clientsRes.ok
+    ? await clientsRes.json()
     : { data: [], meta: { total: 0, totalPages: 0 } }
 
-  return <ClientsManager initialClients={initialClients} />
+  const team = teamRes.ok ? await teamRes.json() : []
+
+  return <ClientsManager initialClients={initialClients} team={team} />
 }

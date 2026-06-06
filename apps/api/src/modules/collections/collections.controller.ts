@@ -24,7 +24,7 @@ export class CollectionsController {
     @CurrentUser() user: AuthenticatedUser,
     @Query() query: ListCollectionsDto,
   ) {
-    return this.collectionsService.listWithRisk(user.companyId, query)
+    return this.collectionsService.listWithRisk(user, query)
   }
 
   @Get('aging')

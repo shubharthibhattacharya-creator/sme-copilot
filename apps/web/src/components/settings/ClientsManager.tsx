@@ -6,6 +6,13 @@ import { ApiError } from '@/lib/api-error'
 type GstinVerificationStatus =
   | 'UNVALIDATED' | 'VERIFIED' | 'CANCELLED' | 'SUSPENDED' | 'NOT_FOUND' | 'PENDING'
 
+interface TeamMember {
+  id: string
+  name: string
+  email: string
+  role: string
+}
+
 interface Client {
   id: string
   name: string
@@ -20,6 +27,8 @@ interface Client {
   isActive: boolean
   gstinVerificationStatus: GstinVerificationStatus
   gstinLegalName: string | null
+  ownerId: string | null
+  owner: { id: string; name: string } | null
   _count: { invoices: number; documents: number }
 }
 
@@ -31,6 +40,7 @@ interface GstinLookupResult {
 
 interface Props {
   initialClients: { data: Client[]; meta: { total: number; totalPages: number } }
+  team?: TeamMember[]
 }
 
 const SERVICES = ['GST_FILING', 'TDS', 'AUDIT', 'BOOKKEEPING']
@@ -39,6 +49,7 @@ const FILER_TYPES = ['MONTHLY', 'QUARTERLY', 'ANNUAL']
 const EMPTY_FORM = {
   name: '', gstin: '', pan: '', contactPerson: '', phone: '', email: '',
   filerType: 'MONTHLY', filingCategory: 'REGULAR', serviceScope: [] as string[],
+  ownerId: '',
 }
 
 // ── GSTIN validation column ───────────────────────────────────────────────────
@@ -79,7 +90,7 @@ function GstinValidationCell({ status }: { status: GstinVerificationStatus }) {
 
 const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/
 
-export function ClientsManager({ initialClients }: Props) {
+export function ClientsManager({ initialClients, team = [] }: Props) {
   const { request } = useApiClient()
   const [clients, setClients] = useState(initialClients.data)
   const [total, setTotal] = useState(initialClients.meta.total)
@@ -126,6 +137,7 @@ export function ClientsManager({ initialClients }: Props) {
       filerType: c.filerType,
       filingCategory: c.filingCategory,
       serviceScope: c.serviceScope,
+      ownerId: c.ownerId ?? '',
     })
     setFormError('')
     setGstinResult(null)
@@ -208,10 +220,22 @@ export function ClientsManager({ initialClients }: Props) {
         phone: form.phone || undefined,
         email: form.email || undefined,
       }
+      const { ownerId, ...clientBody } = body
       if (editClient) {
-        await request(`/clients/${editClient.id}`, { method: 'PATCH', body: JSON.stringify(body) })
+        await request(`/clients/${editClient.id}`, { method: 'PATCH', body: JSON.stringify(clientBody) })
+        // Update owner separately
+        await request(`/clients/${editClient.id}/owner`, {
+          method: 'PATCH',
+          body: JSON.stringify({ ownerId: ownerId || null }),
+        })
       } else {
-        await request('/clients', { method: 'POST', body: JSON.stringify(body) })
+        const created = await request<{ id: string }>('/clients', { method: 'POST', body: JSON.stringify(clientBody) })
+        if (ownerId) {
+          await request(`/clients/${created.id}/owner`, {
+            method: 'PATCH',
+            body: JSON.stringify({ ownerId }),
+          })
+        }
       }
       setShowModal(false)
       await refresh()
@@ -282,7 +306,7 @@ export function ClientsManager({ initialClients }: Props) {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {['Name', 'GSTIN', 'GSTIN Validation', 'Filer type', 'Services', 'Invoices', 'Status', 'Actions'].map((h) => (
+                {['Name', 'Owner', 'GSTIN', 'GSTIN Validation', 'Filer type', 'Invoices', 'Status', 'Actions'].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
@@ -294,6 +318,9 @@ export function ClientsManager({ initialClients }: Props) {
                     <button onClick={() => loadStats(c)} className="font-medium text-blue-600 hover:underline text-left">
                       {c.name}
                     </button>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-600">
+                    {c.owner?.name ?? <span className="text-gray-400 text-xs">Unassigned</span>}
                   </td>
                   <td className="px-4 py-3 font-mono text-gray-600 text-xs">
                     {c.gstin ?? <span className="text-gray-400 not-italic">—</span>}
@@ -459,6 +486,21 @@ export function ClientsManager({ initialClients }: Props) {
                 <input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                   className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
+              {team.length > 0 && (
+                <div className="col-span-2">
+                  <label className="text-xs text-gray-600 mb-1 block">Assigned to</label>
+                  <select
+                    value={form.ownerId}
+                    onChange={(e) => setForm((f) => ({ ...f, ownerId: e.target.value }))}
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Unassigned</option>
+                    {team.map((m) => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="text-xs text-gray-600 mb-1 block">Filer type</label>
                 <select value={form.filerType} onChange={(e) => setForm((f) => ({ ...f, filerType: e.target.value }))}

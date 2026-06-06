@@ -28,6 +28,7 @@ import { SchedulerModule } from './modules/scheduler/scheduler.module'
 import { ComplianceModule } from './modules/compliance/compliance.module'
 import { ReconciliationModule } from './modules/reconciliation/reconciliation.module'
 import { QueueModule } from './common/queue/queue.module'
+import { WorkQueueModule } from './modules/work-queue/work-queue.module'
 
 @Module({
   controllers: [HealthController],
@@ -63,6 +64,7 @@ import { QueueModule } from './common/queue/queue.module'
     SchedulerModule,
     ComplianceModule,
     ReconciliationModule,
+    WorkQueueModule,
   ],
 })
 export class AppModule {}

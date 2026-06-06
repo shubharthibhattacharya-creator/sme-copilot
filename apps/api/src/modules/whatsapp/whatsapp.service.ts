@@ -11,6 +11,8 @@ import { classifyInboundMessage } from './inbound-classifier'
 import type { OcrResult } from '../documents/documents.service'
 import type { ListMessagesDto } from './dto/list-messages.dto'
 import type { DocumentType } from '@opsc/database'
+import type { AuthenticatedUser } from '@opsc/types'
+import { getOwnedClientIds } from '../../common/helpers/client-scope.helper'
 
 function fmtDate(d: Date): string {
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -151,10 +153,16 @@ export class WhatsAppService {
 
   // ─── List Messages ──────────────────────────────────────────────────────────
 
-  async listMessages(companyId: string, filters: ListMessagesDto) {
+  async listMessages(user: AuthenticatedUser, filters: ListMessagesDto) {
+    const companyId = user.companyId
     const { page = 1, limit = 20, status, direction } = filters
+
+    const ownedIds = await getOwnedClientIds(user, this.prisma)
+    const clientScopeFilter = ownedIds !== null ? { clientId: { in: ownedIds } } : {}
+
     const where = {
       companyId,
+      ...clientScopeFilter,
       ...(status ? { status } : {}),
       ...(direction ? { direction } : {}),
     }

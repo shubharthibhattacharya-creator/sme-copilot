@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpsCopilot — Architecture Diagrams</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; }
+
+  /* ── Nav ── */
+  nav { position: sticky; top: 0; z-index: 100; background: #0f172a; border-bottom: 1px solid #1e293b;
+        display: flex; gap: 4px; padding: 12px 32px; }
+  nav a { padding: 8px 20px; border-radius: 6px; text-decoration: none; font-size: 13px;
+          font-weight: 600; color: #94a3b8; transition: all .15s; }
+  nav a:hover { background: #1e293b; color: #e2e8f0; }
+  nav a.active { background: #6366f1; color: #fff; }
+
+  /* ── Page sections ── */
+  .page { min-height: 100vh; padding: 48px 32px; display: none; }
+  .page.visible { display: block; }
+  .page-title { font-size: 22px; font-weight: 700; color: #f8fafc; margin-bottom: 6px; }
+  .page-sub   { font-size: 13px; color: #64748b; margin-bottom: 40px; }
+
+  /* ── Generic box ── */
+  .box { border-radius: 10px; padding: 14px 18px; font-size: 12px; font-weight: 600;
+         text-align: center; position: relative; }
+  .box .label { font-size: 10px; font-weight: 500; opacity: .7; margin-bottom: 3px; text-transform: uppercase; letter-spacing: .06em; }
+  .box .name  { font-size: 13px; font-weight: 700; }
+  .box .desc  { font-size: 10px; font-weight: 400; opacity: .65; margin-top: 3px; }
+
+  /* colours */
+  .c-user   { background: #1e3a5f; border: 1px solid #2563eb; color: #93c5fd; }
+  .c-fe     { background: #1a2744; border: 1px solid #4338ca; color: #a5b4fc; }
+  .c-api    { background: #1c1f3a; border: 1px solid #6366f1; color: #c7d2fe; }
+  .c-db     { background: #1a2e22; border: 1px solid #16a34a; color: #86efac; }
+  .c-ext    { background: #2d1a3a; border: 1px solid #9333ea; color: #d8b4fe; }
+  .c-infra  { background: #2d2416; border: 1px solid #d97706; color: #fcd34d; }
+  .c-module { background: #1c1f3a; border: 1px solid #4f46e5; color: #c7d2fe; }
+  .c-guard  { background: #2d1a1a; border: 1px solid #dc2626; color: #fca5a5; }
+  .c-store  { background: #1a2e22; border: 1px solid #059669; color: #6ee7b7; }
+  .c-svc    { background: #1a2a2e; border: 1px solid #0891b2; color: #7dd3fc; }
+
+  /* ── HIGH LEVEL ── */
+  #hl-wrap { max-width: 1100px; margin: 0 auto; }
+
+  .hl-layer { margin-bottom: 12px; }
+  .hl-layer-title { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+                    color: #475569; margin-bottom: 8px; padding-left: 4px; }
+  .hl-row { display: flex; gap: 12px; align-items: stretch; }
+  .hl-row .box { flex: 1; }
+  .hl-row .box.wide { flex: 2; }
+  .hl-row .box.w3   { flex: 3; }
+
+  .arrow-down { display: flex; justify-content: center; height: 32px; align-items: center; }
+  .arrow-down svg { opacity: .35; }
+
+  .layer-band { border-radius: 12px; padding: 20px; margin-bottom: 12px; }
+  .band-users { background: rgba(37,99,235,.08); border: 1px solid rgba(37,99,235,.2); }
+  .band-fe    { background: rgba(99,102,241,.08); border: 1px solid rgba(99,102,241,.2); }
+  .band-api   { background: rgba(79,70,229,.1);   border: 1px solid rgba(79,70,229,.25); }
+  .band-data  { background: rgba(22,163,74,.08);  border: 1px solid rgba(22,163,74,.2); }
+  .band-ext   { background: rgba(147,51,234,.08); border: 1px solid rgba(147,51,234,.2); }
+
+  .band-label { font-size: 9px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+                margin-bottom: 14px; opacity: .5; }
+
+  /* connector lines */
+  .connectors { position: relative; height: 36px; margin: 4px 0; }
+  .connectors svg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; }
+
+  /* ── DETAIL ── */
+  #dl-wrap { max-width: 1200px; margin: 0 auto; }
+
+  .dl-grid { display: grid; grid-template-columns: 200px 1fr 220px; gap: 20px; align-items: start; }
+
+  /* left col — clients/users */
+  .dl-users { display: flex; flex-direction: column; gap: 10px; }
+
+  /* centre — API modules grid */
+  .api-frame { border: 1px solid #1e293b; border-radius: 14px; padding: 20px; background: rgba(99,102,241,.04); }
+  .api-frame-title { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+                     color: #6366f1; margin-bottom: 16px; }
+  .guard-bar { border-radius: 8px; padding: 10px 16px; text-align: center; font-size: 11px;
+               font-weight: 700; letter-spacing: .05em; margin-bottom: 16px; }
+  .modules-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+  .mod-box { border-radius: 8px; padding: 12px 10px; }
+  .mod-box .mod-name { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+  .mod-box .mod-routes { font-size: 9px; opacity: .6; line-height: 1.6; }
+
+  /* right col — data + external */
+  .dl-right { display: flex; flex-direction: column; gap: 14px; }
+  .right-section-title { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+                          color: #475569; margin-bottom: 8px; }
+  .db-frame { border: 1px solid #1e293b; border-radius: 12px; padding: 16px; background: rgba(22,163,74,.04); }
+  .ext-frame { border: 1px solid #1e293b; border-radius: 12px; padding: 16px; background: rgba(147,51,234,.04); }
+  .small-box { border-radius: 7px; padding: 9px 12px; margin-bottom: 8px; }
+  .small-box:last-child { margin-bottom: 0; }
+  .small-box .sn  { font-size: 11px; font-weight: 700; }
+  .small-box .sd  { font-size: 9px; opacity: .6; margin-top: 2px; }
+
+  /* data flow arrows in detail diagram */
+  .flow-row { display: flex; align-items: center; gap: 6px; margin: 6px 0; font-size: 10px; color: #475569; }
+  .flow-arrow { color: #4f46e5; font-size: 14px; }
+
+  /* legend */
+  .legend { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 32px; padding: 16px 20px;
+            border: 1px solid #1e293b; border-radius: 10px; background: #0f172a; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #94a3b8; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+  /* data flow SVG overlay for detail */
+  .dl-svg-wrap { position: relative; }
+
+  /* tooltip */
+  .box[data-tip]:hover::after {
+    content: attr(data-tip);
+    position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+    background: #1e293b; border: 1px solid #334155; color: #e2e8f0;
+    padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: 400;
+    white-space: nowrap; z-index: 50; pointer-events: none; width: max-content; max-width: 220px;
+    white-space: normal; text-align: left;
+  }
+
+  @media print {
+    body { background: #fff; color: #000; }
+    nav { display: none; }
+    .page { display: block !important; page-break-after: always; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="#" class="active" onclick="show('hl',this)">High-Level Architecture</a>
+  <a href="#" onclick="show('dl',this)">Detailed Architecture</a>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════ HIGH LEVEL -->
+<div id="hl" class="page visible">
+  <div id="hl-wrap">
+    <div class="page-title">OpsCopilot — High-Level System Architecture</div>
+    <div class="page-sub">Shows all system layers, actors, and external service integrations</div>
+
+    <!-- USERS -->
+    <div class="layer-band band-users">
+      <div class="band-label">Actors</div>
+      <div class="hl-row">
+        <div class="box c-user" data-tip="Principal / Partner — reviews firm health, generates reports">
+          <div class="label">CA Firm</div>
+          <div class="name">Principal / Partner</div>
+          <div class="desc">Admin, full access</div>
+        </div>
+        <div class="box c-user" data-tip="Accountants and articled assistants — day-to-day filing ops">
+          <div class="label">CA Firm</div>
+          <div class="name">Staff / Accountant</div>
+          <div class="desc">Filings, documents, collections</div>
+        </div>
+        <div class="box c-user" data-tip="Clients receive WhatsApp reminders and upload documents via link">
+          <div class="label">External</div>
+          <div class="name">Clients</div>
+          <div class="desc">WhatsApp + upload link only</div>
+        </div>
+        <div class="box c-infra" data-tip="OpsCopilot super-admin manages tenants, config, and impersonation">
+          <div class="label">OpsCopilot</div>
+          <div class="name">Platform Admin</div>
+          <div class="desc">Tenant management</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow-down"><svg width="2" height="28"><line x1="1" y1="0" x2="1" y2="28" stroke="#334155" stroke-width="2" stroke-dasharray="4 3"/></svg></div>
+
+    <!-- FRONTEND -->
+    <div class="layer-band band-fe">
+      <div class="band-label">Frontend — Next.js 15 App Router · Vercel / Railway</div>
+      <div class="hl-row">
+        <div class="box c-fe wide" data-tip="apps/web — Main product UI. SSR + client components. Clerk session via middleware.">
+          <div class="label">Main App · apps/web</div>
+          <div class="name">OpsCopilot Web App</div>
+          <div class="desc">Dashboard · GST Filings · Collections · Documents · Reports · AI Assistant · WhatsApp · Settings</div>
+        </div>
+        <div class="box c-fe" data-tip="apps/admin — Internal admin panel. Cookie-based auth, separate from Clerk.">
+          <div class="label">Admin Panel · apps/admin</div>
+          <div class="name">Platform Admin UI</div>
+          <div class="desc">Tenant CRUD · User mgmt · Config · Impersonation</div>
+        </div>
+        <div class="box c-fe" data-tip="Unauthenticated page — client clicks link in WhatsApp and uploads files directly">
+          <div class="label">Public</div>
+          <div class="name">Document Upload Page</div>
+          <div class="desc">/upload/[token] — no login required</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow-down"><svg width="2" height="28"><line x1="1" y1="0" x2="1" y2="28" stroke="#334155" stroke-width="2" stroke-dasharray="4 3"/></svg></div>
+
+    <!-- AUTH -->
+    <div class="layer-band" style="background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.2);margin-bottom:12px">
+      <div class="band-label" style="color:#f87171">Auth Layer</div>
+      <div class="hl-row">
+        <div class="box c-guard wide" data-tip="All /api/v1/* routes pass through ClerkMiddleware. JWT verified on every request.">
+          <div class="label">NestJS Middleware</div>
+          <div class="name">Clerk JWT Middleware</div>
+          <div class="desc">Validates session token · Injects companyId + userId · Rejects unauthenticated requests</div>
+        </div>
+        <div class="box c-guard" data-tip="Admin routes use a separate x-admin-secret header guard, bypassing Clerk entirely">
+          <div class="label">Admin Routes</div>
+          <div class="name">AdminGuard</div>
+          <div class="desc">x-admin-secret header · Separate from Clerk</div>
+        </div>
+        <div class="box c-guard" data-tip="Document upload tokens are single-use JWT tokens with expiry, no Clerk session needed">
+          <div class="label">Upload Routes</div>
+          <div class="name">Upload Token Guard</div>
+          <div class="desc">Short-lived JWT · One-time use</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow-down"><svg width="2" height="28"><line x1="1" y1="0" x2="1" y2="28" stroke="#334155" stroke-width="2" stroke-dasharray="4 3"/></svg></div>
+
+    <!-- API -->
+    <div class="layer-band band-api">
+      <div class="band-label">API Server — NestJS · apps/api · Railway</div>
+      <div class="hl-row">
+        <div class="box c-api w3" data-tip="12 NestJS modules. All routes under /api/v1/*. Tenant-isolated via companyId on every query.">
+          <div class="label">REST API · /api/v1/*</div>
+          <div class="name">NestJS Application</div>
+          <div class="desc">
+            Dashboard &nbsp;·&nbsp; Collections &nbsp;·&nbsp; Documents &nbsp;·&nbsp; Filings &nbsp;·&nbsp; AI Assistant &nbsp;·&nbsp; Reports &nbsp;·&nbsp; WhatsApp &nbsp;·&nbsp; Settings &nbsp;·&nbsp; Config &nbsp;·&nbsp; Companies &nbsp;·&nbsp; Admin &nbsp;·&nbsp; Auth
+          </div>
+        </div>
+        <div class="box c-api" data-tip="Prisma ORM for all DB access. Raw SQL only for pgvector queries (embeddings).">
+          <div class="label">ORM</div>
+          <div class="name">Prisma Client</div>
+          <div class="desc">Type-safe queries · Raw SQL for pgvector</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow-down"><svg width="2" height="28"><line x1="1" y1="0" x2="1" y2="28" stroke="#334155" stroke-width="2" stroke-dasharray="4 3"/></svg></div>
+
+    <!-- DATA -->
+    <div class="layer-band band-data">
+      <div class="band-label">Data Layer · Railway PostgreSQL</div>
+      <div class="hl-row">
+        <div class="box c-store" data-tip="Primary store. All business data. Multi-tenant via companyId on every table.">
+          <div class="label">Primary Database</div>
+          <div class="name">PostgreSQL 15</div>
+          <div class="desc">Invoices · Clients · Documents · Filings · Users · Audit logs · Config</div>
+        </div>
+        <div class="box c-store" data-tip="pgvector extension on same Postgres instance. Stores 1536-dim OpenAI embeddings for SOP RAG search.">
+          <div class="label">Vector Store (same PG)</div>
+          <div class="name">pgvector Extension</div>
+          <div class="desc">knowledge_chunks · 1536-dim embeddings · Cosine similarity search</div>
+        </div>
+        <div class="box c-store" data-tip="Files uploaded by clients. PDFs, images. Stored in Railway volume or S3-compatible storage.">
+          <div class="label">File Storage</div>
+          <div class="name">Object Storage</div>
+          <div class="desc">Document files · Upload originals · OCR source files</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow-down"><svg width="2" height="28"><line x1="1" y1="0" x2="1" y2="28" stroke="#334155" stroke-width="2" stroke-dasharray="4 3"/></svg></div>
+
+    <!-- EXTERNAL -->
+    <div class="layer-band band-ext">
+      <div class="band-label">External Services</div>
+      <div class="hl-row">
+        <div class="box c-ext" data-tip="User auth, session management, invitation emails, user metadata sync">
+          <div class="label">Authentication</div>
+          <div class="name">Clerk</div>
+          <div class="desc">JWT · Invitations · User metadata</div>
+        </div>
+        <div class="box c-ext" data-tip="claude-sonnet-4-6 for OCR, insights, AI assistant answers, report summaries. Prompt caching enabled.">
+          <div class="label">AI — Text + Vision</div>
+          <div class="name">Anthropic Claude</div>
+          <div class="desc">OCR · Insights · Assistant · Summaries</div>
+        </div>
+        <div class="box c-ext" data-tip="text-embedding-3-small for SOP chunk embeddings. 1536 dimensions. Hash dedup minimises calls.">
+          <div class="label">AI — Embeddings</div>
+          <div class="name">OpenAI</div>
+          <div class="desc">text-embedding-3-small · SOP RAG</div>
+        </div>
+        <div class="box c-ext" data-tip="WhatsApp Business API via Twilio sandbox. Inbound webhook + outbound messages. Signature verification on all inbound.">
+          <div class="label">Messaging</div>
+          <div class="name">Twilio WhatsApp</div>
+          <div class="desc">Inbound webhook · Outbound reminders</div>
+        </div>
+        <div class="box c-infra" data-tip="All services hosted on Railway. Monorepo deployed as 3 services: api, web, admin.">
+          <div class="label">Hosting</div>
+          <div class="name">Railway</div>
+          <div class="desc">API · Web · Admin · PostgreSQL</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#2563eb"></div>User / Actor</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#4338ca"></div>Frontend (Next.js)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#6366f1"></div>API (NestJS)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#dc2626"></div>Auth / Guard</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#059669"></div>Data Store</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#9333ea"></div>External Service</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#d97706"></div>Infrastructure</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ DETAIL -->
+<div id="dl" class="page">
+  <div id="dl-wrap">
+    <div class="page-title">OpsCopilot — Detailed System Architecture</div>
+    <div class="page-sub">Shows every NestJS module, data flows, DB models, and external integrations</div>
+
+    <div class="dl-grid">
+
+      <!-- LEFT: Actors + entry points -->
+      <div class="dl-users">
+        <div class="right-section-title">Actors &amp; Entry Points</div>
+
+        <div class="box c-user" style="text-align:left">
+          <div class="name">Principal / Staff</div>
+          <div class="desc" style="margin-top:6px">HTTPS browser session<br>Clerk JWT → companyId<br>Next.js 15 SSR + RSC</div>
+        </div>
+        <div class="box c-user" style="text-align:left">
+          <div class="name">Client (WhatsApp)</div>
+          <div class="desc" style="margin-top:6px">Sends docs/replies via WA<br>Clicks upload link → token page<br>No login required</div>
+        </div>
+        <div class="box c-infra" style="text-align:left">
+          <div class="name">Platform Admin</div>
+          <div class="desc" style="margin-top:6px">admin.opscopilot.in<br>Cookie session (ADMIN_SECRET)<br>Separate Next.js app</div>
+        </div>
+        <div class="box c-ext" style="text-align:left;margin-top:8px">
+          <div class="name" style="font-size:11px">Twilio Webhook</div>
+          <div class="desc" style="margin-top:4px">POST /api/v1/whatsapp/inbound<br>HMAC-SHA1 signature verified<br>Async processing</div>
+        </div>
+
+        <div style="margin-top:16px">
+          <div class="right-section-title">Auth Flow</div>
+          <div style="background:#1c1f3a;border:1px solid #312e81;border-radius:10px;padding:14px;font-size:10px;line-height:1.9;color:#a5b4fc">
+            1. User signs in via Clerk<br>
+            2. Clerk issues JWT (session token)<br>
+            3. Next.js middleware validates JWT<br>
+            4. <code style="background:#0f172a;padding:1px 4px;border-radius:3px">companyId</code> extracted from Clerk metadata<br>
+            5. Injected into every API request as header<br>
+            6. NestJS <code style="background:#0f172a;padding:1px 4px;border-radius:3px">@CurrentUser()</code> decorator provides it<br>
+            7. Every DB query scoped to <code style="background:#0f172a;padding:1px 4px;border-radius:3px">companyId</code>
+          </div>
+        </div>
+      </div>
+
+      <!-- CENTRE: API modules -->
+      <div>
+        <div class="api-frame">
+          <div class="api-frame-title">NestJS API — apps/api — /api/v1/*</div>
+
+          <!-- guards row -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+            <div class="guard-bar c-guard">Clerk JWT Middleware<br><span style="font-size:9px;font-weight:400;opacity:.7">All /api/v1/* routes</span></div>
+            <div class="guard-bar c-guard">AdminGuard<br><span style="font-size:9px;font-weight:400;opacity:.7">x-admin-secret header</span></div>
+            <div class="guard-bar c-guard">Upload Token Guard<br><span style="font-size:9px;font-weight:400;opacity:.7">/upload/:token routes</span></div>
+          </div>
+
+          <!-- modules grid -->
+          <div class="modules-grid">
+
+            <div class="mod-box c-module">
+              <div class="mod-name">Dashboard</div>
+              <div class="mod-routes">
+                GET /dashboard/summary<br>
+                GET /dashboard/insights<br>
+                POST /dashboard/insights/refresh<br>
+                <span style="color:#6366f1">Event-invalidated 1h cache</span>
+              </div>
+            </div>
+
+            <div class="mod-box c-module">
+              <div class="mod-name">GST Filings</div>
+              <div class="mod-routes">
+                GET /filings/calendar<br>
+                GET /filings/summary<br>
+                GET /filings/heatmap<br>
+                POST /filings/mark-filed<br>
+                POST /filings/bulk-request-docs<br>
+                POST /filings/bulk-nudge<br>
+                POST /filings/bulk-mark-filed
+              </div>
+            </div>
+
+            <div class="mod-box c-module">
+              <div class="mod-name">Collections</div>
+              <div class="mod-routes">
+                GET /collections<br>
+                GET /collections/:id<br>
+                GET /collections/aging<br>
+                POST /collections/:id/remind<br>
+                POST /collections/recalculate<br>
+                <span style="color:#6366f1">Interval guard enforced</span>
+              </div>
+            </div>
+
+            <div class="mod-box c-module">
+              <div class="mod-name">Documents</div>
+              <div class="mod-routes">
+                GET /documents<br>
+                POST /documents/upload<br>
+                PATCH /documents/:id/verify<br>
+                PATCH /documents/:id/reject<br>
+                GET /documents/requests<br>
+                POST /documents/request<br>
+                <span style="color:#6366f1">Triggers Claude OCR on upload</span>
+              </div>
+            </div>
+
+            <div class="mod-box c-module">
+              <div class="mod-name">AI Assistant</div>
+              <div class="mod-routes">
+                POST /assistant/chat<br>
+                GET /assistant/conversations<br>
+                GET /assistant/conversations/:id<br>
+                DELETE /assistant/conversations/:id<br>
+                GET /assistant/knowledge<br>
+                POST /assistant/knowledge<br>
+                DELETE /assistant/knowledge/:id<br>
+                <span style="color:#6366f1">History 6 msgs · Chunks 3 · Prompt cache</span>
+              </div>
+            </div>
+
+            <div class="mod-box c-module">
+              <div class="mod-name">WhatsApp</div>
+              <div class="mod-routes">
+                POST /whatsapp/inbound (webhook)<br>
+                POST /whatsapp/send-reminder<br>
+                POST /whatsapp/send-nudge<br>
+                GET /whatsapp/messages<br>
+                <span style="color:#6366f1">HMAC verified · Keyword classifier</span>
+              </div>
+            </div>
+
+            <div class="mod-box c-module">
+              <div class="mod-name">Reports</div>
+              <div class="mod-routes">
+                GET /reports<br>
+                POST /reports/generate<br>
+                GET /reports/:id<br>
+                GET /reports/:id/download<br>
+                <span style="color:#6366f1">AI summary via Claude Sonnet</span>
+              </div>
+            </div>
+
+            <div class="mod-box c-module">
+              <div class="mod-name">Config</div>
+              <div class="mod-routes">
+                GET /config<br>
+                PATCH /config/:key<br>
+                DELETE /config/:key (reset)<br>
+                <span style="color:#6366f1">Per-tenant overrides<br>ConfigKey enum · Defaults table</span>
+              </div>
+            </div>
+
+            <div class="mod-box c-module">
+              <div class="mod-name">Companies / Settings</div>
+              <div class="mod-routes">
+                GET /companies/me<br>
+                PATCH /companies/me<br>
+                GET /settings/team<br>
+                POST /settings/team/invite<br>
+                PATCH /settings/team/:id<br>
+                GET /settings/clients<br>
+                POST /settings/clients
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Admin module separate -->
+          <div style="border:1px solid #7c3aed;border-radius:8px;padding:14px;background:rgba(124,58,237,.07)">
+            <div style="font-size:10px;font-weight:700;color:#a855f7;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px">Admin Module — /api/v1/admin/* (AdminGuard only)</div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:10px;color:#c4b5fd;line-height:1.8">
+              <div><strong style="color:#d8b4fe">Tenants</strong><br>LIST · GET · CREATE · PATCH<br>deactivate · reactivate</div>
+              <div><strong style="color:#d8b4fe">Users</strong><br>LIST · ADD · UPDATE ROLE<br>REMOVE · Clerk sync</div>
+              <div><strong style="color:#d8b4fe">Invitations</strong><br>LIST · RESEND · REVOKE<br>Clerk API integration</div>
+              <div><strong style="color:#d8b4fe">Other</strong><br>Tenant config · Knowledge<br>Impersonate · Audit log<br>System config · Stats</div>
+            </div>
+          </div>
+
+          <!-- Services row -->
+          <div style="margin-top:14px;border-top:1px solid #1e293b;padding-top:14px">
+            <div style="font-size:10px;font-weight:700;color:#0891b2;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px">Shared Services</div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+              <div class="small-box c-svc">
+                <div class="sn">AiService</div>
+                <div class="sd">OCR · Insights · Report summaries · Chat fallback</div>
+              </div>
+              <div class="small-box c-svc">
+                <div class="sn">EmbeddingService</div>
+                <div class="sd">OpenAI embedBatch · embed single · Hash dedup</div>
+              </div>
+              <div class="small-box c-svc">
+                <div class="sn">ConfigService</div>
+                <div class="sd">getNum/getString with tenant override + system default fallback</div>
+              </div>
+              <div class="small-box c-svc">
+                <div class="sn">PrismaService</div>
+                <div class="sd">Singleton DB connection · All queries tenant-scoped</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: DB + external -->
+      <div class="dl-right">
+
+        <div class="db-frame">
+          <div class="right-section-title">PostgreSQL — Railway</div>
+
+          <div class="small-box c-store">
+            <div class="sn">Core Business</div>
+            <div class="sd">Company · User · Client<br>Invoice · CollectionRisk</div>
+          </div>
+          <div class="small-box c-store">
+            <div class="sn">Compliance</div>
+            <div class="sd">ComplianceChecklist<br>DocumentRequest · FilingTemplate</div>
+          </div>
+          <div class="small-box c-store">
+            <div class="sn">Documents</div>
+            <div class="sd">Document · ExtractedData<br>UploadToken</div>
+          </div>
+          <div class="small-box c-store">
+            <div class="sn">AI / Knowledge</div>
+            <div class="sd">KnowledgeDocument<br>knowledge_chunks (pgvector)<br>AIInsight · AssistantConversation<br>AssistantMessage</div>
+          </div>
+          <div class="small-box c-store">
+            <div class="sn">Messaging</div>
+            <div class="sd">WhatsAppMessage<br>Report · AuditLog</div>
+          </div>
+          <div class="small-box c-store">
+            <div class="sn">Config</div>
+            <div class="sd">BusinessConfig (per-tenant)<br>SystemConfig (platform-wide)<br>ImpersonationToken</div>
+          </div>
+
+          <div style="margin-top:12px;padding:10px;background:#0f172a;border-radius:6px;font-size:9px;color:#475569;line-height:1.8">
+            Multi-tenant isolation: every table has <code style="color:#6ee7b7">companyId</code> FK.<br>
+            All Prisma queries filtered by <code style="color:#6ee7b7">companyId</code> from JWT.<br>
+            pgvector: cosine similarity on 1536-dim embeddings.
+          </div>
+        </div>
+
+        <div class="ext-frame">
+          <div class="right-section-title">External Services</div>
+
+          <div class="small-box c-ext">
+            <div class="sn">Clerk Auth</div>
+            <div class="sd">JWT validation · User invitations · Metadata (companyId, role) · Pending invite management</div>
+          </div>
+          <div class="small-box c-ext">
+            <div class="sn">Anthropic Claude</div>
+            <div class="sd">
+              Model: claude-sonnet-4-6<br>
+              OCR: Vision + PDF blocks<br>
+              Assistant: prompt cache on system<br>
+              Insights: event-invalidated<br>
+              Reports: AI executive summary
+            </div>
+          </div>
+          <div class="small-box c-ext">
+            <div class="sn">OpenAI Embeddings</div>
+            <div class="sd">text-embedding-3-small<br>1536 dims · Batch API<br>Hash dedup skips re-embed</div>
+          </div>
+          <div class="small-box c-ext">
+            <div class="sn">Twilio WhatsApp</div>
+            <div class="sd">Inbound: webhook POST<br>HMAC-SHA1 sig verify<br>Outbound: reminders, nudges, doc requests, upload links</div>
+          </div>
+          <div class="small-box c-infra">
+            <div class="sn">Railway</div>
+            <div class="sd">3 services: api, web, admin<br>Managed PostgreSQL<br>Env vars per service<br>Git push auto-deploy</div>
+          </div>
+        </div>
+
+        <div style="border:1px solid #1e293b;border-radius:12px;padding:16px;background:rgba(6,182,212,.04)">
+          <div class="right-section-title">Key Data Flows</div>
+          <div style="font-size:10px;color:#94a3b8;line-height:2">
+            <div style="margin-bottom:6px;padding:6px 8px;background:#0f172a;border-radius:6px;border-left:3px solid #6366f1">
+              <strong style="color:#c7d2fe">WhatsApp inbound</strong><br>
+              Twilio → Webhook → Signature check → Keyword classify → Route: doc upload / payment confirm / query
+            </div>
+            <div style="margin-bottom:6px;padding:6px 8px;background:#0f172a;border-radius:6px;border-left:3px solid #059669">
+              <strong style="color:#6ee7b7">Document OCR</strong><br>
+              Upload → Base64 encode → Claude Vision → Extract JSON → Confidence check → Auto-verify or flag for review
+            </div>
+            <div style="margin-bottom:6px;padding:6px 8px;background:#0f172a;border-radius:6px;border-left:3px solid #9333ea">
+              <strong style="color:#d8b4fe">AI Assistant</strong><br>
+              Query → Embed (OpenAI) → pgvector cosine search top-3 → Build prompt (cached base + dynamic context) → Claude answer → Persist + cite
+            </div>
+            <div style="padding:6px 8px;background:#0f172a;border-radius:6px;border-left:3px solid #d97706">
+              <strong style="color:#fcd34d">Insights refresh</strong><br>
+              Check last insight age → Compare Invoice/Doc/Checklist updatedAt → Cache hit: return · Cache miss: Claude → Store AIInsight
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /dl-grid -->
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#2563eb"></div>User / Actor</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#4338ca"></div>Frontend</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#6366f1"></div>API Module</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#dc2626"></div>Auth Guard</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#0891b2"></div>Shared Service</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#059669"></div>Database Model</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#9333ea"></div>External API</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#d97706"></div>Infrastructure</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function show(id, el) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('visible'))
+    document.getElementById(id).classList.add('visible')
+    document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'))
+    el.classList.add('active')
+    return false
+  }
+</script>
+</body>
+</html>

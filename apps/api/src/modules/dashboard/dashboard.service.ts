@@ -5,8 +5,9 @@ import { CompaniesService } from '../companies/companies.service'
 import { ConfigService } from '../config/config.service'
 import { ConfigKey } from '../config/config-key.enum'
 import { DashboardSummaryDto } from './dto/dashboard-summary.dto'
-import type { TenantConfig } from '@opsc/types'
+import type { TenantConfig, AuthenticatedUser } from '@opsc/types'
 import type { InsightSeverity } from '@opsc/database'
+import { getOwnedClientIds } from '../../common/helpers/client-scope.helper'
 
 @Injectable()
 export class DashboardService {
@@ -91,7 +92,14 @@ export class DashboardService {
     return results
   }
 
-  async getSummary(companyId: string): Promise<DashboardSummaryDto> {
+  async getSummary(user: AuthenticatedUser): Promise<DashboardSummaryDto> {
+    const companyId = user.companyId
+    const ownedIds = await getOwnedClientIds(user, this.prisma)
+    const clientFilter = ownedIds !== null ? { clientId: { in: ownedIds } } : {}
+    return this._getSummaryScoped(companyId, clientFilter)
+  }
+
+  private async _getSummaryScoped(companyId: string, clientFilter: Record<string, unknown>): Promise<DashboardSummaryDto> {
     const now = new Date()
     const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
     const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59)
@@ -115,20 +123,21 @@ export class DashboardService {
       documentsNeedingReview,
     ] = await Promise.all([
       this.prisma.invoice.aggregate({
-        where: { companyId, status: { in: ['PENDING', 'OVERDUE', 'PARTIAL'] } },
+        where: { companyId, ...clientFilter, status: { in: ['PENDING', 'OVERDUE', 'PARTIAL'] } },
         _sum: { amount: true },
       }),
       this.prisma.invoice.count({
-        where: { companyId, status: 'OVERDUE' },
+        where: { companyId, ...clientFilter, status: 'OVERDUE' },
       }),
       this.prisma.invoice.aggregate({
-        where: { companyId, status: 'OVERDUE' },
+        where: { companyId, ...clientFilter, status: 'OVERDUE' },
         _sum: { amount: true },
         _avg: { agingDays: true },
       }),
       this.prisma.invoice.aggregate({
         where: {
           companyId,
+          ...clientFilter,
           status: { in: ['PENDING', 'OVERDUE', 'PARTIAL'] },
           createdAt: { lte: previousMonthEnd },
         },
@@ -137,6 +146,7 @@ export class DashboardService {
       this.prisma.invoice.count({
         where: {
           companyId,
+          ...clientFilter,
           status: 'OVERDUE',
           updatedAt: { gte: previousMonthStart, lte: previousMonthEnd },
         },
@@ -144,6 +154,7 @@ export class DashboardService {
       this.prisma.invoice.aggregate({
         where: {
           companyId,
+          ...clientFilter,
           status: 'OVERDUE',
           updatedAt: { gte: previousMonthStart, lte: previousMonthEnd },
         },
@@ -152,6 +163,7 @@ export class DashboardService {
       this.prisma.invoice.aggregate({
         where: {
           companyId,
+          ...clientFilter,
           status: 'OVERDUE',
           updatedAt: { gte: previousMonthStart, lte: previousMonthEnd },
         },
@@ -210,22 +222,23 @@ export class DashboardService {
         LIMIT 5
       `,
       this.prisma.invoice.aggregate({
-        where: { companyId, status: 'PAID', paidAt: { gte: sevenDaysAgo } },
+        where: { companyId, ...clientFilter, status: 'PAID', paidAt: { gte: sevenDaysAgo } },
         _sum: { amount: true },
       }),
       this.prisma.invoice.aggregate({
         where: {
           companyId,
+          ...clientFilter,
           status: 'PAID',
           paidAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo },
         },
         _sum: { amount: true },
       }),
       this.prisma.document.count({
-        where: { companyId, status: 'UPLOADED' },
+        where: { companyId, ...clientFilter, status: 'UPLOADED' },
       }),
       this.prisma.document.count({
-        where: { companyId, status: 'NEEDS_REVIEW' },
+        where: { companyId, ...clientFilter, status: 'NEEDS_REVIEW' },
       }),
     ])
 
@@ -380,7 +393,7 @@ export class DashboardService {
       warningTrendPercent,
       maxInsightsPerRefresh,
     ] = await Promise.all([
-      this.getSummary(companyId),
+      this._getSummaryScoped(companyId, {}),
       this.configSvc.getNum(companyId, ConfigKey.INSIGHT_CRITICAL_OVERDUE_AMOUNT),
       this.configSvc.getNum(companyId, ConfigKey.INSIGHT_WARNING_OVERDUE_COUNT),
       this.configSvc.getNum(companyId, ConfigKey.INSIGHT_WARNING_TREND_PERCENT),

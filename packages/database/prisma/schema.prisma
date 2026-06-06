@@ -258,6 +258,7 @@ model User {
   notifications          Notification[]
   gstr2bUploads          Gstr2bUpload[]         @relation("UploadedGstr2b")
   resolvedReconResults   ReconciliationResult[] @relation("ResolvedResults")
+  ownedClients           Client[]               @relation("ClientOwner")
 
   @@index([companyId])
   @@index([clerkId])
@@ -444,12 +445,15 @@ model Client {
   gstinLegalName          String?
   gstinVerifiedAt         DateTime?
 
+  ownerId        String?        // nullable: unassigned clients visible to ADMIN/OPS_MANAGER only
+
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
   filingTypes      FilingType[]
 
   company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  owner            User?             @relation("ClientOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   invoices         Invoice[]
   documents        Document[]
   documentRequests DocumentRequest[]
@@ -460,6 +464,7 @@ model Client {
 
   @@unique([companyId, gstin])
   @@index([companyId])
+  @@index([ownerId])
   @@map("clients")
 }
 

@@ -35,7 +35,7 @@ export class ComplianceController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.svc.listChecklists(user.companyId, {
+    return this.svc.listChecklists(user, {
       clientId,
       filingType,
       period,

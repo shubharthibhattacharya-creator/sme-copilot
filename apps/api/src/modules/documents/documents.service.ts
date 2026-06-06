@@ -28,6 +28,7 @@ import type { ListDocumentsDto } from './dto/list-documents.dto'
 import type { CreateDocumentRequestDto } from './dto/create-document-request.dto'
 import type { AuthenticatedUser } from '@opsc/types'
 import type { DocumentType } from '@opsc/database'
+import { getOwnedClientIds } from '../../common/helpers/client-scope.helper'
 
 const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp']
 
@@ -233,17 +234,25 @@ export class DocumentsService {
     }
   }
 
-  async list(companyId: string, dto: ListDocumentsDto) {
+  async list(user: AuthenticatedUser, dto: ListDocumentsDto) {
+    const companyId = user.companyId
     const page = dto.page ?? 1
     const limit = Math.min(dto.limit ?? 20, 100)
     const skip = (page - 1) * limit
 
+    const ownedIds = await getOwnedClientIds(user, this.prisma)
+    const clientIdFilter = dto.clientId
+      ? { clientId: dto.clientId }
+      : ownedIds !== null
+        ? { clientId: { in: ownedIds } }
+        : {}
+
     const where = {
       companyId,
+      ...clientIdFilter,
       ...(dto.documentType ? { documentType: dto.documentType } : {}),
       ...(dto.status ? { status: dto.status } : {}),
       ...(dto.documentPurpose ? { documentPurpose: dto.documentPurpose } : {}),
-      ...(dto.clientId ? { clientId: dto.clientId } : {}),
     }
 
     const [items, total] = await Promise.all([

@@ -3,7 +3,8 @@ import { PrismaService } from '../../prisma/prisma.service'
 import { Prisma } from '@opsc/database'
 import { AgingBreakdownDto } from './dto/aging-breakdown.dto'
 import type { ListCollectionsDto } from './dto/list-collections.dto'
-import type { InvoiceWithRisk, RiskLevel } from '@opsc/types'
+import type { InvoiceWithRisk, RiskLevel, AuthenticatedUser } from '@opsc/types'
+import { getOwnedClientIds } from '../../common/helpers/client-scope.helper'
 import { CompaniesService } from '../companies/companies.service'
 import { ConfigService } from '../config/config.service'
 import { ConfigKey } from '../config/config-key.enum'
@@ -29,7 +30,8 @@ export class CollectionsService {
     @Optional() private readonly whatsapp?: WhatsAppService,
   ) {}
 
-  async listWithRisk(companyId: string, filters: ListCollectionsDto) {
+  async listWithRisk(user: AuthenticatedUser, filters: ListCollectionsDto) {
+    const companyId = user.companyId
     const {
       page = 1,
       limit = 20,
@@ -53,8 +55,13 @@ export class CollectionsService {
             ? { gte: medium }
             : undefined
 
+    const ownedIds = await getOwnedClientIds(user, this.prisma)
+    const clientScopeFilter: Prisma.InvoiceWhereInput =
+      ownedIds !== null ? { clientId: { in: ownedIds } } : {}
+
     const where: Prisma.InvoiceWhereInput = {
       companyId,
+      ...clientScopeFilter,
       ...(status ? { status } : {}),
       ...(riskScoreFilter
         ? { collectionRisk: { riskScore: riskScoreFilter } }

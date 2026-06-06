@@ -36,7 +36,7 @@ export class DocumentsController {
 
   @Get()
   list(@Query() dto: ListDocumentsDto, @CurrentUser() user: AuthenticatedUser) {
-    return this.documentsService.list(user.companyId, dto)
+    return this.documentsService.list(user, dto)
   }
 
   @Get('requests')
