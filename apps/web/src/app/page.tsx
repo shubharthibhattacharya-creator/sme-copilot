@@ -18,7 +18,7 @@ export default async function HomePage() {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #F0F4FF 0%, #EEF9F9 100%)',
+        background: '#F8FAFC',
         padding: '24px',
       }}
     >
@@ -26,10 +26,10 @@ export default async function HomePage() {
         {/* Logo */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 40 }}>
           <Image
-            src="/practora-logo.png"
+            src="/practora-logo-hd.png"
             alt="Practora"
-            width={440}
-            height={154}
+            width={480}
+            height={168}
             style={{ objectFit: 'contain' }}
             priority
           />
