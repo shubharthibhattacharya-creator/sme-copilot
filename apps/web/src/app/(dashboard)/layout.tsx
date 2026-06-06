@@ -69,8 +69,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
               <Image
                 src="/practora-logo.png"
                 alt="Practora"
-                width={160}
-                height={56}
+                width={200}
+                height={70}
                 style={{ objectFit: 'contain', objectPosition: 'left' }}
                 priority
               />
