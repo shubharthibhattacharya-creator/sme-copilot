@@ -11,9 +11,9 @@ import { ErrorBoundary } from '@/components/error-boundary'
 import { Toaster } from '@/components/ui/toast'
 import { UpgradeModal } from '@/components/ui/upgrade-modal'
 import { PermissionsProvider } from '@/contexts/permissions.context'
+import Image from 'next/image'
 import { PermissionNav } from '@/components/layout/PermissionNav'
 import { SidebarUserSection } from '@/components/layout/SidebarUserSection'
-import { PractoraLogo } from '@/components/layout/PractoraLogo'
 import { AccessDeniedHandler } from '@/components/auth/AccessDeniedHandler'
 
 const PERSONA_LABELS: Record<IndustryType, string> = {
@@ -65,8 +65,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
             }}
           >
             {/* Logo */}
-            <div style={{ marginBottom: 28, padding: '0 4px' }}>
-              <PractoraLogo subtitle={personaLabel} />
+            <div style={{ marginBottom: 24, padding: '0 4px' }}>
+              <Image
+                src="/practora-logo.png"
+                alt="Practora"
+                width={160}
+                height={56}
+                style={{ objectFit: 'contain', objectPosition: 'left' }}
+                priority
+              />
             </div>
 
             {/* Nav */}
