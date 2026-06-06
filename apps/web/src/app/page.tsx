@@ -24,43 +24,16 @@ export default async function HomePage() {
     >
       <div style={{ textAlign: 'center', maxWidth: 560 }}>
         {/* Logo */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 40 }}>
           <Image
             src="/practora-logo.png"
             alt="Practora"
-            width={220}
-            height={77}
+            width={440}
+            height={154}
             style={{ objectFit: 'contain' }}
             priority
           />
         </div>
-
-        {/* Tagline */}
-        <p
-          style={{
-            fontSize: 18,
-            color: '#475569',
-            marginBottom: 8,
-            letterSpacing: '0.01em',
-          }}
-        >
-          Your Firm, On Autopilot
-        </p>
-
-        {/* Description */}
-        <p
-          style={{
-            fontSize: 15,
-            color: '#94A3B8',
-            lineHeight: 1.7,
-            marginBottom: 40,
-            maxWidth: 460,
-            margin: '0 auto 40px',
-          }}
-        >
-          AI-powered operations for CA firms. Automate GST filings, collections,
-          documents, and team workflows — all in one place.
-        </p>
 
         {/* CTA */}
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
@@ -75,7 +48,6 @@ export default async function HomePage() {
               fontSize: 14,
               textDecoration: 'none',
               boxShadow: '0 2px 8px rgba(37,99,235,0.25)',
-              transition: 'opacity 150ms',
             }}
           >
             Sign In
