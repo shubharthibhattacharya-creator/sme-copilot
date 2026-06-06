@@ -5,7 +5,6 @@ import { auth } from '@clerk/nextjs/server'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { apiClient } from '@/lib/api-client'
-import { INDUSTRY_DEFAULTS, type IndustryType } from '@opsc/types'
 import { ImpersonationBanner } from '@/components/ImpersonationBanner'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { Toaster } from '@/components/ui/toast'
@@ -16,35 +15,21 @@ import { PermissionNav } from '@/components/layout/PermissionNav'
 import { SidebarUserSection } from '@/components/layout/SidebarUserSection'
 import { AccessDeniedHandler } from '@/components/auth/AccessDeniedHandler'
 
-const PERSONA_LABELS: Record<IndustryType, string> = {
-  CA_FIRM:      'CA / Tax Firm',
-  DISTRIBUTOR:  'Distributor',
-  MANUFACTURER: 'Manufacturer',
-}
-
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth()
   const cookieStore = await cookies()
   const isImpersonating = !!cookieStore.get('impersonation_session')?.value
   if (!userId && !isImpersonating) redirect('/sign-in')
 
-  let industry: IndustryType | null = null
   try {
     const profile = await apiClient<{
-      industry?: string | null
       onboardingCompleted?: boolean
     }>('/api/v1/settings/profile', { cache: 'no-store' })
 
     if (!isImpersonating && !profile.onboardingCompleted) redirect('/onboarding')
-
-    if (profile.industry && profile.industry in INDUSTRY_DEFAULTS) {
-      industry = profile.industry as IndustryType
-    }
   } catch {
     if (!isImpersonating) redirect('/onboarding')
   }
-
-  const personaLabel = industry ? PERSONA_LABELS[industry] : null
 
   return (
     <PermissionsProvider>
@@ -81,7 +66,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
             {/* Bottom user section */}
             <div style={{ marginTop: 'auto', borderTop: '1px solid #F1F5F9', paddingTop: 12 }}>
-              <SidebarUserSection personaLabel={personaLabel} />
+              <SidebarUserSection />
             </div>
           </aside>
 

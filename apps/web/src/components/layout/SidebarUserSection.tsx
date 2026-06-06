@@ -3,11 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useUser, SignOutButton } from '@clerk/nextjs'
 import { ChevronDown, LogOut } from 'lucide-react'
 
-interface Props {
-  personaLabel?: string | null
-}
-
-export function SidebarUserSection({ personaLabel }: Props) {
+export function SidebarUserSection() {
   const { user } = useUser()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -25,7 +21,7 @@ export function SidebarUserSection({ personaLabel }: Props) {
 
   const name = user.fullName ?? user.firstName ?? 'User'
   const initial = name.charAt(0).toUpperCase()
-  const subtitle = personaLabel ?? 'Team Member'
+  const subtitle = 'Your Firm, On Autopilot'
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
