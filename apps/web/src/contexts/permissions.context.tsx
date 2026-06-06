@@ -46,7 +46,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   const [perms, setPerms] = useState<PermissionsData>(DEFAULT_PERMISSIONS)
   const [loaded, setLoaded] = useState(false)
 
-  const fetchPerms = useCallback(async (force = false) => {
+  const fetchPerms = useCallback(async (force = false, attempt = 0) => {
     if (!force && cache && Date.now() - cache.fetchedAt < CACHE_TTL_MS) {
       setPerms(cache.data)
       setLoaded(true)
@@ -56,14 +56,21 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       const data = await request<PermissionsData>('/settings/me/permissions')
       cache = { data, fetchedAt: Date.now() }
       setPerms(data)
-    } catch {
-      // Use defaults on error — user is still authenticated, just can't resolve permissions
-    } finally {
       setLoaded(true)
+    } catch {
+      // Retry up to 3 times with backoff — auth token may not be ready immediately after login
+      if (attempt < 3) {
+        setTimeout(() => fetchPerms(force, attempt + 1), 800 * (attempt + 1))
+      } else {
+        // After exhausting retries, fall back to defaults and mark loaded
+        setLoaded(true)
+      }
     }
   }, [request])
 
   useEffect(() => {
+    // Clear cache on mount so a fresh login always fetches real permissions
+    cache = null
     fetchPerms()
   }, [fetchPerms])
 
