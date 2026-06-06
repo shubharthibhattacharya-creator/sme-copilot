@@ -26,8 +26,8 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: '/my-work',        label: 'My Work',       module: null,          icon: ClipboardList,   iconColor: '#E11D48' },
   { href: '/dashboard',      label: 'Dashboard',     module: 'dashboard',   icon: LayoutDashboard, iconColor: '#2563EB' },
+  { href: '/my-work',        label: 'My Work',       module: null,          icon: ClipboardList,   iconColor: '#E11D48' },
   { href: '/filings',        label: 'GST Filings',   module: 'compliance',  icon: FileCheck2,      iconColor: '#16A34A' },
   { href: '/collections',    label: 'Collections',   module: 'collections', icon: CreditCard,      iconColor: '#D97706' },
   { href: '/documents',      label: 'Documents',     module: 'documents',   icon: FolderOpen,      iconColor: '#7C3AED' },
