@@ -13,6 +13,7 @@ import { UpgradeModal } from '@/components/ui/upgrade-modal'
 import { PermissionsProvider } from '@/contexts/permissions.context'
 import { PermissionNav } from '@/components/layout/PermissionNav'
 import { SidebarUserSection } from '@/components/layout/SidebarUserSection'
+import { PractoraLogo } from '@/components/layout/PractoraLogo'
 import { AccessDeniedHandler } from '@/components/auth/AccessDeniedHandler'
 
 const PERSONA_LABELS: Record<IndustryType, string> = {
@@ -63,37 +64,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
               padding: '20px 12px 16px',
             }}
           >
-            {/* Logo mark */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28, padding: '0 6px' }}>
-              <div
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 10,
-                  background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#fff',
-                  fontWeight: 800,
-                  fontSize: 15,
-                  letterSpacing: '-0.5px',
-                  flexShrink: 0,
-                  boxShadow: '0 2px 8px rgba(79,70,229,0.35)',
-                }}
-              >
-                OC
-              </div>
-              <div>
-                <p style={{ fontSize: 15, fontWeight: 700, color: '#0F172A', margin: 0, lineHeight: 1.2 }}>
-                  OpsCopilot
-                </p>
-                {personaLabel && (
-                  <p style={{ fontSize: 11, color: '#94A3B8', margin: 0, lineHeight: 1.3 }}>
-                    {personaLabel}
-                  </p>
-                )}
-              </div>
+            {/* Logo */}
+            <div style={{ marginBottom: 28, padding: '0 4px' }}>
+              <PractoraLogo subtitle={personaLabel} />
             </div>
 
             {/* Nav */}
