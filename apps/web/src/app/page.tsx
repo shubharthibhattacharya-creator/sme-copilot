@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 
@@ -10,29 +11,81 @@ export default async function HomePage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
-      <div className="text-center max-w-2xl px-4">
-        <h1 className="text-5xl font-bold text-slate-900 mb-4">
-          Ops<span className="text-blue-600">Copilot</span>
-        </h1>
-        <p className="text-xl text-slate-600 mb-8">
-          AI-powered operations for Indian SMEs. Automate collections, inventory,
-          and reporting — built for CA firms, distributors, and manufacturers.
+    <main
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #F0F4FF 0%, #EEF9F9 100%)',
+        padding: '24px',
+      }}
+    >
+      <div style={{ textAlign: 'center', maxWidth: 560 }}>
+        {/* Logo */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+          <Image
+            src="/practora-logo.png"
+            alt="Practora"
+            width={220}
+            height={77}
+            style={{ objectFit: 'contain' }}
+            priority
+          />
+        </div>
+
+        {/* Tagline */}
+        <p
+          style={{
+            fontSize: 18,
+            color: '#475569',
+            marginBottom: 8,
+            letterSpacing: '0.01em',
+          }}
+        >
+          Your Firm, On Autopilot
         </p>
-        <div className="flex gap-4 justify-center">
-          <Link
-            href="/sign-up"
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-          >
-            Get Started Free
-          </Link>
+
+        {/* Description */}
+        <p
+          style={{
+            fontSize: 15,
+            color: '#94A3B8',
+            lineHeight: 1.7,
+            marginBottom: 40,
+            maxWidth: 460,
+            margin: '0 auto 40px',
+          }}
+        >
+          AI-powered operations for CA firms. Automate GST filings, collections,
+          documents, and team workflows — all in one place.
+        </p>
+
+        {/* CTA */}
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
           <Link
             href="/sign-in"
-            className="px-6 py-3 border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors"
+            style={{
+              padding: '12px 32px',
+              background: 'linear-gradient(135deg, #1C3464 0%, #2563EB 100%)',
+              color: '#FFFFFF',
+              borderRadius: 10,
+              fontWeight: 600,
+              fontSize: 14,
+              textDecoration: 'none',
+              boxShadow: '0 2px 8px rgba(37,99,235,0.25)',
+              transition: 'opacity 150ms',
+            }}
           >
             Sign In
           </Link>
         </div>
+
+        {/* Footer note */}
+        <p style={{ marginTop: 32, fontSize: 12, color: '#CBD5E1' }}>
+          Access is by invitation only. Contact your administrator to get started.
+        </p>
       </div>
     </main>
   )
