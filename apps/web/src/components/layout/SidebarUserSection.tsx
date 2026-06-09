@@ -99,10 +99,10 @@ export function SidebarUserSection() {
         <div
           style={{
             position: 'absolute',
-            bottom: '100%',
-            left: 0,
+            top: '100%',
             right: 0,
-            marginBottom: 4,
+            minWidth: 180,
+            marginTop: 6,
             background: '#FFFFFF',
             border: '1px solid #E2E8F0',
             borderRadius: 10,

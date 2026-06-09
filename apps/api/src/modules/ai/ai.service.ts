@@ -244,6 +244,134 @@ Always include a confidence score (0-1). Return null for fields you cannot deter
     }
   }
 
+  /**
+   * Cheap text-only Claude call — interprets structured text extracted by Document AI Layout Parser.
+   * No vision required; used for GST returns after table structure has been extracted.
+   */
+  async extractFromStructuredText(
+    structuredText: string,
+    documentType: DocumentType,
+  ): Promise<Record<string, unknown>> {
+    const systemPrompt = `You are a document data extraction specialist for Indian CA firms.
+You are given pre-extracted structured text (tables, rows) from a ${documentType} document.
+Extract the key fields and return ONLY a valid JSON object. No markdown, no explanation.
+Include a confidence score (0-1). Return null for fields you cannot determine.
+
+For GST_RETURN extract: { "gstrType": "GSTR-1"|"GSTR-3B"|"GSTR-2B"|"GSTR-9"|null, "filingPeriod": string|null, "vendorGstin": string|null, "totalOutwardSupply": number|null, "taxableTurnover": number|null, "itcClaimed": number|null, "netTaxPayable": number|null, "totalTaxLiability": number|null, "confidence": number }
+For TDS_CERTIFICATE extract: { "vendorName": string|null, "pan": string|null, "taxableAmount": number|null, "totalTax": number|null, "filingPeriod": string|null, "confidence": number }
+For FINANCIAL_STATEMENT extract: { "vendorName": string|null, "totalAmount": number|null, "filingPeriod": string|null, "confidence": number }
+For any other type extract whatever structured fields are present.`
+
+    let response: Awaited<ReturnType<typeof this.anthropic.messages.create>>
+    try {
+      response = await this.anthropic.messages.create({
+        model: this.model,
+        max_tokens: 1500,
+        system: systemPrompt,
+        messages: [
+          {
+            role: 'user',
+            content: `Extract structured data from this ${documentType} text:\n\n${structuredText.slice(0, 8000)}`,
+          },
+        ],
+      })
+    } catch (err) {
+      if (err instanceof AppException) throw err
+      const errMsg = err instanceof Error ? err.message : String(err)
+      throw new AiServiceUnavailableException('structured text extraction', errMsg)
+    }
+
+    const raw = response.content[0]?.type === 'text' ? response.content[0].text : '{}'
+    const cleaned = raw.replace(/```(?:json)?\n?/g, '').replace(/```\n?/g, '').trim()
+    try {
+      return JSON.parse(cleaned) as Record<string, unknown>
+    } catch {
+      this.logger.warn('Failed to parse structured text extraction JSON', cleaned.slice(0, 200))
+      return { confidence: 0 }
+    }
+  }
+
+  /**
+   * Targeted field-level Claude vision call.
+   * Only asks Claude to extract specific uncertain fields, not the full document.
+   * ~3-5x cheaper than a full vision call when only a few fields are uncertain.
+   */
+  async extractSpecificFields(
+    base64Content: string,
+    mimeType: string,
+    documentType: DocumentType,
+    fields: string[],
+  ): Promise<Record<string, unknown>> {
+    const fieldList = fields.join(', ')
+    const systemPrompt = `You are a document data extraction specialist.
+Extract ONLY these specific fields from the document: ${fieldList}.
+Return ONLY a valid JSON object with those field names as keys. No markdown, no explanation.
+Include confidence (0-1). Return null for fields you cannot find.`
+
+    const isImage = mimeType.startsWith('image/')
+    const isPdf = mimeType === 'application/pdf'
+
+    const contentBlocks: Anthropic.MessageParam['content'] = isImage
+      ? [
+          {
+            type: 'image' as const,
+            source: {
+              type: 'base64' as const,
+              media_type: mimeType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
+              data: base64Content,
+            },
+          } satisfies Anthropic.ImageBlockParam,
+          {
+            type: 'text' as const,
+            text: `Extract these fields from this ${documentType}: ${fieldList}`,
+          } satisfies Anthropic.TextBlockParam,
+        ]
+      : isPdf
+        ? [
+            {
+              type: 'document' as const,
+              source: {
+                type: 'base64' as const,
+                media_type: 'application/pdf' as const,
+                data: base64Content,
+              },
+            } satisfies DocumentBlockParam,
+            {
+              type: 'text' as const,
+              text: `Extract these fields from this ${documentType}: ${fieldList}`,
+            } satisfies Anthropic.TextBlockParam,
+          ]
+        : [
+            {
+              type: 'text' as const,
+              text: `Cannot extract from this format. Return all fields as null with confidence: 0.`,
+            } satisfies Anthropic.TextBlockParam,
+          ]
+
+    let response: Awaited<ReturnType<typeof this.anthropic.messages.create>>
+    try {
+      response = await this.anthropic.messages.create({
+        model: this.model,
+        max_tokens: 500,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: contentBlocks }],
+      })
+    } catch (err) {
+      if (err instanceof AppException) throw err
+      const errMsg = err instanceof Error ? err.message : String(err)
+      throw new AiServiceUnavailableException('field extraction', errMsg)
+    }
+
+    const raw = response.content[0]?.type === 'text' ? response.content[0].text : '{}'
+    const cleaned = raw.replace(/```(?:json)?\n?/g, '').replace(/```\n?/g, '').trim()
+    try {
+      return JSON.parse(cleaned) as Record<string, unknown>
+    } catch {
+      this.logger.warn('Failed to parse field-level extraction JSON', cleaned.slice(0, 200))
+      return { confidence: 0 }
+    }
+  }
+
   async generateReportSummary(
     reportType: string,
     dataSnapshot: Record<string, unknown>,

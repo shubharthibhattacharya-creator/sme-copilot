@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
 import { Queue } from 'bullmq'
+import { createHash } from 'crypto'
 import {
   AppException,
   DocumentOcrFailedException,
@@ -21,6 +22,7 @@ import { DocumentClassificationService } from './document-classification.service
 import { DocumentToInvoiceService } from './document-to-invoice.service'
 import { PurchaseInvoiceBridgeService } from '../reconciliation/purchase-invoice-bridge.service'
 import { ReadinessService } from '../compliance/readiness.service'
+import { OcrRouterService } from './ocr/ocr-router.service'
 import { QUEUE_OCR } from '../../common/queue/queue.constants'
 import type { OcrJobData } from './ocr.processor'
 import type { UploadDocumentDto } from './dto/upload-document.dto'
@@ -54,6 +56,7 @@ export class DocumentsService {
     private readonly bridgeService: DocumentToInvoiceService,
     private readonly purchaseInvoiceBridge: PurchaseInvoiceBridgeService,
     private readonly readinessService: ReadinessService,
+    private readonly ocrRouter: OcrRouterService,
     @InjectQueue(QUEUE_OCR) private readonly ocrQueue: Queue<OcrJobData>,
   ) {}
 
@@ -68,6 +71,16 @@ export class DocumentsService {
     const maxFileSizeMb = await this.configSvc.getNum(user.companyId, ConfigKey.MAX_FILE_SIZE_MB)
     if (file.size > maxFileSizeMb * 1024 * 1024) {
       throw new DocumentTooLargeException(Math.round(file.size / 1024 / 1024))
+    }
+
+    // SHA-256 dedup — skip re-upload and re-OCR for identical files
+    const fileHash = createHash('sha256').update(file.buffer).digest('hex')
+    const existing = await this.prisma.document.findFirst({
+      where: { companyId: user.companyId, fileHash },
+    })
+    if (existing) {
+      this.logger.log(`Duplicate file detected (hash ${fileHash.slice(0, 8)}…) — returning existing document ${existing.id}`)
+      return existing
     }
 
     const { key, sizeBytes } = await this.storage.save(
@@ -96,6 +109,7 @@ export class DocumentsService {
         documentPurpose: (dto.documentOwner ? (dto.documentOwner === 'FIRM' ? 'RECEIVABLE' : 'TAX_PREPARATION') : 'UNKNOWN') as any,
         classificationMode: (dto.documentOwner ? 'EXPLICIT' : 'SMART') as any,
         classificationSource: dto.documentOwner ? 'USER_EXPLICIT' : null,
+        fileHash,
       },
     })
 
@@ -142,22 +156,44 @@ export class DocumentsService {
     try {
       const doc = await this.prisma.document.findUniqueOrThrow({ where: { id: documentId } })
       const fileBuffer = await this.storage.readFile(doc.storageKey)
-      const base64 = fileBuffer.toString('base64')
 
       let extractedData: Record<string, unknown>
+      let ocrEngine: string = 'CLAUDE'
+      let ocrCostPaise: number = 0
+      let scanQuality: string | undefined
+
       try {
-        extractedData = await this.aiService.extractDocumentData(
-          base64,
+        const routerResult = await this.ocrRouter.route(
+          fileBuffer,
           doc.mimeType,
           doc.documentType as DocumentType,
         )
-        if (!extractedData || extractedData['confidence'] === undefined) {
+        const { extracted, auditLog, scanQuality: quality } = routerResult
+
+        // Flatten NormalisedOcrResult into extractedData, aliasing overallConfidence → confidence
+        extractedData = { ...(extracted as unknown as Record<string, unknown>), confidence: extracted.overallConfidence }
+        ocrEngine   = extracted.extractedBy
+        ocrCostPaise = extracted.costPaise ?? 0
+        scanQuality  = quality
+
+        if (extracted.overallConfidence === undefined) {
           throw new AiResponseInvalidException('document OCR', 'No confidence score returned')
         }
-      } catch (aiErr) {
-        if (aiErr instanceof AppException) throw aiErr
-        const errMsg = aiErr instanceof Error ? aiErr.message : String(aiErr)
-        if (errMsg.includes('overloaded') || (aiErr as { status?: number }).status === 529) {
+
+        // Persist the full audit trail alongside the document
+        await this.prisma.document.update({
+          where: { id: documentId },
+          data: {
+            ocrEngine:    ocrEngine as any,
+            ocrCostPaise: ocrCostPaise,
+            ocrAuditLog:  auditLog as any,
+            scanQuality:  scanQuality,
+          },
+        })
+      } catch (ocrErr) {
+        if (ocrErr instanceof AppException) throw ocrErr
+        const errMsg = ocrErr instanceof Error ? ocrErr.message : String(ocrErr)
+        if (errMsg.includes('overloaded') || (ocrErr as { status?: number }).status === 529) {
           throw new AiServiceUnavailableException('OCR', errMsg)
         }
         throw new DocumentOcrFailedException(errMsg)
@@ -169,8 +205,14 @@ export class DocumentsService {
 
       // Auto-extract filing period from OCR data if not already set
       let filingPeriod: string | undefined
-      if (!doc.filingPeriod && doc.documentType === 'GST_RETURN') {
-        filingPeriod = this.extractFilingPeriod(extractedData)
+      if (!doc.filingPeriod) {
+        // Check the normalised field first, then fall back to regex on raw extracted data
+        const normalisedPeriod = extractedData['filingPeriod']
+        if (typeof normalisedPeriod === 'string' && normalisedPeriod) {
+          filingPeriod = normalisedPeriod
+        } else if (doc.documentType === 'GST_RETURN') {
+          filingPeriod = this.extractFilingPeriod(extractedData)
+        }
       }
 
       const finalStatus = confidence >= 0.5 ? 'PROCESSED' : 'NEEDS_REVIEW'

@@ -12,10 +12,12 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.100.1",
     "@aws-sdk/client-s3": "^3.1057.0",
+    "@aws-sdk/client-textract": "^3.1065.0",
     "@aws-sdk/s3-request-presigner": "^3.1057.0",
     "@bull-board/api": "^7.1.5",
     "@bull-board/express": "^7.1.5",
     "@clerk/backend": "^1.0.0",
+    "@google-cloud/documentai": "^9.6.2",
     "@nestjs/bullmq": "^11.0.4",
     "@nestjs/cache-manager": "^2.2.0",
     "@nestjs/common": "^10.3.0",
@@ -42,6 +44,7 @@
     "resend": "^6.12.4",
     "rxjs": "^7.8.1",
     "svix": "^1.22.0",
+    "tesseract.js": "^7.0.0",
     "twilio": "^6.0.2"
   },
   "devDependencies": {

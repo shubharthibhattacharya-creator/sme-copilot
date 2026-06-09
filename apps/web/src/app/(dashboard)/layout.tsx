@@ -63,16 +63,30 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
             {/* Nav */}
             <PermissionNav />
-
-            {/* Bottom user section */}
-            <div style={{ marginTop: 'auto', borderTop: '1px solid #F1F5F9', paddingTop: 12 }}>
-              <SidebarUserSection />
-            </div>
           </aside>
 
-          <main className="flex-1 p-8">
-            <ErrorBoundary>{children}</ErrorBoundary>
-          </main>
+          {/* Right: top bar + content */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            {/* Top header bar */}
+            <header
+              style={{
+                height: 56,
+                background: '#FFFFFF',
+                borderBottom: '1px solid #E8EAF0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                padding: '0 28px',
+                flexShrink: 0,
+              }}
+            >
+              <SidebarUserSection />
+            </header>
+
+            <main className="flex-1 p-8" style={{ minWidth: 0 }}>
+              <ErrorBoundary>{children}</ErrorBoundary>
+            </main>
+          </div>
         </div>
         <Suspense><AccessDeniedHandler /></Suspense>
         <Toaster />

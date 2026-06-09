@@ -538,6 +538,16 @@ model Document {
   gstinConflict         Boolean            @default(false)
   gstinConflictNote     String?
   checklistId           String?
+  /// SHA-256 hash of raw file bytes — used for duplicate detection before OCR
+  fileHash              String?
+  /// Scan quality assessed by Tesseract pre-screener
+  scanQuality           String?           // HIGH | MEDIUM | POOR | UNREADABLE
+  /// Full audit trail of OCR routing decisions and costs
+  ocrAuditLog           Json?
+  /// Which engine ultimately produced the accepted extraction
+  ocrEngine             String?           // CLAUDE | TEXTRACT | DOCUMENT_AI | TESSERACT | HYBRID
+  /// Estimated OCR cost in paise (1/100 rupee) for cost tracking
+  ocrCostPaise          Int?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
@@ -554,6 +564,7 @@ model Document {
   @@index([companyId, documentType])
   @@index([companyId, status])
   @@index([companyId, createdAt])
+  @@index([companyId, fileHash])
   @@map("documents")
 }
 
