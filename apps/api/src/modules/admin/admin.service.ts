@@ -248,8 +248,9 @@ export class AdminService {
     )
     if (listRes.ok) {
       const all = await listRes.json() as Array<{ id: string; email_address: string; public_metadata: Record<string, unknown> }>
+      const emailLower = email.toLowerCase()
       const toRevoke = all.filter(
-        (inv) => inv.email_address === email && inv.public_metadata?.['companyId'] === companyId,
+        (inv) => inv.email_address.toLowerCase() === emailLower && inv.public_metadata?.['companyId'] === companyId,
       )
       for (const inv of toRevoke) {
         await fetch(`https://api.clerk.com/v1/invitations/${inv.id}/revoke`, { method: 'POST', headers })

@@ -213,9 +213,11 @@ export class SettingsService {
     companyId: string,
     dto: { email: string; role: 'ADMIN' | 'OPERATIONS_MANAGER' | 'STAFF'; moduleAccess?: string[] },
   ) {
-    // Check for existing active user with same email in this company
+    const emailNormalised = dto.email.trim().toLowerCase()
+
+    // Check for existing active user with same email in this company (case-insensitive)
     const existing = await this.prisma.user.findFirst({
-      where: { companyId, email: dto.email, isActive: true },
+      where: { companyId, email: { equals: emailNormalised, mode: 'insensitive' }, isActive: true },
     })
     if (existing) throw new ConflictException('A user with this email already exists in your firm')
 
@@ -224,7 +226,7 @@ export class SettingsService {
       ? sanitiseModuleAccess(dto.role as UserRole, dto.moduleAccess)
       : ROLE_DEFAULT_MODULES[dto.role as UserRole]
 
-    await this.adminService.sendClerkInvite(dto.email, companyId, dto.role, moduleAccess)
+    await this.adminService.sendClerkInvite(emailNormalised, companyId, dto.role, moduleAccess)
     this.logger.log(`Team invite sent to ${dto.email} (${dto.role}) modules: [${moduleAccess.join(',')}] for company ${companyId}`)
     return { ok: true }
   }
