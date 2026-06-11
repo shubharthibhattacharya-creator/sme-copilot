@@ -239,16 +239,21 @@ export class AdminService {
 
     const headers = { Authorization: `Bearer ${secretKey}`, 'Content-Type': 'application/json' }
 
-    // Revoke any existing pending invitations for this email
+    // Revoke any existing pending invitations for this exact email+company combo.
+    // NOTE: Clerk's GET /v1/invitations does not support email_address as a query filter —
+    // the param is silently ignored and all pending invites are returned. We must filter client-side.
     const listRes = await fetch(
-      `https://api.clerk.com/v1/invitations?email_address=${encodeURIComponent(email)}&status=pending`,
+      `https://api.clerk.com/v1/invitations?status=pending&limit=500`,
       { headers },
     )
     if (listRes.ok) {
-      const existing = await listRes.json() as Array<{ id: string }>
-      for (const inv of existing) {
+      const all = await listRes.json() as Array<{ id: string; email_address: string; public_metadata: Record<string, unknown> }>
+      const toRevoke = all.filter(
+        (inv) => inv.email_address === email && inv.public_metadata?.['companyId'] === companyId,
+      )
+      for (const inv of toRevoke) {
         await fetch(`https://api.clerk.com/v1/invitations/${inv.id}/revoke`, { method: 'POST', headers })
-        this.logger.log(`Revoked existing invite ${inv.id} for ${email}`)
+        this.logger.log(`Revoked existing invite ${inv.id} for ${email} (company ${companyId})`)
       }
     }
 
